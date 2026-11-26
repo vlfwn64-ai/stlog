@@ -1,3 +1,5 @@
+import { AccountSheet, LoginSheet } from './Account'
+import { cloudReady, providerOf, useCloud } from '../cloud'
 import { L, getLang, timesLabel } from '../i18n'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -42,6 +44,7 @@ export default function Menu({ go }: { go: Go }) {
   const st = s.settings
   const u = st.unit
   const [pop, setPop] = useState<Pop>(null)
+  const cloud = useCloud()
   const [backup, setBackup] = useState<{ data: AppState; exportedAt: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -142,7 +145,7 @@ export default function Menu({ go }: { go: Go }) {
           </div>
           <Row label={L('사용법 보기', 'How to use')} value="›" onClick={() => go({ name: 'tutorial', back: 'menu' })} />
           <Row label={L('제작자에게 피드백', 'Send feedback')} value={`@${FEEDBACK_IG} ›`} onClick={() => window.open(`https://ig.me/m/${FEEDBACK_IG}`, '_blank')} />
-          <Row label={L('계정', 'Account')} value={`${L('로그인 준비 중', 'Sign-in coming soon')} ›`} onClick={() => setPop('account')} />
+          <Row label={L('계정', 'Account')} value={`${!cloudReady ? L('로그인 준비 중', 'Sign-in coming soon') : cloud.session ? (providerOf(cloud.session) === 'kakao' ? L('카카오로 로그인됨', 'Signed in with Kakao') : L('Google로 로그인됨', 'Signed in with Google')) : L('로그인', 'Sign in')} ›`} onClick={() => setPop('account')} />
           <Row label={L('모든 기록 지우기', 'Erase all data')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />
         </Section>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.3</div>
@@ -300,7 +303,9 @@ export default function Menu({ go }: { go: Go }) {
           </button>
         </Sheet>
       )}
-      {pop === 'account' && (
+      {pop === 'account' && cloudReady && !cloud.session && <LoginSheet onClose={() => setPop(null)} />}
+      {pop === 'account' && cloudReady && cloud.session && <AccountSheet onClose={() => setPop(null)} />}
+      {pop === 'account' && !cloudReady && (
         <Sheet onClose={() => setPop(null)} title={L('계정', 'Account')}>
           <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px' }}>
             {L('구글·애플·카카오 로그인과 기기 간 동기화는 곧 추가돼요. 지금 기록은 이 기기에만 있으니 백업 내보내기로 보관해 주세요.', 'Sign in with Google, Apple, or Kakao and syncing are coming soon. For now your data lives on this device only, so export a backup to keep it safe.')}

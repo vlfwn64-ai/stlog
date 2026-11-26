@@ -1,5 +1,5 @@
 import { L, attemptLabel, setsLabel, shortReps, stageLabel, topLabel } from '../i18n'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { LiftKey } from '../logic/program'
 import { STAGES, advanceStage, deloadSets, firstAttempt, warmups } from '../logic/program'
 import { cancelWorkout, goNextStage, startWorkout } from '../actions'
@@ -45,7 +45,7 @@ function prevCycles(s: AppState, lift: LiftKey) {
     })
 }
 
-export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter?: boolean }) {
+export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go; enter?: boolean; slide?: 'left' | 'right' }) {
   const s = useApp()
   const th = TH[lift]
   const p = s.lifts[lift]
@@ -54,6 +54,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
   const [mode, setMode] = useState<'est' | 'act'>('est')
   const [pop, setPop] = useState<Pop>(null)
   const [openId, setOpenId] = useState<string | null>(null)
+  const swipe = useRef<{ x: number; y: number } | null>(null)
   const toggle = () => setMode(mode === 'est' ? 'act' : 'est')
 
   const est = latestEst(s, lift)
@@ -98,7 +99,27 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
   )
 
   return (
-    <div className="screen">
+    <div
+      className="screen"
+      onTouchStart={(e) => {
+        const t = e.touches[0]
+        swipe.current = { x: t.clientX, y: t.clientY }
+      }}
+      onTouchEnd={(e) => {
+        const st0 = swipe.current
+        swipe.current = null
+        if (!st0 || pop || openId) return
+        const t = e.changedTouches[0]
+        const dx = t.clientX - st0.x
+        const dy = t.clientY - st0.y
+        // 옆으로 확실히 민 경우만 (세로 스크롤과 구분)
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+        const i = CARD_ORDER.indexOf(lift)
+        const j = i + (dx < 0 ? 1 : -1)
+        if (j < 0 || j >= CARD_ORDER.length) return
+        go({ name: 'lift', lift: CARD_ORDER[j], from: dx < 0 ? 'right' : 'left' })
+      }}
+    >
       <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 0 8px', borderBottom: '1px solid var(--fill)' }}>
         <button aria-label={L('홈으로', 'Home')} onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: enter ? 'fadeIn 250ms ease both' : undefined }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -109,7 +130,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
           {CARD_ORDER.map((k) => {
             const on = k === lift
             return (
-              <button key={k} aria-current={on ? 'page' : undefined} onClick={() => !on && go({ name: 'lift', lift: k })} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, paddingTop: 10 }}>
+              <button key={k} aria-current={on ? 'page' : undefined} onClick={() => !on && go({ name: 'lift', lift: k, from: CARD_ORDER.indexOf(k) > CARD_ORDER.indexOf(lift) ? 'right' : 'left' })} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, paddingTop: 10 }}>
                 <span style={{ fontSize: 16, fontWeight: on ? 700 : 500, color: on ? TH[k].text : 'var(--sub)' }}>{TH[k].tab}</span>
                 <span style={{ width: on ? '100%' : '60%', height: 3, borderRadius: 2, background: TH[k].acc }} />
               </button>
@@ -118,7 +139,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
         </nav>
       </header>
 
-      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 20px 0', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) both' : undefined }}>
+      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 20px 0', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) both' : slide ? `${slide === 'right' ? 'fromRight' : 'fromLeft'} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}>
         <h1 className="num" style={{ fontSize: 22, fontWeight: 800 }}>
           {p.stage === 4 ? (
             <>

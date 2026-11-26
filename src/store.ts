@@ -91,6 +91,8 @@ export interface AppState {
   /** 실제 1RM 기록 (온보딩·테스트) */
   rmHistory: { date: string; lift: LiftKey; rm: number }[]
   active?: ActiveWorkout
+  /** 마지막으로 바뀐 시각 (동기화 비교용, ms) */
+  updatedAt?: number
 }
 
 const KEY = 'stlog:v1'
@@ -157,14 +159,24 @@ export function getState() {
   return state
 }
 
-export function setState(fn: (s: AppState) => AppState) {
+type ChangeListener = (fromCloud: boolean) => void
+const changeListeners = new Set<ChangeListener>()
+/** 기록이 바뀔 때마다 알림 (동기화용). fromCloud면 서버에서 받아온 변경 */
+export function onChange(cb: ChangeListener) {
+  changeListeners.add(cb)
+  return () => changeListeners.delete(cb)
+}
+
+export function setState(fn: (s: AppState) => AppState, opts?: { fromCloud?: boolean }) {
   state = fn(state)
+  if (!opts?.fromCloud) state = { ...state, updatedAt: Date.now() }
   try {
     localStorage.setItem(KEY, JSON.stringify(state))
   } catch {
     /* 저장 실패는 무시 (사파리 개인정보 보호 모드 등) */
   }
   listeners.forEach((l) => l())
+  changeListeners.forEach((l) => l(!!opts?.fromCloud))
 }
 
 export function resetAll() {

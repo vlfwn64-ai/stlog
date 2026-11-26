@@ -1,3 +1,5 @@
+import { LoginSheet } from './Account'
+import { cloudReady } from '../cloud'
 import { L } from '../i18n'
 import { useState } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
@@ -16,6 +18,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
   const [gear, setGear] = useState<string[]>(['벨트', '스트랩', '니슬리브'])
   const [custom, setCustom] = useState<string[]>([])
   const [adding, setAdding] = useState(false)
+  const [login, setLogin] = useState(false)
   const [plate, setPlate] = useState(2.5)
 
   const changeUnit = (u: Unit) => {
@@ -109,12 +112,18 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         )}
       </main>
 
-      <div style={{ padding: '12px 20px var(--safe-bot)' }}>
+      <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {cloudReady && step === 0 && (
+          <button onClick={() => setLogin(true)} style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
+            {L('기존 기록이 있어요 · 로그인', 'I already have a log · Sign in')}
+          </button>
+        )}
         <button onClick={() => (step === 3 ? finish() : setStep(step + 1))} style={{ width: '100%', height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}>
           {step === 3 ? L('시작하기', 'Get started') : L('다음', 'Next')}
         </button>
       </div>
 
+      {login && <LoginSheet onClose={() => setLogin(false)} />}
       {adding && (
         <AddGearSheet
           onClose={() => setAdding(false)}

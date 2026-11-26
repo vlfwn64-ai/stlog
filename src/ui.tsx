@@ -92,8 +92,11 @@ export function Sheet({
   children,
   gap = 16,
   tall,
+  locked,
 }: {
   onClose: () => void
+  /** 꼭 골라야 하는 시트: 바깥 누르기·끌어내리기로 안 닫힘 */
+  locked?: boolean
   eyebrow?: ReactNode
   eyebrowColor?: string
   title?: ReactNode
@@ -108,7 +111,14 @@ export function Sheet({
   const closeRef = useRef(onClose)
   closeRef.current = onClose
 
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
   const close = () => {
+    if (lockedRef.current) {
+      setDrag(false)
+      setDy(0)
+      return
+    }
     setClosing(true)
     setDrag(false)
     setTimeout(() => closeRef.current(), 200)
