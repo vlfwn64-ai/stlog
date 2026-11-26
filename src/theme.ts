@@ -30,6 +30,8 @@ export interface Theme {
   /** 세트 편집 카드 숫자 버튼 (다크에서도 밝은 색 그대로) */
   soft: string
   strong: string
+  /** 다크 모드 세트 편집 숫자 버튼 (짙은 원색 + 흰 글씨) */
+  press: string
 }
 
 const LIGHT: Record<LiftKey, Theme> = {
@@ -37,19 +39,19 @@ const LIGHT: Record<LiftKey, Theme> = {
     acc: '#D92B3A', on: '#ffffff', text: '#D92B3A', line: '#D92B3A', tint: '#FDECEE', deep: '#B4232F',
     boxLine: '#F3B6BC', rowBg: '#FFF4F5', shadow: '0 3px 10px rgba(217,43,58,0.35)',
     name: '벤치프레스', tab: 'Bench', title: 'Bench Press', label: '#D92B3A', letter: '#D92B3A',
-    testBg: '#D92B3A', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#B4232F', soft: '#FDECEE', strong: '#B4232F',
+    testBg: '#D92B3A', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#B4232F', soft: '#FDECEE', strong: '#B4232F', press: '#B4232F',
   },
   D: {
     acc: '#F5B800', on: '#191f28', text: '#9A6B00', line: '#C99700', tint: '#FFF6DB', deep: '#7A5500',
     boxLine: '#F5D27A', rowBg: '#FFF9E6', shadow: '0 3px 10px rgba(245,184,0,0.4)',
     name: '데드리프트', tab: 'Deadlift', title: 'Deadlift', label: '#9A6B00', letter: '#9A6B00',
-    testBg: '#F5B800', testFg: '#191f28', solidBg: '#191f28', solidFg: '#ffffff', soft: '#FFF6DB', strong: '#7A5500',
+    testBg: '#F5B800', testFg: '#191f28', solidBg: '#191f28', solidFg: '#ffffff', soft: '#FFF6DB', strong: '#7A5500', press: '#9A6B00',
   },
   S: {
     acc: '#0B8048', on: '#ffffff', text: '#0B8048', line: '#0B8048', tint: '#E6F6EE', deep: '#0B6B3C',
     boxLine: '#9FD9B9', rowBg: '#EEF8F2', shadow: '0 3px 10px rgba(11,128,72,0.3)',
     name: '스쿼트', tab: 'Squat', title: 'Squat', label: '#0B8048', letter: '#0B7A45',
-    testBg: '#0B8048', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#0B6B3C', soft: '#E6F6EE', strong: '#0B6B3C',
+    testBg: '#0B8048', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#0B6B3C', soft: '#E6F6EE', strong: '#0B6B3C', press: '#0B6B3C',
   },
 }
 
@@ -67,7 +69,11 @@ export const TH: Record<LiftKey, Theme> = {
   S: { ...LIGHT.S },
 }
 
+let darkOn = false
+export const isDark = () => darkOn
+
 export function setDark(dark: boolean) {
+  darkOn = dark
   for (const k of ['B', 'D', 'S'] as LiftKey[]) Object.assign(TH[k], LIGHT[k], dark ? DARK[k] : {})
 }
 

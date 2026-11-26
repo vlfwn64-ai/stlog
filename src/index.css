@@ -1,5 +1,5 @@
 :root {
-  --safe-top: max(env(safe-area-inset-top), 20px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bot: max(env(safe-area-inset-bottom), 20px);
 
   /* 라이트 */
@@ -104,7 +104,10 @@ h1, h2, h3, p { margin: 0; }
   overflow-y: auto;
   overscroll-behavior: contain;
   animation: up .22s ease;
+  -webkit-user-select: none;
+  user-select: none;
 }
+.sheet input { -webkit-user-select: text; user-select: text; }
 .grab { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line2); flex-shrink: 0; }
 @keyframes fadeIn { from { opacity: 0 } }
 @keyframes up { from { transform: translateY(48px); opacity: .5 } }

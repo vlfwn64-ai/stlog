@@ -162,11 +162,27 @@ export function PlatePicker({ value, unit, onChange }: { value: number; unit: 'k
 }
 
 /** 장비 고르기 2열 + 기타 추가 */
-export function GearGrid({ all, sel, onToggle, onAdd }: { all: string[]; sel: string[]; onToggle: (g: string) => void; onAdd: () => void }) {
+export function GearGrid({ all, sel, onToggle, onAdd, deleting, onDelete }: { all: string[]; sel: string[]; onToggle: (g: string) => void; onAdd: () => void; deleting?: boolean; onDelete?: (g: string) => void }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
       {all.map((g) => {
         const on = sel.includes(g)
+        if (deleting)
+          return (
+            <button
+              key={g}
+              aria-label={`${g} 삭제`}
+              onClick={() => onDelete?.(g)}
+              style={{ height: 56, borderRadius: 14, border: '1.5px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px' }}
+            >
+              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>{g}</span>
+              <span style={{ width: 24, height: 24, borderRadius: 12, background: '#D92B3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M5 12h14" />
+                </svg>
+              </span>
+            </button>
+          )
         return (
           <button
             key={g}
@@ -181,12 +197,14 @@ export function GearGrid({ all, sel, onToggle, onAdd }: { all: string[]; sel: st
           </button>
         )
       })}
+      {!deleting && (
       <button onClick={onAdd} style={{ height: 56, borderRadius: 14, border: '1.5px dashed var(--line3)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 15, color: 'var(--sub)' }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
         기타 추가
       </button>
+      )}
     </div>
   )
 }

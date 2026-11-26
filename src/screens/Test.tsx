@@ -91,8 +91,8 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
         </>
       ) : (
         <>
-          <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '24px 24px 0' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+          <main style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 18, padding: '24px 24px 8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', flexShrink: 0 }}>
               <span style={{ fontSize: 17, fontWeight: 700 }}>테스트 완료 · 새 1RM</span>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span className="num" style={{ fontSize: 88, fontWeight: 900, lineHeight: 1, letterSpacing: -2 }}>
@@ -104,14 +104,14 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
                 {best > p.oneRM ? `+${fmt(best - p.oneRM)}${u}` : '기존 1RM 유지'}
               </span>
             </div>
-            <span className="num" style={{ fontSize: 15, fontWeight: 700, textAlign: 'center' }}>
+            <span className="num" style={{ fontSize: 15, fontWeight: 700, textAlign: 'center', flexShrink: 0 }}>
               3대 {fmt(p.oneRM + others)} → {fmt(best + others)}
               {u}
             </span>
             {attempts.length > 0 && (
-              <div style={{ background: 'rgba(0,0,0,0.16)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ background: 'rgba(0,0,0,0.16)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column', minHeight: 0, flexShrink: 1, overflowY: 'auto', overscrollBehavior: 'contain' }}>
                 {attempts.map((a, k) => (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, fontSize: 15 }}>
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, flexShrink: 0, fontSize: 15 }}>
                     <span style={{ fontWeight: 600 }}>{k + 1}차 시도</span>
                     <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800 }}>
                       {fmt(a.weight)}

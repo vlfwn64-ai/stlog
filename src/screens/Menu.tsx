@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
 import { changeUnit, setOneRM } from '../actions'
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
-import { allGear, resetAll, setState, useApp } from '../store'
+import { GEAR, allGear, resetAll, setState, useApp } from '../store'
 import { CARD_ORDER, fmt } from '../theme'
 import { Confirm, SegToggle, Sheet } from '../ui'
 import type { Go } from '../App'
@@ -13,8 +13,8 @@ type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset'
 function Row({ label, value, onClick, color }: { label: string; value: ReactNode; onClick: () => void; color?: string }) {
   return (
     <button onClick={onClick} style={{ width: '100%', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <span style={{ fontSize: 16, color: color ?? 'var(--ink)' }}>{label}</span>
-      <span className="num" style={{ fontSize: 14, color: 'var(--sub)', textAlign: 'right' }}>
+      <span style={{ fontSize: 16, color: color ?? 'var(--ink)', whiteSpace: 'nowrap', flexShrink: 0 }}>{label}</span>
+      <span className="num" style={{ fontSize: 14, color: 'var(--sub)', textAlign: 'right', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {value}
       </span>
     </button>
@@ -42,6 +42,7 @@ export default function Menu({ go }: { go: Go }) {
   const [plate, setPlate] = useState(st.minPlate)
   const [bar, setBar] = useState(st.bar)
   const [gear, setGear] = useState(st.gear)
+  const [deleting, setDeleting] = useState(false)
   const set = (p: Partial<typeof st>) => setState((x) => ({ ...x, settings: { ...x.settings, ...p } }))
   const open = (p: Pop) => {
     setRm({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })
@@ -49,6 +50,7 @@ export default function Menu({ go }: { go: Go }) {
     setPlate(st.minPlate)
     setBar(st.bar)
     setGear(st.gear)
+    setDeleting(false)
     setPop(p)
   }
   const trio = (o: Record<LiftKey, number>) => `${CARD_ORDER.map((k) => fmt(o[k])).join(' · ')} ${u} ›`
@@ -178,24 +180,47 @@ export default function Menu({ go }: { go: Go }) {
         </Sheet>
       )}
       {pop === 'gear' && (
-        <Sheet onClose={() => setPop(null)} title="장비 설정" gap={20}>
-          <GearGrid all={allGear(st)} sel={gear} onToggle={(g) => setGear(gear.includes(g) ? gear.filter((x) => x !== g) : [...gear, g])} onAdd={() => setPop('addGear')} />
-          <button
-            style={saveBtn}
-            onClick={() => {
-              set({ gear })
-              setPop(null)
+        <Sheet onClose={() => setPop(null)} gap={20}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800 }}>장비 설정</h2>
+            <button onClick={() => setDeleting(!deleting)} style={{ height: 36, padding: '0 12px', borderRadius: 10, background: 'var(--fill)', fontSize: 14, fontWeight: 700, color: deleting ? 'var(--ink)' : '#D92B3A' }}>
+              {deleting ? '완료' : '삭제'}
+            </button>
+          </div>
+          <GearGrid
+            all={allGear(st)}
+            sel={gear}
+            deleting={deleting}
+            onToggle={(g) => setGear(gear.includes(g) ? gear.filter((x) => x !== g) : [...gear, g])}
+            onAdd={() => setPop('addGear')}
+            onDelete={(g) => {
+              setGear(gear.filter((x) => x !== g))
+              set({
+                gear: st.gear.filter((x) => x !== g),
+                customGear: st.customGear.filter((x) => x !== g),
+                removedGear: GEAR.includes(g) ? [...(st.removedGear ?? []), g] : st.removedGear,
+              })
             }}
-          >
-            저장
-          </button>
+          />
+          {!deleting && (
+            <button
+              style={saveBtn}
+              onClick={() => {
+                set({ gear })
+                setPop(null)
+              }}
+            >
+              저장
+            </button>
+          )}
         </Sheet>
       )}
       {pop === 'addGear' && (
         <AddGearSheet
           onClose={() => setPop('gear')}
           onAdd={(n) => {
-            if (!allGear(st).includes(n)) set({ customGear: [...st.customGear, n] })
+            if (GEAR.includes(n)) set({ removedGear: (st.removedGear ?? []).filter((x) => x !== n) })
+            else if (!st.customGear.includes(n)) set({ customGear: [...st.customGear, n] })
             if (!gear.includes(n)) setGear([...gear, n])
             setPop('gear')
           }}

@@ -5,7 +5,7 @@ import { STAGES } from '../logic/program'
 import { applyTopRpe, finishWorkout, updateSets } from '../actions'
 import type { SetRow } from '../store'
 import { allGear, uid, useApp } from '../store'
-import { SET_TYPES, TH, chipColors, fmt, md, typeName } from '../theme'
+import { SET_TYPES, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
 import { BeltIcon, Sheet } from '../ui'
 import type { Go } from '../App'
 
@@ -121,44 +121,52 @@ export default function Workout({ go }: { go: Go }) {
     else patch(r.id, { reps: Math.max(0, r.reps + d) })
   }
 
+  const dark = isDark()
   const rowView = (r: SetRow) => {
     const open = edit?.id === r.id
+    // 라이트: 펼친 줄 칸이 흰색 / 다크: 원래 어두운 칸 그대로
+    const lit = open && !dark
+    const dOpen = open && dark
     const fw = open && edit?.f === 'w'
     const fr = open && edit?.f === 'r'
-    const chip = chipColors(r.type, lift)
+    const chip = dOpen ? { bg: 'var(--fill2)', fg: r.type === 'W' ? 'var(--sub)' : th.text } : chipColors(r.type, lift)
     const cell = (sel: boolean): CSSProperties => ({
       height: 40,
       width: '100%',
       borderRadius: 10,
-      border: `2px solid ${sel ? th.strong : open ? '#fff' : 'transparent'}`,
-      background: open || sel ? '#fff' : 'var(--fill2)',
+      border: `2px solid ${sel ? (dark ? '#fff' : th.strong) : lit ? '#fff' : 'transparent'}`,
+      background: lit ? '#fff' : 'var(--fill2)',
       fontSize: 16,
       fontWeight: 700,
-      color: open ? '#191f28' : 'var(--ink)',
+      color: lit ? '#191f28' : 'var(--ink)',
     })
     const circle: CSSProperties = { justifySelf: 'center', width: 40, height: 40, borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    const doneBg = lit ? '#fff' : dOpen ? 'var(--fill2)' : th.acc
+    const doneFg = lit ? '#191f28' : dOpen ? th.text : th.on
     let done
     if (r.done && r.rpe !== undefined)
       done = (
-        <button onClick={() => tapDone(r)} aria-label={`완료됨, RPE ${r.rpe}`} style={{ ...circle, background: open ? '#fff' : th.acc, color: open ? '#191f28' : th.on, fontSize: 15, fontWeight: 800 }}>
+        <button onClick={() => tapDone(r)} aria-label={`완료됨, RPE ${r.rpe}`} style={{ ...circle, background: doneBg, color: doneFg, fontSize: 15, fontWeight: 800 }}>
           {r.rpe === 'fail' ? '실패' : r.rpe}
         </button>
       )
     else if (r.done)
       done = (
-        <button onClick={() => tapDone(r)} aria-label="완료됨" style={{ ...circle, background: open ? '#fff' : th.acc }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={open ? '#191f28' : th.on} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <button onClick={() => tapDone(r)} aria-label="완료됨" style={{ ...circle, background: doneBg }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={doneFg} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12l5 5 9-10" />
           </svg>
         </button>
       )
-    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? '완료하고 RPE 입력' : '완료'} style={{ ...circle, border: `2px solid ${open ? '#fff' : r.id === nextId ? th.line : 'var(--line2)'}`, background: open ? '#fff' : 'transparent' }} />
+    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? '완료하고 RPE 입력' : '완료'} style={{ ...circle, border: `2px solid ${lit ? '#fff' : dOpen ? 'var(--line2)' : r.id === nextId ? th.line : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }} />
+    const btnBg = dark ? th.press : th.soft
+    const btnFg = dark ? '#fff' : th.strong
 
     return (
       <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -6px', padding: open ? '6px 4px 10px' : '0 4px', borderRadius: 16, border: `2px solid ${open ? th.acc : 'transparent'}`, background: open ? th.acc : 'transparent' }}>
         <div className="grid5" style={{ height: 48 }}>
           <button onClick={() => (setEdit(null), setTypeFor({ id: r.id, sel: r.type }))} aria-label={`세트 종류 ${typeName(r.type)}, 바꾸기`} style={{ justifySelf: 'center', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: open ? '#fff' : chip.bg, color: open ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: lit ? '#fff' : chip.bg, color: lit ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
           </button>
           <button className="num" onClick={() => setEdit(fw ? null : { id: r.id, f: 'w' })} aria-label={`무게 ${r.weight}${u}, 바꾸기`} style={cell(fw)}>
             {fmt(r.weight)}
@@ -168,12 +176,12 @@ export default function Workout({ go }: { go: Go }) {
           </button>
           {done}
           {r.gear.length ? (
-            <button onClick={() => setGearFor({ id: r.id, sel: r.gear, rest: true })} aria-label={`장비: ${r.gear.join(', ')}`} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, background: open ? '#fff' : 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BeltIcon color={open ? '#191f28' : 'var(--ink2)'} />
+            <button onClick={() => setGearFor({ id: r.id, sel: r.gear, rest: true })} aria-label={`장비: ${r.gear.join(', ')}`} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BeltIcon color={lit ? '#191f28' : 'var(--ink2)'} />
             </button>
           ) : (
-            <button onClick={() => setGearFor({ id: r.id, sel: [], rest: true })} aria-label="장비 선택" style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, border: `1.5px dashed ${open ? '#fff' : 'var(--line2)'}`, background: open ? '#fff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: open ? '#191f28' : 'var(--mute)' }} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <button onClick={() => setGearFor({ id: r.id, sel: [], rest: true })} aria-label="장비 선택" style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, border: `1.5px dashed ${lit ? '#fff' : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: lit ? '#191f28' : 'var(--mute)' }} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
@@ -183,11 +191,11 @@ export default function Workout({ go }: { go: Go }) {
           <>
             <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 76px', gridTemplateRows: 'repeat(2, 40px)', gap: 6 }}>
               {[10, 5, 1, -10, -5, -1].map((d) => (
-                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? '무게' : '횟수'} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: th.soft, color: th.strong }}>
+                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? '무게' : '횟수'} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: btnBg, color: btnFg }}>
                   {d > 0 ? `+${d}` : `−${-d}`}
                 </button>
               ))}
-              <button onClick={() => setEdit(null)} style={{ gridColumn: 4, gridRow: '1 / span 2', fontSize: 15, fontWeight: 800, borderRadius: 10, background: th.soft, color: th.strong }}>
+              <button onClick={() => setEdit(null)} style={{ gridColumn: 4, gridRow: '1 / span 2', fontSize: 15, fontWeight: 800, borderRadius: 10, background: btnBg, color: btnFg }}>
                 확인
               </button>
             </div>

@@ -9,6 +9,8 @@ export interface Settings {
   gear: string[]
   /** 직접 추가한 장비 이름 */
   customGear: string[]
+  /** 목록에서 지운 기본 장비 */
+  removedGear?: string[]
   goal: Record<LiftKey, number>
   /** 화면 테마 */
   theme: 'light' | 'dark' | 'system'
@@ -80,7 +82,7 @@ const KEY = 'stlog:v1'
 export const GEAR = ['벨트', '스트랩', '니슬리브', '니랩', '리스트랩', '엘보슬리브', '역도화']
 
 /** 고를 수 있는 장비 전체 (기본 + 직접 추가) */
-export const allGear = (s: Settings) => [...GEAR, ...s.customGear.filter((g) => !GEAR.includes(g))]
+export const allGear = (s: Settings) => [...GEAR.filter((g) => !(s.removedGear ?? []).includes(g)), ...s.customGear.filter((g) => !GEAR.includes(g))]
 
 export const today = () => {
   const d = new Date()

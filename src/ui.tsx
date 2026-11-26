@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { useId } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { LiftKey } from './logic/program'
 import { TH } from './theme'
 
@@ -24,7 +24,7 @@ export const I = {
 }
 
 export const BeltIcon = ({ color = 'var(--ink2)' }: { color?: string }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ stroke: color }} strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
     <rect x="2" y="8" width="20" height="8" rx="2" />
     <rect x="9" y="6.5" width="6" height="11" rx="1.5" />
   </svg>
@@ -82,7 +82,7 @@ export function SegToggle<T extends string>({ options, value, onChange, minWidth
   )
 }
 
-/** 목업 바텀 시트: 손잡이 · 작은 색 글씨 · 큰 제목 */
+/** 목업 바텀 시트: 손잡이 · 작은 색 글씨 · 큰 제목. 아래로 끌어내리면 닫힌다 */
 export function Sheet({
   onClose,
   eyebrow,
@@ -100,10 +100,94 @@ export function Sheet({
   gap?: number
   tall?: boolean
 }) {
+  const ref = useRef<HTMLElement>(null)
+  const [dy, setDy] = useState(0)
+  const [drag, setDrag] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
+  const close = () => {
+    setClosing(true)
+    setDrag(false)
+    setTimeout(() => closeRef.current(), 200)
+  }
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let y0 = 0
+    let t0 = 0
+    let cur = 0
+    let active = false
+    let down = false
+    const begin = (y: number) => {
+      y0 = y
+      t0 = Date.now()
+      cur = 0
+      active = false
+      down = true
+    }
+    const move = (y: number, e: Event) => {
+      if (!down) return
+      const d = y - y0
+      if (!active) {
+        // 맨 위까지 스크롤된 상태에서 아래로 끌 때만
+        if (d > 6 && el.scrollTop <= 0) {
+          active = true
+          y0 = y
+        } else return
+      }
+      e.preventDefault()
+      cur = Math.max(0, y - y0)
+      setDrag(true)
+      setDy(cur)
+    }
+    const end = () => {
+      down = false
+      if (!active) return
+      active = false
+      const v = cur / Math.max(1, Date.now() - t0)
+      if (cur > 110 || v > 0.6) close()
+      else {
+        setDrag(false)
+        setDy(0)
+      }
+    }
+    const ts = (e: TouchEvent) => begin(e.touches[0].clientY)
+    const tm = (e: TouchEvent) => move(e.touches[0].clientY, e)
+    const md = (e: MouseEvent) => begin(e.clientY)
+    const mm = (e: MouseEvent) => move(e.clientY, e)
+    el.addEventListener('touchstart', ts, { passive: true })
+    el.addEventListener('touchmove', tm, { passive: false })
+    el.addEventListener('touchend', end)
+    el.addEventListener('touchcancel', end)
+    el.addEventListener('mousedown', md)
+    window.addEventListener('mousemove', mm)
+    window.addEventListener('mouseup', end)
+    return () => {
+      el.removeEventListener('touchstart', ts)
+      el.removeEventListener('touchmove', tm)
+      el.removeEventListener('touchend', end)
+      el.removeEventListener('touchcancel', end)
+      el.removeEventListener('mousedown', md)
+      window.removeEventListener('mousemove', mm)
+      window.removeEventListener('mouseup', end)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const shift = closing ? '100%' : `${dy}px`
   return (
     <div className="sheet-wrap">
-      <button className="sheet-dim" aria-label="닫기" onClick={onClose} />
-      <section role="dialog" aria-modal="true" className="sheet" style={{ gap, top: tall ? 'calc(var(--safe-top) + 73px)' : undefined }}>
+      <button className="sheet-dim" aria-label="닫기" onClick={close} style={{ opacity: closing ? 0 : 1 - Math.min(0.6, dy / 500), transition: drag ? 'none' : 'opacity 200ms ease' }} />
+      <section
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        className="sheet"
+        style={{ gap, top: tall ? 'calc(var(--safe-top) + 73px)' : undefined, transform: `translateY(${shift})`, transition: drag ? 'none' : 'transform 200ms cubic-bezier(0.2,0.8,0.2,1)' }}
+      >
         <div className="grab" />
         {(eyebrow || title) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 4px' }}>
