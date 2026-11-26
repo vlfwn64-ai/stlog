@@ -30,6 +30,13 @@ const arrowBtn: CSSProperties = { width: 44, height: 44, display: 'flex', alignI
 
 function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }) {
   const [off, setOff] = useState(0)
+  // 달이 넘어간 방향 (새 달이 그쪽에서 들어온다)
+  const [dir, setDir] = useState<'fromRight' | 'fromLeft' | null>(null)
+  const swipe = useRef<{ x: number; y: number } | null>(null)
+  const move = (n: number) => {
+    setDir(n > 0 ? 'fromRight' : 'fromLeft')
+    setOff(off + n)
+  }
   const base = new Date()
   const d0 = new Date(base.getFullYear(), base.getMonth() + off, 1)
   const y = d0.getFullYear()
@@ -43,25 +50,41 @@ function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }
   const key = (d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   const todayKey = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`
   return (
-    <section>
+    <section
+      onTouchStart={(e) => {
+        const t = e.touches[0]
+        swipe.current = { x: t.clientX, y: t.clientY }
+      }}
+      onTouchEnd={(e) => {
+        const st0 = swipe.current
+        swipe.current = null
+        if (!st0) return
+        const t = e.changedTouches[0]
+        const dx = t.clientX - st0.x
+        const dy = t.clientY - st0.y
+        // 옆으로 확실히 민 경우만 (세로 스크롤과 구분). 왼쪽으로 밀면 다음 달
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+        move(dx < 0 ? 1 : -1)
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <h2 className="num" style={{ fontSize: 18, fontWeight: 800 }}>
           {monthTitle(y, m)}
         </h2>
         <div style={{ display: 'flex' }}>
-          <button style={arrowBtn} aria-label={L('이전 달', 'Previous month')} onClick={() => setOff(off - 1)}>
+          <button style={arrowBtn} aria-label={L('이전 달', 'Previous month')} onClick={() => move(-1)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M15 6l-6 6 6 6" />
             </svg>
           </button>
-          <button style={arrowBtn} aria-label={L('다음 달', 'Next month')} onClick={() => setOff(off + 1)}>
+          <button style={arrowBtn} aria-label={L('다음 달', 'Next month')} onClick={() => move(1)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
           </button>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' }}>
+      <div key={off} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center', animation: dir ? `${dir} 240ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}>
         {weekHead().map((w, wi) => (
           <span key={wi} style={{ fontSize: 12, color: 'var(--mute)', paddingBottom: 2 }}>
             {w}

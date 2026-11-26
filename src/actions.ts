@@ -182,6 +182,18 @@ export function changeUnit(to: Unit) {
   }))
 }
 
+/** 원판 최소 단위 바꾸기. adjust면 지금 처방(탑세트·백오프)도 새 단위로 내림 */
+export function setMinPlate(minPlate: number, adjust: boolean) {
+  const st = stepOf(minPlate)
+  setState((x) => ({
+    ...x,
+    settings: { ...x.settings, minPlate },
+    lifts: adjust
+      ? (Object.fromEntries((Object.keys(x.lifts) as LiftKey[]).map((k) => [k, { ...x.lifts[k], top: roundDown(x.lifts[k].top, st), backoff: roundDown(x.lifts[k].backoff, st) }])) as typeof x.lifts)
+      : x.lifts,
+  }))
+}
+
 /** 쉬는 시간 상태 저장 (기록 중 화면을 나갔다 와도 이어진다) */
 export function setRest(rest: RestState) {
   setState((x) => (x.active ? { ...x, active: { ...x.active, rest } } : x))

@@ -4,14 +4,15 @@ import { L, getLang, isEn, timesLabel } from '../i18n'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
-import { changeUnit, setOneRM } from '../actions'
+import { roundDown, stepOf } from '../logic/program'
+import { changeUnit, setMinPlate, setOneRM } from '../actions'
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
 import { GEAR, allGear, resetAll, setState, useApp } from '../store'
-import { CARD_ORDER, fmt, gearName } from '../theme'
-import { Confirm, SegToggle, Sheet } from '../ui'
+import { CARD_ORDER, TH, fmt, gearName } from '../theme'
+import { Confirm, SegToggle, Sheet, SummaryRows } from '../ui'
 import type { Go } from '../App'
 
-type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'account'
+type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'account' | 'plateAdjust'
 
 /** 피드백을 받을 인스타그램 계정 */
 const FEEDBACK_IG = 'pharmaco_lifting_stlog'
@@ -59,6 +60,14 @@ export default function Menu({ go }: { go: Go }) {
     setGear(st.gear)
     setDeleting(false)
     setPop(p)
+  }
+  /** 새 원판 단위로 바꿀 때 달라지는 처방 무게 [종목, 탑세트 전→후, 백오프 전→후] */
+  const plateChanges = (mp: number) => {
+    const sp = stepOf(mp)
+    return CARD_ORDER.map((k) => {
+      const p = s.lifts[k]
+      return { k, top: [p.top, roundDown(p.top, sp)], bo: [p.backoff, roundDown(p.backoff, sp)] }
+    }).filter((c) => c.top[0] !== c.top[1] || c.bo[0] !== c.bo[1])
   }
   const trio = (o: Record<LiftKey, number>) => `${CARD_ORDER.map((k) => fmt(o[k])).join(' · ')} ${u} ›`
 
@@ -118,7 +127,7 @@ export default function Menu({ go }: { go: Go }) {
 
       {pop === 'rm' && (
         <Sheet onClose={() => setPop(null)} title={L('1RM 설정', '1RM')} gap={20}>
-          <DialSet vals={rm} unit={u} onChange={setRm} />
+          <DialSet vals={rm} unit={u} step={stepOf(st.minPlate)} onChange={setRm} />
           <button
             style={saveBtn}
             onClick={() => {
@@ -132,7 +141,7 @@ export default function Menu({ go }: { go: Go }) {
       )}
       {pop === 'goal' && (
         <Sheet onClose={() => setPop(null)} title={L('목표 중량', 'Goals')} gap={20}>
-          <DialSet vals={goal} unit={u} onChange={setGoal} />
+          <DialSet vals={goal} unit={u} step={stepOf(st.minPlate)} onChange={setGoal} />
           <button
             style={saveBtn}
             onClick={() => {
@@ -153,7 +162,10 @@ export default function Menu({ go }: { go: Go }) {
           <button
             style={saveBtn}
             onClick={() => {
-              set({ minPlate: plate })
+              if (plate === st.minPlate) return setPop(null)
+              // 지금 처방 무게가 새 단위로 안 맞으면 맞출지 묻는다
+              if (plateChanges(plate).length) return setPop('plateAdjust')
+              setMinPlate(plate, false)
               setPop(null)
             }}
           >
@@ -242,6 +254,42 @@ export default function Menu({ go }: { go: Go }) {
         />
       )}
       {pop === 'account' && cloud.session && <AccountSheet onClose={() => setPop(null)} />}
+      {pop === 'plateAdjust' && (
+        <Sheet onClose={() => setPop('plate')} eyebrow={L('원판 최소 단위', 'Smallest plate')} title={L('프로그램 무게도 바꿀까요?', 'Update program weights too?')}>
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px', marginTop: -4 }}>
+            {L(`지금 처방 중 ${plate}${u} 원판으로 못 맞추는 무게가 있어요. 바꾸면 가까운 아래 무게로 맞춰요.`, `Some of your current weights can’t be loaded with ${plate}${u} plates. Updating rounds them down to the nearest weight you can load.`)}
+          </p>
+          <SummaryRows
+            rows={plateChanges(plate).flatMap((c) => {
+              const r: [string, string][] = []
+              const name = TH[c.k].name
+              if (c.top[0] !== c.top[1]) r.push([`${name} ${L('탑세트', 'top set')}`, `${fmt(c.top[0])} → ${fmt(c.top[1])}${u}`])
+              if (c.bo[0] !== c.bo[1]) r.push([`${name} ${L('백오프', 'back-off')}`, `${fmt(c.bo[0])} → ${fmt(c.bo[1])}${u}`])
+              return r
+            })}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => {
+                setMinPlate(plate, false)
+                setPop(null)
+              }}
+              style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}
+            >
+              {L('그대로', 'Keep')}
+            </button>
+            <button
+              onClick={() => {
+                setMinPlate(plate, true)
+                setPop(null)
+              }}
+              style={{ ...saveBtn, flex: 1 }}
+            >
+              {L('무게 바꾸기', 'Update weights')}
+            </button>
+          </div>
+        </Sheet>
+      )}
       {pop === 'reset' && (
         <Confirm
           eyebrow={L('설정', 'Settings')}

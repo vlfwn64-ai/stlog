@@ -1,6 +1,7 @@
 import { L } from '../i18n'
 import { useState } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
+import { stepOf } from '../logic/program'
 import { AddGearSheet, DialSet, GearGrid, PLATES, PlatePicker } from '../dial'
 import { GEAR, initialLifts, setState, today } from '../store'
 import { CARD_ORDER, TH } from '../theme'
@@ -73,7 +74,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
               <SegToggle options={['kg', 'lb'] as Unit[]} value={unit} onChange={changeUnit} />
             </div>
             <p style={{ ...sub, marginTop: -12 }}>{step === 1 ? L('종목별 목표 1RM을 정해주세요.', 'Set a goal 1RM for each lift.') : L('최근 1RM을 입력해주세요. 정확하지 않아도 괜찮아요.', 'Enter your recent 1RM. A rough number is fine.')}</p>
-            <DialSet vals={step === 1 ? goal : now} unit={unit} onChange={step === 1 ? setGoal : setNow} />
+            <DialSet vals={step === 1 ? goal : now} unit={unit} step={stepOf(plate)} onChange={step === 1 ? setGoal : setNow} />
           </div>
         )}
 

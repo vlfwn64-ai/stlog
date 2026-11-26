@@ -39,3 +39,38 @@ export function beep() {
     /* 무시 */
   }
 }
+
+let tickBuf: AudioBuffer | null = null
+
+/** 다이얼 한 칸 넘길 때 짧은 딸깍 (빠르게 돌리면 드르륵) */
+export function tick() {
+  if (!ctx) return
+  try {
+    const c = ctx
+    if (!tickBuf) {
+      // 12ms짜리 빠르게 사라지는 잡음
+      const n = Math.floor(c.sampleRate * 0.012)
+      tickBuf = c.createBuffer(1, n, c.sampleRate)
+      const d = tickBuf.getChannelData(0)
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4)
+    }
+    const src = c.createBufferSource()
+    src.buffer = tickBuf
+    const bp = c.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 2600
+    bp.Q.value = 1.2
+    const g = c.createGain()
+    g.gain.value = 0.9
+    src.connect(bp).connect(g).connect(c.destination)
+    src.start()
+  } catch {
+    /* 무시 */
+  }
+  // 안드로이드는 짧은 진동도 같이
+  try {
+    navigator.vibrate?.(4)
+  } catch {
+    /* 무시 */
+  }
+}

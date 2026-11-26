@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { Sheet } from './ui'
 import type { LiftKey } from './logic/program'
 import { CARD_ORDER, TH, fmt, gearName } from './theme'
+import { tick, unlockAudio } from './sound'
 
 /** 세로 다이얼: 위아래로 끌거나 위·아래 숫자를 눌러 바꾼다 */
 export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; value: number; step: number; unit: string; onChange: (v: number) => void }) {
@@ -12,15 +13,22 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
   const drag = useRef<{ y: number; v: number; moved: boolean } | null>(null)
   const [off, setOff] = useState(0)
   const [snap, setSnap] = useState(false)
+  /** 증량 단위에 맞춘 값 (원판 단위를 바꿔서 칸이 어긋났을 때) */
+  const align = (v: number) => +(Math.round(v / step) * step).toFixed(2)
+  const at = (base: number, n: number) => Math.max(0, +(base + n * step).toFixed(2))
+  const change = (v: number) => {
+    onChange(v)
+    tick()
+  }
 
   const shift = (n: number, from = n * ROW) => {
-    const v = Math.max(0, value + n * step)
+    const v = at(align(value), n)
     if (v === value) {
       setSnap(true)
       setOff(0)
       return
     }
-    onChange(v)
+    change(v)
     // 새 값이 원래 자리에서 가운데로 미끄러져 오게
     setSnap(false)
     setOff(from)
@@ -32,11 +40,14 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
     )
   }
 
-  const items = [-2, -1, 0, 1, 2].map((i) => value + i * step)
+  const items = [-2, -1, 0, 1, 2].map((i) => +(value + i * step).toFixed(2))
   return (
     <div
       onPointerDown={(e) => {
-        drag.current = { y: e.clientY, v: value, moved: false }
+        unlockAudio()
+        const v0 = align(value)
+        if (v0 !== value) onChange(v0)
+        drag.current = { y: e.clientY, v: v0, moved: false }
         setSnap(false)
         ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
       }}
@@ -47,9 +58,9 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
         if (Math.abs(dy) > 4) d.moved = true
         // 위로 끌면(dy<0) 값이 커진다
         const n = Math.trunc(-dy / ROW)
-        const v = Math.max(0, d.v + n * step)
-        if (v !== value) onChange(v)
-        const used = (v - d.v) / step
+        const v = at(d.v, n)
+        if (v !== value) change(v)
+        const used = Math.round((v - d.v) / step)
         setOff(dy + used * ROW)
       }}
       onPointerUp={(e) => {
@@ -81,6 +92,7 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
       aria-valuenow={value}
       tabIndex={0}
       onKeyDown={(e) => {
+        unlockAudio()
         if (e.key === 'ArrowUp') shift(-1)
         if (e.key === 'ArrowDown') shift(1)
       }}
@@ -106,9 +118,8 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
   )
 }
 
-/** 세 종목 다이얼 + 3대 합계 (온보딩 1·2단계, 설정의 1RM·목표) */
-export function DialSet({ vals, unit, onChange }: { vals: Record<LiftKey, number>; unit: string; onChange: (v: Record<LiftKey, number>) => void }) {
-  const step = unit === 'kg' ? 5 : 10
+/** 세 종목 다이얼 + 3대 합계 (온보딩 목표·현재, 설정의 1RM·목표). 한 칸 = 최소 원판 × 2 */
+export function DialSet({ vals, unit, step, onChange }: { vals: Record<LiftKey, number>; unit: string; step: number; onChange: (v: Record<LiftKey, number>) => void }) {
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
