@@ -15,16 +15,31 @@ type Pop = null | 'deload' | 'next' | 'test' | 'prev' | 'start' | 'startDeload' 
 
 const topOf = (x: SessionLog) => x.sets.find((r) => r.type === 'T' && r.done)
 
-/** 이번 사이클 단계별 기록 */
+/** 디로드 날 무게 (완료한 본 세트 중 가장 무거운 것) */
+const deloadOf = (x: SessionLog) => {
+  const w = x.sets.filter((r) => r.type !== 'W' && r.done).map((r) => r.weight)
+  return w.length ? Math.max(...w) : null
+}
+
+type Box = { w: string; d: string; id: string; deload?: boolean }
+
+/** 이번 사이클 단계별 기록 (디로드한 날도 그 단계 자리에 날짜순으로) */
 function cycleRows(s: AppState, lift: LiftKey) {
   const p = s.lifts[lift]
-  const cyc = s.sessions.filter((x) => x.lift === lift && !x.deload && (x.cycle ?? 1) === (p.cycle ?? 1))
-  return ([1, 2, 3] as const).map((n) => ({
+  const cyc = s.sessions.filter((x) => x.lift === lift && (x.cycle ?? 1) === (p.cycle ?? 1))
+  return ([1, 2, 3, 4] as const).map((n) => ({
     n: n as number,
-    label: shortReps(STAGES[n].topReps),
+    label: shortReps(n === 4 ? 1 : STAGES[n].topReps),
     boxes: cyc
-      .filter((x) => x.stage === n && topOf(x))
-      .map((x) => ({ w: fmt(topOf(x)!.weight), d: md(x.date), id: x.id })),
+      .filter((x) => x.stage === n)
+      .flatMap((x): Box[] => {
+        if (x.deload) {
+          const w = deloadOf(x)
+          return w === null ? [] : [{ w: fmt(w), d: md(x.date), id: x.id, deload: true }]
+        }
+        const t = topOf(x)
+        return t ? [{ w: fmt(t.weight), d: md(x.date), id: x.id }] : []
+      }),
   }))
 }
 
@@ -204,7 +219,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
               </svg>
             </button>
           </div>
-          {[...rows, ...(p.stage === 4 ? [{ n: 4, label: shortReps(1), boxes: [] as { w: string; d: string; id: string }[] }] : [])].map((r) => {
+          {rows.filter((r) => r.n < 4 || p.stage === 4 || r.boxes.length).map((r) => {
             const cur = r.n === p.stage
             const todayW = cur ? fmt(p.stage === 4 ? fa : p.top) : null
             return (
@@ -212,13 +227,21 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                 <span style={{ width: 34, flexShrink: 0, fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                   {r.boxes.map((b, i) => (
-                    <button key={i} onClick={() => setOpenId(b.id)} aria-label={L(`${b.d} 기록 보기`, `View ${b.d}`)} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: 'var(--ink)' }}>
+                    <button
+                      key={i}
+                      onClick={() => setOpenId(b.id)}
+                      aria-label={b.deload ? L(`${b.d} 디로드 기록 보기`, `View deload ${b.d}`) : L(`${b.d} 기록 보기`, `View ${b.d}`)}
+                      style={{ position: 'relative', width: 44, height: 44, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: b.deload ? 'var(--sub)' : 'var(--ink)' }}>
                         {b.w}
                       </span>
                       <span className="num" style={{ fontSize: 10, color: 'var(--mute)' }}>
                         {b.d}
                       </span>
+                      {b.deload && (
+                        <span style={{ position: 'absolute', top: -7, right: -6, height: 14, padding: '0 4px', borderRadius: 7, background: th.boxLine, color: th.deep, fontSize: 9, fontWeight: 800, lineHeight: '14px' }}>DL</span>
+                      )}
                     </button>
                   ))}
                   {todayW && (
