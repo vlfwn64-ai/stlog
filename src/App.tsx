@@ -66,6 +66,13 @@ export default function App() {
     startCloud()
   }, [])
 
+  // 앱을 열면 로고와 부제를 잠깐 보여준다
+  const [intro, setIntro] = useState(true)
+  useEffect(() => {
+    const t = setTimeout(() => setIntro(false), 1500)
+    return () => clearTimeout(t)
+  }, [])
+
   // 로그아웃하면 다음 로그인은 홈에서 시작
   const signedIn = !!cloud.session
   const [wasIn, setWasIn] = useState(signedIn)
@@ -88,7 +95,8 @@ export default function App() {
 
   let view
   // 로그인부터: 저장된 로그인 확인 → 로그인 화면 → 기록 불러오기 → 온보딩(새 사용자) → 홈
-  if (cloudReady && (!cloud.checked || (cloud.session && !cloud.ready))) view = <Splash />
+  const syncing = cloudReady && (!cloud.checked || (!!cloud.session && !cloud.ready))
+  if (intro || syncing) view = <Splash loading={!intro && syncing} />
   else if (cloudReady && !cloud.session) view = <LoginScreen />
   else if (!s.onboarded) view = <Onboarding onDone={() => go({ name: 'tutorial' })} />
   else if (route.name === 'menu') view = <Menu go={go} />

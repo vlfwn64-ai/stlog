@@ -65,9 +65,25 @@ const setLinked = (id: string | null) => {
 /** 기록이 사실상 비어 있는지 (새 기기·막 온보딩만 한 상태) */
 export const isEmpty = (s: AppState) => !s.onboarded || (s.sessions.length === 0 && s.tests.length === 0 && !s.active)
 
+const isProvider = (p: unknown): p is Provider => p === 'google' || p === 'kakao'
+
+/**
+ * 이번에 로그인한 방법.
+ * 카카오·구글 이메일이 같으면 서버가 한 계정으로 합쳐서 app_metadata.provider는 처음 가입한 쪽으로 남는다.
+ * 그래서 가장 최근에 로그인한 연결(identity)을 본다.
+ */
 export const providerOf = (s: Session | null): Provider | null => {
+  const ids = (s?.user?.identities ?? []).filter((i) => isProvider(i.provider))
+  const latest = [...ids].sort((a, b) => (b.last_sign_in_at ?? '').localeCompare(a.last_sign_in_at ?? ''))[0]
+  if (latest) return latest.provider as Provider
   const p = s?.user?.app_metadata?.provider
-  return p === 'google' || p === 'kakao' ? p : null
+  return isProvider(p) ? p : null
+}
+
+/** 이 계정에 연결된 로그인 방법 전부 */
+export const linkedProviders = (s: Session | null): Provider[] => {
+  const list = (s?.user?.app_metadata?.providers as string[] | undefined) ?? (s?.user?.identities ?? []).map((i) => i.provider)
+  return [...new Set(list)].filter(isProvider)
 }
 
 export async function signIn(provider: Provider) {
