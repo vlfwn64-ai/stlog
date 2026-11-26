@@ -43,7 +43,7 @@ function prevCycles(s: AppState, lift: LiftKey) {
     })
 }
 
-export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
+export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter?: boolean }) {
   const s = useApp()
   const th = TH[lift]
   const p = s.lifts[lift]
@@ -88,7 +88,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
       <button onClick={() => begin(deload)} style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}>
         훈련 시작
       </button>
-      <button onClick={() => setPop(null)} style={{ height: 48, fontSize: 15, fontWeight: 600, color: '#4E5968' }}>
+      <button onClick={() => setPop(null)} style={{ height: 48, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
         취소
       </button>
     </div>
@@ -96,8 +96,8 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
 
   return (
     <div className="screen">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 0 8px', borderBottom: '1px solid #F2F4F6' }}>
-        <button aria-label="홈으로" onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 0 8px', borderBottom: '1px solid var(--fill)' }}>
+        <button aria-label="홈으로" onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: enter ? 'fadeIn 250ms ease both' : undefined }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
@@ -107,7 +107,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
             const on = k === lift
             return (
               <button key={k} aria-current={on ? 'page' : undefined} onClick={() => !on && go({ name: 'lift', lift: k })} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, paddingTop: 10 }}>
-                <span style={{ fontSize: 16, fontWeight: on ? 700 : 500, color: on ? TH[k].text : '#4E5968' }}>{TH[k].tab}</span>
+                <span style={{ fontSize: 16, fontWeight: on ? 700 : 500, color: on ? TH[k].text : 'var(--sub)' }}>{TH[k].tab}</span>
                 <span style={{ width: on ? '100%' : '60%', height: 3, borderRadius: 2, background: TH[k].acc }} />
               </button>
             )
@@ -115,7 +115,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
         </nav>
       </header>
 
-      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 20px 0' }}>
+      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 20px 0', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) both' : undefined }}>
         <h1 className="num" style={{ fontSize: 22, fontWeight: 800 }}>
           {p.stage === 4 ? (
             <>
@@ -136,18 +136,18 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
               1RM 추이
-              <span className="num" style={{ fontSize: 13, fontWeight: 500, color: '#6B7684' }}>
+              <span className="num" style={{ fontSize: 13, fontWeight: 500, color: 'var(--mute)' }}>
                 {goal > p.oneRM ? `목표까지 ${fmt(goal - p.oneRM)}${u}` : '목표 달성'}
               </span>
             </h2>
             <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a="추정" b="실제" label={`그래프 기준 바꾸기, 지금 ${mode === 'est' ? '추정' : '실제'} 1RM`} />
           </div>
           <button type="button" onClick={toggle} aria-label="눌러서 추정과 실제 전환" style={{ display: 'block', width: '100%' }}>
-            <LiftChart lift={lift} pts={liftPoints(s, lift, mode)} unit={u} />
+            <LiftChart lift={lift} pts={liftPoints(s, lift, mode)} />
           </button>
         </section>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, background: '#F7F8FA', borderRadius: 14, padding: '12px 14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, background: 'var(--fill2)', borderRadius: 14, padding: '12px 14px' }}>
           {(
             [
               ['추정 1RM', est],
@@ -156,7 +156,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
             ] as [string, number | null][]
           ).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 12, color: '#6B7684' }}>{k}</span>
+              <span style={{ fontSize: 12, color: 'var(--mute)' }}>{k}</span>
               <span className="num" style={{ fontSize: 18, fontWeight: 700 }}>
                 {v === null ? '–' : fmt(v)}
                 {v !== null && <span style={{ fontSize: 13, fontWeight: 500 }}> {u}</span>}
@@ -169,11 +169,11 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
               이번 사이클
-              <span className="num" style={{ fontSize: 12, fontWeight: 500, color: '#6B7684' }}>
+              <span className="num" style={{ fontSize: 12, fontWeight: 500, color: 'var(--mute)' }}>
                 {md(p.cycleStart)}~
               </span>
             </h2>
-            <button onClick={() => setPop('prev')} style={{ height: 32, padding: '0 12px', borderRadius: 999, background: '#F7F8FA', display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, fontWeight: 600, color: '#4E5968' }}>
+            <button onClick={() => setPop('prev')} style={{ height: 32, padding: '0 12px', borderRadius: 999, background: 'var(--fill2)', display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>
               이전 사이클
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -185,14 +185,14 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
             const todayW = cur ? fmt(p.stage === 4 ? fa : p.top) : null
             return (
               <div key={r.n} style={cur ? { display: 'flex', alignItems: 'center', gap: 10, margin: '-6px -10px', padding: '6px 10px', borderRadius: 14, background: th.rowBg } : { display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 34, flexShrink: 0, fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : '#4E5968' }}>{r.label}</span>
+                <span style={{ width: 34, flexShrink: 0, fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                   {r.boxes.map((b, i) => (
-                    <div key={i} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: '#FFFFFF', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: '#191F28' }}>
+                    <div key={i} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: 'var(--ink)' }}>
                         {b.w}
                       </span>
-                      <span className="num" style={{ fontSize: 10, color: '#6B7684' }}>
+                      <span className="num" style={{ fontSize: 10, color: 'var(--mute)' }}>
                         {b.d}
                       </span>
                     </div>
@@ -206,18 +206,18 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
                     </div>
                   )}
                   {!r.boxes.length && !todayW && (
-                    <div style={{ height: 44, borderRadius: 10, border: '1.5px dashed #D1D6DB', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: '#6B7684' }}>아직 기록 없음</div>
+                    <div style={{ height: 44, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>아직 기록 없음</div>
                   )}
                 </div>
               </div>
             )
           })}
           <div style={{ display: 'grid', gridTemplateColumns: p.stage < 4 ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 8, marginTop: 2 }}>
-            <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: '#FFFFFF', fontSize: 14, fontWeight: 800, color: th.deep }}>
+            <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
               TEST하기
             </button>
             {p.stage < 4 && (
-              <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid #E5E8EB', background: '#FFFFFF', fontSize: 14, fontWeight: 600, color: '#333D4B' }}>
+              <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
                 다음 단계로
               </button>
             )}
@@ -225,10 +225,10 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
         </section>
       </main>
 
-      <div style={{ display: 'flex', gap: 8, padding: '14px 20px var(--safe-bot)' }}>
+      <div style={{ display: 'flex', gap: 8, padding: '14px 20px var(--safe-bot)', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) 60ms both' : undefined }}>
         <button
           onClick={() => setPop(live ? 'discard' : 'deload')}
-          style={{ width: 96, flexShrink: 0, height: 56, borderRadius: 14, border: '1px solid #E5E8EB', background: '#FFFFFF', fontSize: 16, fontWeight: 700, color: '#333D4B' }}
+          style={{ width: 96, flexShrink: 0, height: 56, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}
         >
           {live ? '기록 취소' : '디로드'}
         </button>
@@ -245,7 +245,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
               {fmt(p.top)}
               {u} × {cfg.topReps}
             </span>
-            <span style={{ fontSize: 14, color: '#4E5968' }}>
+            <span style={{ fontSize: 14, color: 'var(--sub)' }}>
               {th.name} · {stage3}단계 탑세트 · RPE 9까지
             </span>
           </div>
@@ -258,7 +258,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
             ]}
           />
           {lastSession && lastTop && (
-            <span className="num" style={{ fontSize: 13, color: '#6B7684' }}>
+            <span className="num" style={{ fontSize: 13, color: 'var(--mute)' }}>
               지난번 {md(lastSession.date)} · {fmt(lastTop.weight)}
               {u} × {lastTop.reps}
               {lastTop.rpe !== undefined ? ` @RPE ${lastTop.rpe === 'fail' ? '실패' : lastTop.rpe}` : ''}
@@ -276,7 +276,7 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
               {fmt(dl[0].weight)}
               {u} × {dl[0].reps}
             </span>
-            <span style={{ fontSize: 14, color: '#4E5968' }}>{th.name} · 디로드 · 1RM의 65%</span>
+            <span style={{ fontSize: 14, color: 'var(--sub)' }}>{th.name} · 디로드 · 1RM의 65%</span>
           </div>
           <SummaryRows
             small
@@ -373,27 +373,27 @@ export default function Lift({ lift, go }: { lift: LiftKey; go: Go }) {
             </button>
           </div>
           {prev.map((c) => (
-            <article key={c.id} style={{ border: '1px solid #E5E8EB', borderRadius: 16, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <article key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 16, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span className="num" style={{ fontSize: 17, fontWeight: 800 }}>
                   {c.range}
                 </span>
-                <span className="num" style={{ fontSize: 13, color: '#4E5968' }}>
+                <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
                   <span style={{ fontWeight: 800, color: th.deep }}>{c.to > c.from ? `+${fmt(c.to - c.from)}${u} 상승` : '유지'}</span> · 1RM {fmt(c.from)} → {fmt(c.to)}
                   {u} · {c.weeks}주
                 </span>
               </div>
               {c.rows.map((r) => (
                 <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 44, flexShrink: 0, fontSize: 13, fontWeight: 700, color: '#4E5968' }}>{r.label}</span>
-                  <span className="num" style={{ fontSize: 14, color: '#333D4B' }}>
+                  <span style={{ width: 44, flexShrink: 0, fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>{r.label}</span>
+                  <span className="num" style={{ fontSize: 14, color: 'var(--ink2)' }}>
                     {r.text}
                   </span>
                 </div>
               ))}
             </article>
           ))}
-          {prev.length === 0 && <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 14, color: '#6B7684' }}>아직 끝난 사이클이 없어요</div>}
+          {prev.length === 0 && <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 14, color: 'var(--mute)' }}>아직 끝난 사이클이 없어요</div>}
         </Sheet>
       )}
     </div>

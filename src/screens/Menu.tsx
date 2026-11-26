@@ -13,8 +13,8 @@ type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset'
 function Row({ label, value, onClick, color }: { label: string; value: ReactNode; onClick: () => void; color?: string }) {
   return (
     <button onClick={onClick} style={{ width: '100%', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <span style={{ fontSize: 16, color: color ?? '#191F28' }}>{label}</span>
-      <span className="num" style={{ fontSize: 14, color: '#4E5968', textAlign: 'right' }}>
+      <span style={{ fontSize: 16, color: color ?? 'var(--ink)' }}>{label}</span>
+      <span className="num" style={{ fontSize: 14, color: 'var(--sub)', textAlign: 'right' }}>
         {value}
       </span>
     </button>
@@ -23,14 +23,14 @@ function Row({ label, value, onClick, color }: { label: string; value: ReactNode
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section style={{ background: '#FFFFFF', padding: '8px 20px' }}>
-      <h2 style={{ margin: '8px 0 4px', fontSize: 13, fontWeight: 600, color: '#6B7684' }}>{title}</h2>
+    <section style={{ background: 'var(--surface)', padding: '8px 20px' }}>
+      <h2 style={{ margin: '8px 0 4px', fontSize: 13, fontWeight: 600, color: 'var(--mute)' }}>{title}</h2>
       {children}
     </section>
   )
 }
 
-const saveBtn = { height: 56, borderRadius: 14, background: '#191F28', color: '#FFFFFF', fontSize: 17, fontWeight: 700 } as const
+const saveBtn = { height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 } as const
 
 export default function Menu({ go }: { go: Go }) {
   const s = useApp()
@@ -54,8 +54,8 @@ export default function Menu({ go }: { go: Go }) {
   const trio = (o: Record<LiftKey, number>) => `${CARD_ORDER.map((k) => fmt(o[k])).join(' · ')} ${u} ›`
 
   return (
-    <div className="screen" style={{ background: '#F2F4F6', paddingTop: 0 }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(var(--safe-top) + 16px) 12px 8px 20px', background: '#FFFFFF' }}>
+    <div className="screen" style={{ background: 'var(--page2)', paddingTop: 0 }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(var(--safe-top) + 16px) 12px 8px 20px', background: 'var(--surface)' }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>설정</h1>
         <button aria-label="닫기" onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -78,13 +78,24 @@ export default function Menu({ go }: { go: Go }) {
           </div>
         </Section>
         <Section title="앱">
+          <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: 16 }}>테마</span>
+            <SegToggle
+              options={['라이트', '다크', '시스템']}
+              value={({ light: '라이트', dark: '다크', system: '시스템' } as const)[st.theme ?? 'light']}
+              onChange={(v) => set({ theme: v === '라이트' ? 'light' : v === '다크' ? 'dark' : 'system' })}
+              minWidth={52}
+              height={38}
+            />
+          </div>
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 16 }}>언어</span>
-            <span style={{ fontSize: 14, color: '#4E5968' }}>한국어</span>
+            <span style={{ fontSize: 14, color: 'var(--sub)' }}>한국어</span>
           </div>
+          <Row label="사용법 보기" value="›" onClick={() => go({ name: 'tutorial', back: 'menu' })} />
           <Row label="모든 기록 지우기" value="›" onClick={() => setPop('reset')} color="#D92B3A" />
         </Section>
-        <div style={{ textAlign: 'center', fontSize: 12, color: '#8B95A1', padding: '4px 0' }}>ST LOG v0.2</div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.3</div>
       </main>
 
       {pop === 'rm' && (
@@ -118,7 +129,7 @@ export default function Menu({ go }: { go: Go }) {
       {pop === 'plate' && (
         <Sheet onClose={() => setPop(null)} title="원판 최소 단위" gap={20}>
           <PlatePicker value={plate} unit={u} onChange={setPlate} />
-          <div style={{ background: '#F7F8FA', borderRadius: 14, padding: 16, fontSize: 15, fontWeight: 700 }}>
+          <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: 16, fontSize: 15, fontWeight: 700 }}>
             한 번에 {plate * 2}
             {u}씩 올려요
           </div>
@@ -141,18 +152,18 @@ export default function Menu({ go }: { go: Go }) {
                 key={d}
                 aria-label={d < 0 ? '바 무게 줄이기' : '바 무게 늘리기'}
                 onClick={() => setBar(Math.max(0, bar + d))}
-                style={{ order: i ? 2 : 0, width: 56, height: 56, borderRadius: 28, border: '1.5px solid #D1D6DB', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ order: i ? 2 : 0, width: 56, height: 56, borderRadius: 28, border: '1.5px solid var(--line2)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                   <path d={d < 0 ? 'M5 12h14' : 'M12 5v14M5 12h14'} />
                 </svg>
               </button>
             ))}
-            <div style={{ order: 1, width: 150, height: 96, borderRadius: 18, border: '2px solid #191F28', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
+            <div style={{ order: 1, width: 150, height: 96, borderRadius: 18, border: '2px solid var(--ink)', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
               <span className="num" style={{ fontSize: 44, fontWeight: 800, lineHeight: '92px' }}>
                 {fmt(bar)}
               </span>
-              <span style={{ fontSize: 17, fontWeight: 600, color: '#4E5968' }}>{u}</span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--sub)' }}>{u}</span>
             </div>
           </div>
           <button

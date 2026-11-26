@@ -23,7 +23,7 @@ export const I = {
   minus: 'M5 12h14',
 }
 
-export const BeltIcon = ({ color = '#333D4B' }: { color?: string }) => (
+export const BeltIcon = ({ color = 'var(--ink2)' }: { color?: string }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
     <rect x="2" y="8" width="20" height="8" rx="2" />
     <rect x="9" y="6.5" width="6" height="11" rx="1.5" />
@@ -39,12 +39,12 @@ export function PillToggle({ value, onToggle, a, b, label }: { value: 0 | 1; onT
     display: 'flex',
     alignItems: 'center',
     fontSize: 13,
-    background: on ? '#FFFFFF' : 'transparent',
-    color: on ? '#191F28' : '#6B7684',
+    background: on ? 'var(--pill)' : 'transparent',
+    color: on ? 'var(--ink)' : 'var(--mute)',
     fontWeight: on ? 700 : 600,
   })
   return (
-    <button type="button" onClick={onToggle} aria-label={label} style={{ display: 'flex', gap: 2, padding: 4, borderRadius: 999, background: '#F2F4F6' }}>
+    <button type="button" onClick={onToggle} aria-label={label} style={{ display: 'flex', gap: 2, padding: 4, borderRadius: 999, background: 'var(--fill)' }}>
       <span style={pill(value === 0)}>{a}</span>
       <span style={pill(value === 1)}>{b}</span>
     </button>
@@ -54,7 +54,7 @@ export function PillToggle({ value, onToggle, a, b, label }: { value: 0 | 1; onT
 /** 네모난 단위 토글 (kg / lb 등) */
 export function SegToggle<T extends string>({ options, value, onChange, minWidth = 44, height = 36 }: { options: T[]; value: T; onChange: (v: T) => void; minWidth?: number; height?: number }) {
   return (
-    <div role="group" style={{ display: 'flex', background: '#F2F4F6', borderRadius: 10, padding: 3, flexShrink: 0 }}>
+    <div role="group" style={{ display: 'flex', background: 'var(--fill)', borderRadius: 10, padding: 3, flexShrink: 0 }}>
       {options.map((o) => {
         const on = o === value
         return (
@@ -67,9 +67,9 @@ export function SegToggle<T extends string>({ options, value, onChange, minWidth
               height,
               borderRadius: 8,
               fontSize: 14,
-              background: on ? '#FFFFFF' : 'transparent',
+              background: on ? 'var(--pill)' : 'transparent',
               fontWeight: on ? 700 : 500,
-              color: on ? '#191F28' : '#4E5968',
+              color: on ? 'var(--ink)' : 'var(--sub)',
               boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08)' : undefined,
               padding: '0 8px',
             }}
@@ -107,7 +107,7 @@ export function Sheet({
         <div className="grab" />
         {(eyebrow || title) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 4px' }}>
-            {eyebrow && <span style={{ fontSize: 13, fontWeight: 700, color: eyebrowColor ?? '#191F28' }}>{eyebrow}</span>}
+            {eyebrow && <span style={{ fontSize: 13, fontWeight: 700, color: eyebrowColor ?? 'var(--ink)' }}>{eyebrow}</span>}
             {title && <h2 style={{ fontSize: 22, fontWeight: 800 }}>{title}</h2>}
           </div>
         )}
@@ -120,10 +120,10 @@ export function Sheet({
 /** 회색 카드 안 요약 표 (줄 사이 구분선) */
 export function SummaryRows({ rows, small }: { rows: [string, ReactNode][]; small?: boolean }) {
   return (
-    <div style={{ background: '#F7F8FA', borderRadius: small ? 14 : 16, padding: small ? 16 : '6px 16px', display: 'flex', flexDirection: 'column', gap: small ? 10 : 0 }}>
+    <div style={{ background: 'var(--fill2)', borderRadius: small ? 14 : 16, padding: small ? 16 : '6px 16px', display: 'flex', flexDirection: 'column', gap: small ? 10 : 0 }}>
       {rows.map(([k, v], i) => (
-        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, minHeight: small ? undefined : 44, borderTop: !small && i ? '1px solid #E5E8EB' : undefined, fontSize: 14 }}>
-          <span style={{ color: '#4E5968' }}>{k}</span>
+        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, minHeight: small ? undefined : 44, borderTop: !small && i ? '1px solid var(--line)' : undefined, fontSize: 14 }}>
+          <span style={{ color: 'var(--sub)' }}>{k}</span>
           <span style={{ fontSize: small ? 14 : 15, fontWeight: small ? 600 : 700, textAlign: 'right' }} className="num">
             {v}
           </span>
@@ -140,10 +140,10 @@ export function Confirm({ lift, eyebrow, title, rows, cta, onCancel, onOk }: { l
     <Sheet onClose={onCancel} eyebrow={eyebrow} eyebrowColor={th?.text} title={title}>
       <SummaryRows rows={rows} />
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={onCancel} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: '#F2F4F6', fontSize: 16, fontWeight: 700, color: '#333D4B' }}>
+        <button onClick={onCancel} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>
           취소
         </button>
-        <button onClick={onOk} style={{ flex: 1, height: 56, borderRadius: 14, background: th?.acc ?? '#191F28', color: th?.on ?? '#FFFFFF', fontSize: 17, fontWeight: 700 }}>
+        <button onClick={onOk} style={{ flex: 1, height: 56, borderRadius: 14, background: th?.acc ?? 'var(--ink)', color: th?.on ?? 'var(--onInk)', fontSize: 17, fontWeight: 700 }}>
           {cta}
         </button>
       </div>
@@ -167,7 +167,7 @@ const niceRange = (vals: number[]) => {
 }
 
 /** 종목 화면 1RM 추이 (목업 Lift 그래프와 같은 모양) */
-export function LiftChart({ lift, pts, unit }: { lift: LiftKey; pts: Pt[]; unit: string }) {
+export function LiftChart({ lift, pts }: { lift: LiftKey; pts: Pt[] }) {
   const gid = useId().replace(/:/g, '')
   const color = TH[lift].acc
   const show = pts.slice(-8)
@@ -204,7 +204,7 @@ export function LiftChart({ lift, pts, unit }: { lift: LiftKey; pts: Pt[]; unit:
       <polyline points={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
       {xy.map((p, i) => (
         <g key={i}>
-          <circle cx={p.x} cy={p.y} r={i === n - 1 ? 4 : 2.5} fill={i === n - 1 ? color : '#FFFFFF'} stroke={color} strokeWidth="2" />
+          <circle cx={p.x} cy={p.y} r={i === n - 1 ? 4 : 2.5} style={{ fill: i === n - 1 ? color : 'var(--bg)' }} stroke={color} strokeWidth="2" />
           <text x={p.x} y="132" fontSize="10" fill="#6B7684" textAnchor={n === 1 || i === n - 1 ? 'end' : i === 0 ? 'start' : 'middle'}>
             {show[i].date}
           </text>
@@ -213,15 +213,12 @@ export function LiftChart({ lift, pts, unit }: { lift: LiftKey; pts: Pt[]; unit:
       <text x={last.x} y={+(last.y - 10).toFixed(1)} fontSize="12" fontWeight="700" fill="#191F28" textAnchor="end">
         {show[n - 1].y}
       </text>
-      <text x="2" y="10" fontSize="10" fill="#6B7684">
-        {unit}
-      </text>
     </svg>
   )
 }
 
 /** 홈 3대 기록 그래프 (S·B·D 세 선) */
-export function HomeChart({ series, unit }: { series: { lift: LiftKey; pts: { t: number; y: number }[] }[]; unit: string }) {
+export function HomeChart({ series }: { series: { lift: LiftKey; pts: { t: number; y: number }[] }[] }) {
   const gid = useId().replace(/:/g, '')
   const hx0 = 40
   const hx1 = 334
@@ -284,9 +281,6 @@ export function HomeChart({ series, unit }: { series: { lift: LiftKey; pts: { t:
           {dl(t)}
         </text>
       ))}
-      <text x="2" y="10" fontSize="10" fill="#6B7684">
-        {unit}
-      </text>
     </svg>
   )
 }

@@ -7,7 +7,7 @@ import { SegToggle } from '../ui'
 
 type Vals = Record<LiftKey, number>
 
-export default function Onboarding() {
+export default function Onboarding({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0)
   const [unit, setUnit] = useState<Unit>('kg')
   const [goal, setGoal] = useState<Vals>({ B: 120, D: 200, S: 180 })
@@ -31,14 +31,15 @@ export default function Onboarding() {
     setState((s) => ({
       ...s,
       onboarded: true,
-      settings: { unit, minPlate: plate, bar: unit === 'kg' ? 20 : 45, gear, customGear: custom, goal },
+      settings: { ...s.settings, unit, minPlate: plate, bar: unit === 'kg' ? 20 : 45, gear, customGear: custom, goal },
       lifts: initialLifts(now, plate),
       rmHistory: CARD_ORDER.map((k) => ({ date: today(), lift: k, rm: now[k] })),
     }))
+    onDone()
   }
 
   const h1 = { fontSize: 24, lineHeight: 1.35, fontWeight: 800 } as const
-  const sub = { fontSize: 14, color: '#4E5968' } as const
+  const sub = { fontSize: 14, color: 'var(--sub)' } as const
 
   return (
     <div className="screen">
@@ -50,13 +51,13 @@ export default function Onboarding() {
             </svg>
           </button>
           <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.3 }}>ST LOG</span>
-          <span className="num" style={{ width: 44, textAlign: 'right', fontSize: 13, color: '#6B7684' }}>
+          <span className="num" style={{ width: 44, textAlign: 'right', fontSize: 13, color: 'var(--mute)' }}>
             {step + 1} / 4
           </span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6, paddingLeft: 12 }}>
           {[0, 1, 2, 3].map((i) => (
-            <span key={i} style={{ height: 4, borderRadius: 2, background: i <= step ? '#191F28' : '#E5E8EB' }} />
+            <span key={i} style={{ height: 4, borderRadius: 2, background: i <= step ? 'var(--ink)' : 'var(--line)' }} />
           ))}
         </div>
       </header>
@@ -95,12 +96,12 @@ export default function Onboarding() {
               <p style={{ fontSize: 14, fontWeight: 600, color: '#D92B3A' }}>제일 가벼운 원판 1개의 무게를 입력해 주세요</p>
             </div>
             <PlatePicker value={plate} unit={unit} onChange={setPlate} />
-            <div style={{ background: '#F7F8FA', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>
                 한 번에 {plate * 2}
                 {unit}씩 올려요
               </span>
-              <span style={{ fontSize: 13, lineHeight: 1.6, color: '#4E5968' }}>
+              <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
                 양쪽에 {plate}
                 {unit} 원판을 하나씩 끼우는 기준이에요. 설정에서 언제든 바꿀 수 있어요.
               </span>
@@ -110,7 +111,7 @@ export default function Onboarding() {
       </main>
 
       <div style={{ padding: '12px 20px var(--safe-bot)' }}>
-        <button onClick={() => (step === 3 ? finish() : setStep(step + 1))} style={{ width: '100%', height: 56, borderRadius: 14, background: '#191F28', color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}>
+        <button onClick={() => (step === 3 ? finish() : setStep(step + 1))} style={{ width: '100%', height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}>
           {step === 3 ? '시작하기' : '다음'}
         </button>
       </div>

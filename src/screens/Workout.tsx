@@ -130,35 +130,35 @@ export default function Workout({ go }: { go: Go }) {
       height: 40,
       width: '100%',
       borderRadius: 10,
-      border: `2px solid ${sel ? th.deep : open ? '#FFFFFF' : 'transparent'}`,
-      background: open || sel ? '#FFFFFF' : '#F7F8FA',
+      border: `2px solid ${sel ? th.strong : open ? '#fff' : 'transparent'}`,
+      background: open || sel ? '#fff' : 'var(--fill2)',
       fontSize: 16,
       fontWeight: 700,
-      color: '#191F28',
+      color: open ? '#191f28' : 'var(--ink)',
     })
     const circle: CSSProperties = { justifySelf: 'center', width: 40, height: 40, borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }
     let done
     if (r.done && r.rpe !== undefined)
       done = (
-        <button onClick={() => tapDone(r)} aria-label={`완료됨, RPE ${r.rpe}`} style={{ ...circle, background: open ? '#FFFFFF' : th.acc, color: open ? '#191F28' : th.on, fontSize: 15, fontWeight: 800 }}>
+        <button onClick={() => tapDone(r)} aria-label={`완료됨, RPE ${r.rpe}`} style={{ ...circle, background: open ? '#fff' : th.acc, color: open ? '#191f28' : th.on, fontSize: 15, fontWeight: 800 }}>
           {r.rpe === 'fail' ? '실패' : r.rpe}
         </button>
       )
     else if (r.done)
       done = (
-        <button onClick={() => tapDone(r)} aria-label="완료됨" style={{ ...circle, background: open ? '#FFFFFF' : th.acc }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={open ? '#191F28' : th.on} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <button onClick={() => tapDone(r)} aria-label="완료됨" style={{ ...circle, background: open ? '#fff' : th.acc }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={open ? '#191f28' : th.on} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12l5 5 9-10" />
           </svg>
         </button>
       )
-    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? '완료하고 RPE 입력' : '완료'} style={{ ...circle, border: `2px solid ${r.id === nextId ? th.line : '#D1D6DB'}`, background: '#FFFFFF' }} />
+    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? '완료하고 RPE 입력' : '완료'} style={{ ...circle, border: `2px solid ${open ? '#fff' : r.id === nextId ? th.line : 'var(--line2)'}`, background: open ? '#fff' : 'transparent' }} />
 
     return (
       <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -6px', padding: open ? '6px 4px 10px' : '0 4px', borderRadius: 16, border: `2px solid ${open ? th.acc : 'transparent'}`, background: open ? th.acc : 'transparent' }}>
         <div className="grid5" style={{ height: 48 }}>
           <button onClick={() => (setEdit(null), setTypeFor({ id: r.id, sel: r.type }))} aria-label={`세트 종류 ${typeName(r.type)}, 바꾸기`} style={{ justifySelf: 'center', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: open ? '#FFFFFF' : chip.bg, color: open ? '#191F28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: open ? '#fff' : chip.bg, color: open ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
           </button>
           <button className="num" onClick={() => setEdit(fw ? null : { id: r.id, f: 'w' })} aria-label={`무게 ${r.weight}${u}, 바꾸기`} style={cell(fw)}>
             {fmt(r.weight)}
@@ -168,12 +168,12 @@ export default function Workout({ go }: { go: Go }) {
           </button>
           {done}
           {r.gear.length ? (
-            <button onClick={() => setGearFor({ id: r.id, sel: r.gear, rest: true })} aria-label={`장비: ${r.gear.join(', ')}`} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, background: open ? '#FFFFFF' : '#F2F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BeltIcon color={open ? '#191F28' : '#333D4B'} />
+            <button onClick={() => setGearFor({ id: r.id, sel: r.gear, rest: true })} aria-label={`장비: ${r.gear.join(', ')}`} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, background: open ? '#fff' : 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BeltIcon color={open ? '#191f28' : 'var(--ink2)'} />
             </button>
           ) : (
-            <button onClick={() => setGearFor({ id: r.id, sel: [], rest: true })} aria-label="장비 선택" style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, border: `1.5px dashed ${open ? '#FFFFFF' : '#D1D6DB'}`, background: open ? '#FFFFFF' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={open ? '#191F28' : '#6B7684'} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <button onClick={() => setGearFor({ id: r.id, sel: [], rest: true })} aria-label="장비 선택" style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, border: `1.5px dashed ${open ? '#fff' : 'var(--line2)'}`, background: open ? '#fff' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: open ? '#191f28' : 'var(--mute)' }} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
@@ -183,11 +183,11 @@ export default function Workout({ go }: { go: Go }) {
           <>
             <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 76px', gridTemplateRows: 'repeat(2, 40px)', gap: 6 }}>
               {[10, 5, 1, -10, -5, -1].map((d) => (
-                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? '무게' : '횟수'} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: th.tint, color: th.deep }}>
+                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? '무게' : '횟수'} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: th.soft, color: th.strong }}>
                   {d > 0 ? `+${d}` : `−${-d}`}
                 </button>
               ))}
-              <button onClick={() => setEdit(null)} style={{ gridColumn: 4, gridRow: '1 / span 2', fontSize: 15, fontWeight: 800, borderRadius: 10, background: th.tint, color: th.deep }}>
+              <button onClick={() => setEdit(null)} style={{ gridColumn: 4, gridRow: '1 / span 2', fontSize: 15, fontWeight: 800, borderRadius: 10, background: th.soft, color: th.strong }}>
                 확인
               </button>
             </div>
@@ -197,7 +197,7 @@ export default function Workout({ go }: { go: Go }) {
                   updateSets((sets) => sets.filter((x) => x.id !== r.id))
                   setEdit(null)
                 }}
-                style={{ height: 40, borderRadius: 10, background: '#191F28', color: '#FFFFFF', fontSize: 14, fontWeight: 700 }}
+                style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
               >
                 세트 삭제
               </button>
@@ -210,7 +210,7 @@ export default function Workout({ go }: { go: Go }) {
                   })
                   setEdit({ id: n.id, f: 'w' })
                 }}
-                style={{ height: 40, borderRadius: 10, background: '#191F28', color: '#FFFFFF', fontSize: 14, fontWeight: 700 }}
+                style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
               >
                 세트 추가
               </button>
@@ -221,7 +221,7 @@ export default function Workout({ go }: { go: Go }) {
     )
   }
 
-  const tBtn: CSSProperties = { width: 44, height: 44, flexShrink: 0, borderRadius: 12, border: '1px solid #E5E8EB', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+  const tBtn: CSSProperties = { width: 44, height: 44, flexShrink: 0, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
   const rpeRow = rpeFor && a.sets.find((r) => r.id === rpeFor.id)
   const typeRow = typeFor && a.sets.find((r) => r.id === typeFor.id)
   const gearRow = gearFor && a.sets.find((r) => r.id === gearFor.id)
@@ -236,14 +236,14 @@ export default function Workout({ go }: { go: Go }) {
         </button>
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: th.text }}>{th.title}</h1>
-          <span className="num" style={{ fontSize: 13, color: '#4E5968' }}>
+          <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
             {sub}
           </span>
         </div>
       </header>
 
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 16px 8px' }}>
-        <div className="grid5" style={{ fontSize: 12, color: '#6B7684', textAlign: 'center', paddingBottom: 2 }}>
+        <div className="grid5" style={{ fontSize: 12, color: 'var(--mute)', textAlign: 'center', paddingBottom: 2 }}>
           <span>세트</span>
           <span>무게 ({u})</span>
           <span>횟수</span>
@@ -252,10 +252,10 @@ export default function Workout({ go }: { go: Go }) {
         </div>
         {collapsed && (
           <button onClick={() => setWarmOpen(true)} aria-expanded="false" aria-label={`웜업 ${warm.length}세트 완료, 펼치기`} className="grid5" style={{ width: '100%', height: 48, textAlign: 'left' }}>
-            <span style={{ justifySelf: 'center', width: 32, height: 32, borderRadius: 8, background: '#F2F4F6', color: '#4E5968', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>W</span>
+            <span style={{ justifySelf: 'center', width: 32, height: 32, borderRadius: 8, background: 'var(--fill)', color: 'var(--sub)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>W</span>
             <span style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#191F28' }}>웜업 {warm.length}세트 완료</span>
-              <span className="num" style={{ fontSize: 12, color: '#6B7684', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>웜업 {warm.length}세트 완료</span>
+              <span className="num" style={{ fontSize: 12, color: 'var(--mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {warm.map((r) => fmt(r.weight)).join(' · ')}
                 {u}
               </span>
@@ -273,8 +273,8 @@ export default function Workout({ go }: { go: Go }) {
           </button>
         )}
         {warmDone && !collapsed && (
-          <button onClick={() => setWarmOpen(false)} aria-expanded="true" style={{ width: '100%', height: 40, borderRadius: 10, background: '#F2F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#4E5968' }}>웜업 접기</span>
+          <button onClick={() => setWarmOpen(false)} aria-expanded="true" style={{ width: '100%', height: 40, borderRadius: 10, background: 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>웜업 접기</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 15l6-6 6 6" />
             </svg>
@@ -282,19 +282,19 @@ export default function Workout({ go }: { go: Go }) {
         )}
         {a.sets.filter((r) => !(collapsed && r.type === 'W')).map(rowView)}
         {a.sets.length === 0 && (
-          <button onClick={() => updateSets(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={{ height: 48, borderRadius: 12, border: '1.5px dashed #D1D6DB', fontSize: 15, fontWeight: 600, color: '#4E5968' }}>
+          <button onClick={() => updateSets(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={{ height: 48, borderRadius: 12, border: '1.5px dashed var(--line2)', fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
             세트 추가
           </button>
         )}
       </main>
 
       <div style={{ padding: '10px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <section aria-label="쉬는 시간 타이머" style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#F7F8FA', borderRadius: 16, padding: '10px 10px 10px 16px' }}>
+        <section aria-label="쉬는 시간 타이머" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--fill2)', borderRadius: 16, padding: '10px 10px 10px 16px' }}>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: '#191F28' }}>
+            <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
               {mmss(timer.remain)}
             </span>
-            <div style={{ height: 4, borderRadius: 2, background: '#E5E8EB', overflow: 'hidden' }}>
+            <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${Math.round((timer.remain / Math.max(timer.base, 1)) * 100)}%`, background: th.acc, transition: 'width 900ms linear' }} />
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function Workout({ go }: { go: Go }) {
             const id = finishWorkout()
             if (id) go({ name: 'result', id })
           }}
-          style={{ height: 56, borderRadius: 14, background: '#191F28', color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}
+          style={{ height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}
         >
           기록 완료
         </button>
@@ -348,12 +348,12 @@ export default function Workout({ go }: { go: Go }) {
                   key={k}
                   onClick={() => setTypeFor({ ...typeFor, sel: k })}
                   aria-pressed={on}
-                  style={{ minHeight: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid #E5E8EB', background: on ? th.tint : '#FFFFFF', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '4px 16px' : '4px 17px', textAlign: 'left' }}
+                  style={{ minHeight: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '4px 16px' : '4px 17px', textAlign: 'left' }}
                 >
-                  <span style={{ width: 28, flexShrink: 0, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : '#191F28' }}>{k}</span>
+                  <span style={{ width: 28, flexShrink: 0, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>{k}</span>
                   <span style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: 14, fontWeight: on ? 700 : 600, color: on ? th.deep : '#191F28' }}>{name}</span>
-                    <span style={{ fontSize: 12, color: on ? th.deep : '#4E5968' }}>{desc}</span>
+                    <span style={{ fontSize: 14, fontWeight: on ? 700 : 600, color: on ? th.deep : 'var(--ink)' }}>{name}</span>
+                    <span style={{ fontSize: 12, color: on ? th.deep : 'var(--sub)' }}>{desc}</span>
                   </span>
                 </button>
               )
@@ -381,12 +381,12 @@ export default function Workout({ go }: { go: Go }) {
                   key={lab}
                   onClick={() => setRpeFor({ ...rpeFor, sel: v })}
                   aria-pressed={on}
-                  style={{ height: 48, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid #E5E8EB', background: on ? th.tint : '#FFFFFF', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '0 16px' : '0 17px', textAlign: 'left' }}
+                  style={{ height: 48, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '0 16px' : '0 17px', textAlign: 'left' }}
                 >
-                  <span className="num" style={{ width: 44, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : '#191F28' }}>
+                  <span className="num" style={{ width: 44, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>
                     {lab}
                   </span>
-                  <span style={{ fontSize: 14, fontWeight: on ? 600 : 400, color: on ? th.deep : '#4E5968' }}>{desc}</span>
+                  <span style={{ fontSize: 14, fontWeight: on ? 600 : 400, color: on ? th.deep : 'var(--sub)' }}>{desc}</span>
                 </button>
               )
             })}
@@ -409,7 +409,7 @@ export default function Workout({ go }: { go: Go }) {
                 if (rpeRow.done) patch(rpeRow.id, { done: false, rpe: undefined })
                 setRpeFor(null)
               }}
-              style={{ height: 44, fontSize: 15, fontWeight: 600, color: '#4E5968' }}
+              style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}
             >
               {rpeRow.done ? '완료 취소' : '취소'}
             </button>
@@ -427,9 +427,9 @@ export default function Workout({ go }: { go: Go }) {
                   key={g}
                   aria-pressed={on}
                   onClick={() => setGearFor({ ...gearFor, sel: on ? gearFor.sel.filter((x) => x !== g) : [...gearFor.sel, g] })}
-                  style={{ height: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid #E5E8EB', background: on ? th.tint : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: on ? '0 14px' : '0 15px' }}
+                  style={{ height: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: on ? '0 14px' : '0 15px' }}
                 >
-                  <span style={{ fontSize: 15, fontWeight: on ? 700 : 400, color: on ? th.deep : '#333D4B' }}>{g}</span>
+                  <span style={{ fontSize: 15, fontWeight: on ? 700 : 400, color: on ? th.deep : 'var(--ink2)' }}>{g}</span>
                   {on && (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={th.deep} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M5 12l5 5 9-10" />
@@ -439,11 +439,11 @@ export default function Workout({ go }: { go: Go }) {
               )
             })}
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '0 4px', fontSize: 15, color: '#333D4B' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '0 4px', fontSize: 15, color: 'var(--ink2)' }}>
             <input type="checkbox" checked={gearFor.rest} onChange={(e) => setGearFor({ ...gearFor, rest: e.target.checked })} style={{ width: 20, height: 20, accentColor: th.line }} />
             남은 세트에도 똑같이 적용
           </label>
-          <p style={{ padding: '0 4px', fontSize: 12, lineHeight: 1.6, color: '#4E5968' }}>장비는 기록에 아이콘으로만 남고, 중량 계산에는 쓰이지 않아요. 장비 목록은 설정 › 장비 설정에서 바꿀 수 있어요.</p>
+          <p style={{ padding: '0 4px', fontSize: 12, lineHeight: 1.6, color: 'var(--sub)' }}>장비는 기록에 아이콘으로만 남고, 중량 계산에는 쓰이지 않아요. 장비 목록은 설정 › 장비 설정에서 바꿀 수 있어요.</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <button
               onClick={() => {
@@ -458,7 +458,7 @@ export default function Workout({ go }: { go: Go }) {
             >
               저장
             </button>
-            <button onClick={() => setGearFor(null)} style={{ height: 44, fontSize: 15, fontWeight: 600, color: '#4E5968' }}>
+            <button onClick={() => setGearFor(null)} style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
               취소
             </button>
           </div>

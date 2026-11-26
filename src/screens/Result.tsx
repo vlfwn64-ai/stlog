@@ -42,18 +42,18 @@ export default function Result({ id, go }: { id: string; go: Go }) {
             </svg>
           </span>
           <h1 style={{ fontSize: 24, fontWeight: 800 }}>훈련 완료!</h1>
-          <span className="num" style={{ fontSize: 14, color: '#4E5968' }}>
+          <span className="num" style={{ fontSize: 14, color: 'var(--sub)' }}>
             {meta}
           </span>
         </div>
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>오늘 기록</h2>
-          <div style={{ background: '#F7F8FA', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: 'var(--fill2)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
             {warm.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36 }}>
-                <span style={{ width: 28, height: 28, borderRadius: 7, background: '#F2F4F6', color: '#4E5968', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>W</span>
-                <span className="num" style={{ flex: 1, fontSize: 14, color: '#4E5968' }}>
+                <span style={{ width: 28, height: 28, borderRadius: 7, background: 'var(--fill)', color: 'var(--sub)', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>W</span>
+                <span className="num" style={{ flex: 1, fontSize: 14, color: 'var(--sub)' }}>
                   웜업 {warm.length}세트 · {warm.map((r) => fmt(r.weight)).join(' · ')}
                   {u}
                 </span>
@@ -62,11 +62,11 @@ export default function Result({ id, go }: { id: string; go: Go }) {
             {work.map((r, i) => {
               const c = chipColors(r.type, lift)
               return (
-                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36, borderTop: warm.length || i ? '1px solid #E5E8EB' : undefined }}>
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36, borderTop: warm.length || i ? '1px solid var(--line)' : undefined }}>
                   <span style={{ width: 28, height: 28, borderRadius: 7, background: c.bg, color: c.fg, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
                   <span className="num" style={{ flex: 1, fontSize: 16, fontWeight: 700 }}>
                     {fmt(r.weight)}
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#4E5968' }}>{u}</span> × {r.reps}
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sub)' }}>{u}</span> × {r.reps}
                   </span>
                   {r.rpe !== undefined && (
                     <span className="num" style={{ fontSize: 13, fontWeight: 700, color: th.deep }}>
@@ -79,11 +79,11 @@ export default function Result({ id, go }: { id: string; go: Go }) {
           </div>
           {log.e1rm !== null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 4px' }}>
-              <span style={{ fontSize: 14, color: '#4E5968' }}>오늘 추정 1RM</span>
+              <span style={{ fontSize: 14, color: 'var(--sub)' }}>오늘 추정 1RM</span>
               <span className="num" style={{ fontSize: 18, fontWeight: 800 }}>
                 {fmt(log.e1rm)}
                 <span style={{ fontSize: 13, fontWeight: 600 }}>{u}</span>{' '}
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#4E5968' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>
                   · 최고 {fmt(best)}
                   {u}
                 </span>
@@ -97,7 +97,7 @@ export default function Result({ id, go }: { id: string; go: Go }) {
           <div style={{ borderRadius: 16, background: th.tint, border: `2px solid ${th.line}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {next.map((x) => (
               <div key={x.k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 28, height: 28, borderRadius: 7, background: x.k === 'T' ? th.acc : '#FFFFFF', color: x.k === 'T' ? th.on : th.deep, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{x.k}</span>
+                <span style={{ width: 28, height: 28, borderRadius: 7, background: x.k === 'T' ? th.acc : 'var(--surface)', color: x.k === 'T' ? th.on : th.deep, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{x.k}</span>
                 <span className="num" style={{ flex: 1, fontSize: 18, fontWeight: 800 }}>
                   {x.what}
                 </span>

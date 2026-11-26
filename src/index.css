@@ -1,19 +1,78 @@
 :root {
   --safe-top: max(env(safe-area-inset-top), 20px);
   --safe-bot: max(env(safe-area-inset-bottom), 20px);
+
+  /* 라이트 */
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --page2: #F2F4F6;
+  --fill2: #F7F8FA;
+  --fill: #F2F4F6;
+  --line: #E5E8EB;
+  --line2: #D1D6DB;
+  --line3: #B0B8C1;
+  --ink: #191F28;
+  --ink2: #333D4B;
+  --sub: #4E5968;
+  --mute: #6B7684;
+  --faint: #8B95A1;
+  --onInk: #FFFFFF;
+  --pill: #FFFFFF;
+
   font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
-  color: #191F28;
-  background: #fff;
+  color: var(--ink);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
 }
 
+/* 다크 (목업 다크 화면 색) */
+.dark {
+  --bg: #17171C;
+  --surface: #202027;
+  --page2: #17171C;
+  --fill2: #24242C;
+  --fill: #2C2C35;
+  --line: #3A3A44;
+  --line2: #4A4A55;
+  --line3: #4A4A55;
+  --ink: #F2F4F6;
+  --ink2: #D1D6DB;
+  --sub: #B0B8C1;
+  --mute: #9EA7B3;
+  --faint: #7E8794;
+  --onInk: #17171C;
+  --pill: #3A3A44;
+}
+
+/* SVG 속성에 적힌 색도 다크에서 바꾼다 */
+.dark [stroke="#191F28"] { stroke: #F2F4F6; }
+.dark [fill="#191F28"] { fill: #F2F4F6; }
+.dark [stroke="#333D4B"] { stroke: #D1D6DB; }
+.dark [stroke="#4E5968"] { stroke: #B0B8C1; }
+.dark [stroke="#6B7684"] { stroke: #9EA7B3; }
+.dark [fill="#6B7684"] { fill: #9EA7B3; }
+.dark [stroke="#F2F4F6"] { stroke: #2C2C35; }
+.dark [stroke="#FFFFFF"] { stroke: #17171C; }
+.dark [fill="#FFFFFF"] { fill: #17171C; }
+
 * { box-sizing: border-box; }
-html, body, #root { margin: 0; height: 100%; }
-body { overscroll-behavior: none; word-break: keep-all; }
+
+/* 화면 전체는 움직이지 않게 잠그고, 안쪽 목록만 스크롤 */
+html, body {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+#root { height: 100%; }
+body { word-break: keep-all; background: var(--bg); }
 button, input { font-family: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-user-select: none; user-select: none; }
+input { background: var(--surface); color: var(--ink); }
 h1, h2, h3, p { margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
 
@@ -25,27 +84,31 @@ h1, h2, h3, p { margin: 0; }
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: #fff;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 .screen { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: var(--safe-top); position: relative; }
-.scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
 /* 바텀 시트 (목업과 같은 모양) */
 .sheet-wrap { position: absolute; inset: 0; z-index: 20; }
-.sheet-dim { position: absolute; inset: 0; width: 100%; background: rgba(0,0,0,0.45); animation: fade .18s ease; }
+.sheet-dim { position: absolute; inset: 0; width: 100%; background: rgba(0,0,0,0.45); animation: fadeIn .18s ease; }
+.dark .sheet-dim { background: rgba(0,0,0,0.6); }
 .sheet {
   position: absolute; left: 0; right: 0; bottom: 0;
-  background: #fff; border-radius: 24px 24px 0 0;
+  background: var(--surface); color: var(--ink); border-radius: 24px 24px 0 0;
   padding: 12px 20px var(--safe-bot);
   display: flex; flex-direction: column;
   max-height: calc(100% - var(--safe-top));
   overflow-y: auto;
+  overscroll-behavior: contain;
   animation: up .22s ease;
 }
-.grab { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: #D1D6DB; flex-shrink: 0; }
-@keyframes fade { from { opacity: 0 } }
+.grab { align-self: center; width: 40px; height: 4px; border-radius: 2px; background: var(--line2); flex-shrink: 0; }
+@keyframes fadeIn { from { opacity: 0 } }
 @keyframes up { from { transform: translateY(48px); opacity: .5 } }
+@keyframes liftIn { from { opacity: 0; transform: translateY(24px) } }
 
 /* 기록 중 세트 표 */
 .grid5 { display: grid; grid-template-columns: 44px minmax(0,1fr) 64px 48px 48px; gap: 8px; align-items: center; }

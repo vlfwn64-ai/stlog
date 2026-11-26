@@ -10,6 +10,8 @@ export interface Settings {
   /** 직접 추가한 장비 이름 */
   customGear: string[]
   goal: Record<LiftKey, number>
+  /** 화면 테마 */
+  theme: 'light' | 'dark' | 'system'
 }
 
 export interface SetRow {
@@ -105,7 +107,7 @@ function defaults(): AppState {
   return {
     version: 1,
     onboarded: false,
-    settings: { unit: 'kg', minPlate: 2.5, bar: 20, gear: [], customGear: [], goal: { S: 200, B: 150, D: 250 } },
+    settings: { unit: 'kg', minPlate: 2.5, bar: 20, gear: [], customGear: [], goal: { S: 200, B: 150, D: 250 }, theme: 'light' },
     lifts: initialLifts(now, 2.5),
     sessions: [],
     tests: [],

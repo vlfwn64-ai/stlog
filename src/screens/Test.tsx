@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { LiftKey } from '../logic/program'
-import { STAGES, firstAttempt, roundDown, testResult, warmups } from '../logic/program'
+import { STAGES, firstAttempt, testResult, warmups } from '../logic/program'
 import { finishTest } from '../actions'
 import { step as stepOf, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
@@ -19,6 +19,7 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
   const [done, setDone] = useState(false)
 
   const fg = th.testFg
+  const ghost = fg === '#ffffff' ? 'rgba(255,255,255,0.18)' : 'rgba(25,31,40,0.1)'
   const inWarm = !done && i < warm.length
   const n = attempts.length
   const okList = attempts.filter((a) => a.ok)
@@ -103,6 +104,10 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
                 {best > p.oneRM ? `+${fmt(best - p.oneRM)}${u}` : '기존 1RM 유지'}
               </span>
             </div>
+            <span className="num" style={{ fontSize: 15, fontWeight: 700, textAlign: 'center' }}>
+              3대 {fmt(p.oneRM + others)} → {fmt(best + others)}
+              {u}
+            </span>
             {attempts.length > 0 && (
               <div style={{ background: 'rgba(0,0,0,0.16)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
                 {attempts.map((a, k) => (
@@ -117,33 +122,21 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
                 ))}
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, lineHeight: 1.6 }}>
-              <span className="num" style={{ fontWeight: 700 }}>
-                3대 {fmt(p.oneRM + others)} → {fmt(best + others)}
-                {u}
-              </span>
-              {midCycle && (
-                <span>
-                  이번 사이클은 {p.stage}단계({STAGES[stage3].topReps}회 탑) 진행 중이었어요. 어떻게 이어갈까요?
-                </span>
-              )}
-            </div>
           </main>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '16px 20px var(--safe-bot)' }}>
-            <button onClick={() => commit('new')} style={{ minHeight: 64, borderRadius: 16, background: th.solidBg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '8px 16px' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: th.solidFg }}>새 사이클 시작</span>
-              <span className="num" style={{ fontSize: 12, fontWeight: 600, color: th.solidFg }}>
-                1단계부터 · 탑 {fmt(roundDown(best * STAGES[1].topPct, S))}
-                {u} × 5
-              </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 20px var(--safe-bot)' }}>
+            {midCycle && (
+              <p style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.6, textAlign: 'center', marginBottom: 8 }}>
+                이번 사이클은 {p.stage}단계({STAGES[stage3].topReps}회 탑) 진행 중이었어요.
+                <br />
+                어떻게 이어갈까요?
+              </p>
+            )}
+            <button onClick={() => commit('new')} style={{ height: 56, borderRadius: 14, background: fg, color: th.testBg, fontSize: 17, fontWeight: 700 }}>
+              {midCycle ? '새 사이클 시작 (1단계부터)' : '새 사이클 시작'}
             </button>
             {midCycle && (
-              <button onClick={() => commit('keep')} style={{ minHeight: 64, borderRadius: 16, border: `2px solid ${fg}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '8px 16px' }}>
-                <span style={{ fontSize: 17, fontWeight: 800, color: fg }}>지금 사이클 이어가기</span>
-                <span className="num" style={{ fontSize: 12, fontWeight: 600, color: fg }}>
-                  1RM만 {fmt(best)}
-                  {u}으로 바꾸고 {p.stage}단계 그대로
-                </span>
+              <button onClick={() => commit('keep')} style={{ height: 56, borderRadius: 14, background: ghost, color: fg, fontSize: 17, fontWeight: 700 }}>
+                지금 사이클 이어가기
               </button>
             )}
           </div>
