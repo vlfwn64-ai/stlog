@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { choose, providerOf, push, signIn, signOut, useCloud } from '../cloud'
-import { L, timesLabel } from '../i18n'
+import { choose, providerOf, push, retrySync, signIn, signOut, useCloud } from '../cloud'
+import type { Provider } from '../cloud'
+import { L, isEn, timesLabel } from '../i18n'
 import type { AppState } from '../store'
 import { useApp } from '../store'
 import { md } from '../theme'
@@ -8,22 +10,64 @@ import { Sheet, SummaryRows } from '../ui'
 
 const big: CSSProperties = { height: 56, borderRadius: 14, fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }
 
-/** 로그인 버튼 두 개 (카카오는 카카오 노란색) */
-export function LoginSheet({ onClose }: { onClose: () => void }) {
+/** 앱을 열면 가장 먼저 보이는 로그인 화면 (카카오는 카카오 노란색) */
+export function LoginScreen() {
+  const [busy, setBusy] = useState<Provider | null>(null)
+  const go = (p: Provider) => {
+    setBusy(p)
+    void signIn(p).catch(() => setBusy(null))
+  }
   return (
-    <Sheet onClose={onClose} title={L('로그인', 'Sign in')}>
-      <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px' }}>
-        {L('로그인하면 기록이 클라우드에 저장되고 다른 기기와 맞춰져요.', 'Sign in to keep your log in the cloud and in sync across devices.')}
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button onClick={() => signIn('kakao')} style={{ ...big, background: '#FEE500', color: 'rgba(0,0,0,0.85)' }}>
-          {L('카카오로 계속하기', 'Continue with Kakao')}
+    <div className="screen">
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12, padding: '0 24px' }}>
+        <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: -1 }}>ST LOG</span>
+        <p style={{ fontSize: 17, lineHeight: 1.5, fontWeight: 600, color: 'var(--sub)' }}>
+          {L('스쿼트·벤치·데드만 기록하면', 'Log squat, bench and deadlift.')}
+          <br />
+          {L('다음 무게는 앱이 정해요.', 'The app sets your next weights.')}
+        </p>
+      </main>
+      <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <button disabled={!!busy} onClick={() => go('kakao')} style={{ ...big, background: '#FEE500', color: 'rgba(0,0,0,0.85)', opacity: busy && busy !== 'kakao' ? 0.5 : 1 }}>
+          {busy === 'kakao' ? L('연결 중…', 'Connecting…') : L('카카오로 시작하기', 'Continue with Kakao')}
         </button>
-        <button onClick={() => signIn('google')} style={{ ...big, background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--line2)' }}>
-          {L('Google로 계속하기', 'Continue with Google')}
+        <button disabled={!!busy} onClick={() => go('google')} style={{ ...big, background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--line2)', opacity: busy && busy !== 'google' ? 0.5 : 1 }}>
+          {busy === 'google' ? L('연결 중…', 'Connecting…') : L('Google로 시작하기', 'Continue with Google')}
         </button>
+        <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--faint)', textAlign: 'center', paddingTop: 4 }}>
+          {L('로그인하면 기록이 클라우드에 저장돼요. ', 'Your log is saved to the cloud. ')}
+          <a href={`${import.meta.env.BASE_URL}privacy.html${isEn() ? '#en' : ''}`} target="_blank" rel="noreferrer" style={{ color: 'var(--mute)', textDecoration: 'underline' }}>
+            {L('개인정보처리방침', 'Privacy policy')}
+          </a>
+        </p>
       </div>
-    </Sheet>
+    </div>
+  )
+}
+
+/** 로그인 확인·첫 동기화 중 (서버 연결 실패면 다시 시도) */
+export function Splash() {
+  const c = useCloud()
+  const failed = c.status === 'error' && !!c.session && !c.ready
+  return (
+    <div className="screen">
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 24px' }}>
+        <span style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.6 }}>ST LOG</span>
+        <span style={{ fontSize: 14, color: 'var(--sub)', textAlign: 'center' }}>
+          {failed ? L('서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.', 'Couldn’t reach the server. Check your connection.') : c.session ? L('기록을 불러오는 중…', 'Loading your log…') : ''}
+        </span>
+      </main>
+      {failed && (
+        <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', gap: 8 }}>
+          <button onClick={() => void signOut()} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>
+            {L('로그아웃', 'Sign out')}
+          </button>
+          <button onClick={retrySync} style={{ ...big, flex: 1, background: 'var(--ink)', color: 'var(--onInk)' }}>
+            {L('다시 시도', 'Try again')}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -84,7 +128,7 @@ export function ChoiceSheet() {
           [L('클라우드', 'Cloud'), summary(c.choice.remote)],
         ]}
       />
-      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px' }}>{L('고르지 않은 쪽 기록은 지워져요. 걱정되면 먼저 설정 › 백업 내보내기를 해 두세요.', 'The other log will be replaced. If unsure, export a backup first in Settings.')}</p>
+      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px' }}>{L('고르지 않은 쪽 기록은 지워져요.', 'The other log will be replaced.')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button onClick={() => void choose('remote')} style={{ ...big, background: 'var(--ink)', color: 'var(--onInk)' }}>
           {L('클라우드 기록 쓰기', 'Use cloud log')}
