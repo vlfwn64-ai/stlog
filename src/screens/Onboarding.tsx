@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
 import { GEAR, initialLifts, setState, today } from '../store'
-import { CARD_ORDER } from '../theme'
+import { CARD_ORDER, TH } from '../theme'
 import { SegToggle } from '../ui'
 
 type Vals = Record<LiftKey, number>
@@ -93,7 +93,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <h1 style={h1}>헬스장 원판 단위는요?</h1>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#D92B3A' }}>제일 가벼운 원판 1개의 무게를 입력해 주세요</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: TH.B.text }}>제일 가벼운 원판 1개의 무게를 입력해 주세요</p>
             </div>
             <PlatePicker value={plate} unit={unit} onChange={setPlate} />
             <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>

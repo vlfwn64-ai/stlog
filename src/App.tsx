@@ -50,7 +50,7 @@ export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' })
   const go: Go = useCallback((r) => setRoute(r), [])
 
-  const pref = s.settings.theme ?? 'light'
+  const pref = s.settings.theme ?? 'system'
   const dark = pref === 'dark' || (pref === 'system' && sysDark)
   // 렌더 전에 종목 색 표를 맞춘다
   setDark(dark)

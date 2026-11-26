@@ -85,7 +85,7 @@ export default function Menu({ go }: { go: Go }) {
             <SegToggle
               options={['라이트', '다크', '시스템']}
               value={({ light: '라이트', dark: '다크', system: '시스템' } as const)[st.theme ?? 'light']}
-              onChange={(v) => set({ theme: v === '라이트' ? 'light' : v === '다크' ? 'dark' : 'system' })}
+              onChange={(v) => set({ theme: v === '라이트' ? 'light' : v === '다크' ? 'dark' : 'system', themeChosen: true })}
               minWidth={52}
               height={38}
             />

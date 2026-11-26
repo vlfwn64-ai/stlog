@@ -42,10 +42,10 @@ const LIGHT: Record<LiftKey, Theme> = {
     testBg: '#D92B3A', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#B4232F', soft: '#FDECEE', strong: '#B4232F', press: '#B4232F',
   },
   D: {
-    acc: '#F5B800', on: '#191f28', text: '#9A6B00', line: '#C99700', tint: '#FFF6DB', deep: '#7A5500',
-    boxLine: '#F5D27A', rowBg: '#FFF9E6', shadow: '0 3px 10px rgba(245,184,0,0.4)',
+    acc: '#D99A00', on: '#ffffff', text: '#9A6B00', line: '#C48A00', tint: '#FFF6DB', deep: '#7A5500',
+    boxLine: '#F0CF7A', rowBg: '#FFF9E6', shadow: '0 3px 10px rgba(217,154,0,0.4)',
     name: '데드리프트', tab: 'Deadlift', title: 'Deadlift', label: '#9A6B00', letter: '#9A6B00',
-    testBg: '#F5B800', testFg: '#191f28', solidBg: '#191f28', solidFg: '#ffffff', soft: '#FFF6DB', strong: '#7A5500', press: '#9A6B00',
+    testBg: '#D99A00', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#8A5F00', soft: '#FFF6DB', strong: '#7A5500', press: '#9A6B00',
   },
   S: {
     acc: '#0B8048', on: '#ffffff', text: '#0B8048', line: '#0B8048', tint: '#E6F6EE', deep: '#0B6B3C',

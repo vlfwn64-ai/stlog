@@ -14,6 +14,8 @@ export interface Settings {
   goal: Record<LiftKey, number>
   /** 화면 테마 */
   theme: 'light' | 'dark' | 'system'
+  /** 사용자가 테마를 직접 골랐는지 (안 골랐으면 시스템을 따른다) */
+  themeChosen?: boolean
 }
 
 export interface SetRow {
@@ -109,7 +111,7 @@ function defaults(): AppState {
   return {
     version: 1,
     onboarded: false,
-    settings: { unit: 'kg', minPlate: 2.5, bar: 20, gear: [], customGear: [], goal: { S: 200, B: 150, D: 250 }, theme: 'light' },
+    settings: { unit: 'kg', minPlate: 2.5, bar: 20, gear: [], customGear: [], goal: { S: 200, B: 150, D: 250 }, theme: 'system' },
     lifts: initialLifts(now, 2.5),
     sessions: [],
     tests: [],
@@ -123,7 +125,10 @@ function load(): AppState {
     if (raw) {
       const d = defaults()
       const p = JSON.parse(raw)
-      return { ...d, ...p, settings: { ...d.settings, ...p.settings } }
+      const settings = { ...d.settings, ...p.settings }
+      // 테마를 직접 고른 적이 없으면 기본은 시스템 설정
+      if (!settings.themeChosen) settings.theme = 'system'
+      return { ...d, ...p, settings }
     }
   } catch {
     /* 저장소를 못 읽으면 기본값 */

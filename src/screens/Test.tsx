@@ -102,8 +102,9 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
 
       {!done ? (
         <>
-          <main style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}>
-            <div style={{ position: 'relative', width: 'min(84vw, 320px)', aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, textAlign: 'center' }}>
+          <main style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 20px' }}>
+            {/* 원과 무게 자리는 1차·2차 시도 모두 같게 고정 */}
+            <div style={{ position: 'relative', width: 'min(84vw, 320px)', aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, textAlign: 'center' }}>
               {showRing && (
                 <svg viewBox="0 0 320 320" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'rotate(-90deg)', pointerEvents: 'none' }}>
                   <circle cx="160" cy="160" r={R} fill="none" stroke={th.strong} strokeWidth="10" />
@@ -121,41 +122,43 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
                   />
                 </svg>
               )}
-              <span style={{ fontSize: 22, fontWeight: 700 }}>{inWarm ? '웜업' : `${n + 1}차 시도`}</span>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span className="num" style={{ fontSize: inWarm ? 64 : showRing ? 96 : 112, fontWeight: 900, lineHeight: 1, letterSpacing: -2 }}>
+              <span style={{ height: 30, lineHeight: '30px', fontSize: 22, fontWeight: 700 }}>{inWarm ? '웜업' : `${n + 1}차 시도`}</span>
+              <div style={{ height: 112, display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 6 }}>
+                <span className="num" style={{ fontSize: inWarm ? 64 : 100, lineHeight: '112px', fontWeight: 900, letterSpacing: -2 }}>
                   {inWarm ? `${fmt(w.weight)} × ${w.reps}` : fmt(cur)}
                 </span>
                 {!inWarm && <span style={{ fontSize: 22, fontWeight: 700 }}>{u}</span>}
               </div>
-              <span className="num" style={{ fontSize: 15, fontWeight: 500 }}>
+              <span className="num" style={{ height: 30, lineHeight: '30px', fontSize: 15, fontWeight: 500 }}>
                 {inWarm ? (nextW ? `다음 ${fmt(nextW.weight)} × ${nextW.reps}` : `다음은 1차 시도 ${fmt(first)}${u}`) : `성공하면 다음은 ${fmt(cur + S)}${u}`}
               </span>
-              {showRing && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4 }} aria-label="쉬는 시간">
-                  <button onClick={() => restStep(-10)} aria-label="쉬는 시간 10초 줄이기" style={{ width: 40, height: 40, borderRadius: 20, border: `2px solid ${fg}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
-                      <path d="M5 12h14" />
-                    </svg>
-                  </button>
-                  <span role="timer" className="num" style={{ minWidth: 64, fontSize: 24, fontWeight: 800 }}>
-                    {Math.floor(remain / 60)}:{String(remain % 60).padStart(2, '0')}
-                  </span>
-                  <button onClick={() => restStep(10)} aria-label="쉬는 시간 10초 늘리기" style={{ width: 40, height: 40, borderRadius: 20, border: `2px solid ${fg}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                  </button>
-                </div>
-              )}
+            </div>
+            {/* 쉬는 시간은 원 밖 (자리는 늘 잡아 둬서 무게 위치가 안 움직인다) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 48, visibility: showRing ? 'visible' : 'hidden' }} aria-hidden={!showRing}>
+              <button onClick={() => restStep(-10)} aria-label="쉬는 시간 10초 줄이기" style={{ width: 44, height: 44, borderRadius: 22, border: `2px solid ${fg}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                  <path d="M5 12h14" />
+                </svg>
+              </button>
+              <span role="timer" className="num" style={{ minWidth: 76, fontSize: 28, fontWeight: 800, textAlign: 'center' }}>
+                {Math.floor(remain / 60)}:{String(remain % 60).padStart(2, '0')}
+              </span>
+              <button onClick={() => restStep(10)} aria-label="쉬는 시간 10초 늘리기" style={{ width: 44, height: 44, borderRadius: 22, border: `2px solid ${fg}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
             </div>
           </main>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 20px var(--safe-bot)' }}>
-            {!inWarm && okList.length > 0 && (
-              <button onClick={() => (setResting(false), setDone(true))} style={{ height: 44, color: fg, fontSize: 14, fontWeight: 600, textDecoration: 'underline' }}>
-                여기서 테스트 끝내기
-              </button>
-            )}
+            {/* 자리는 늘 잡아 둬서 위 무게 위치가 안 움직인다 */}
+            <button
+              onClick={() => (setResting(false), setDone(true))}
+              disabled={!showRing}
+              style={{ height: 44, color: fg, fontSize: 14, fontWeight: 600, textDecoration: 'underline', visibility: showRing ? 'visible' : 'hidden' }}
+            >
+              여기서 테스트 끝내기
+            </button>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
               <button onClick={() => step(false)} style={{ height: 64, borderRadius: 16, border: `2px solid ${fg}`, background: 'transparent', color: fg, fontSize: 18, fontWeight: 800 }}>
                 실패
