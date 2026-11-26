@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config'
 import type { AppState } from './store'
-import { getState, onChange, setState } from './store'
+import { getState, onChange, resetAll, setState } from './store'
 
 export const cloudReady = !!(SUPABASE_URL && SUPABASE_ANON_KEY)
 
@@ -21,11 +21,15 @@ export interface CloudState {
   session: Session | null
   status: 'off' | 'idle' | 'syncing' | 'error'
   lastSync?: number
+  /** 앱 시작 때 저장된 로그인 확인을 마쳤는지 */
+  checked: boolean
+  /** 로그인한 사용자의 기록을 이 기기에 맞춰 뒀는지 (처음 로그인이면 첫 동기화 뒤) */
+  ready: boolean
   /** 처음 로그인했는데 양쪽 다 기록이 있을 때 */
   choice?: { remote: AppState; remoteAt: number }
 }
 
-let cs: CloudState = { session: null, status: cloudReady ? 'idle' : 'off' }
+let cs: CloudState = { session: null, status: cloudReady ? 'idle' : 'off', checked: !cloudReady, ready: false }
 const subs = new Set<() => void>()
 const emit = (p: Partial<CloudState>) => {
   cs = { ...cs, ...p }
@@ -78,12 +82,19 @@ export async function signIn(provider: Provider) {
   })
 }
 
+/** 로그아웃: 마지막으로 올리고, 이 기기 기록은 비운다 (다음 사람이 볼 수 없게) */
 export async function signOut() {
   if (!sb) return
+  const linked = !!cs.session && linkedTo() === cs.session.user.id
+  if (linked) await push()
+  // 못 올렸으면 이 기기 기록은 남겨 둔다 (다음 로그인 때 어느 쪽을 쓸지 묻는다)
+  const saved = !linked || cs.status !== 'error'
+  clearTimeout(timer)
   await sb.auth.signOut()
   handled = null
   setLinked(null)
-  emit({ session: null, choice: undefined, lastSync: undefined, status: 'idle' })
+  emit({ session: null, choice: undefined, lastSync: undefined, status: 'idle', ready: false })
+  if (saved) resetAll()
 }
 
 async function fetchRemote(): Promise<{ data: AppState; at: number } | null | 'error'> {
@@ -118,12 +129,13 @@ async function firstSync() {
   if (!r || isEmpty(r.data)) {
     // 클라우드가 비었으면 이 기기 기록을 올린다
     setLinked(uid)
+    emit({ ready: true })
     return push()
   }
   if (isEmpty(local)) {
     applyRemote(r.data, r.at)
     setLinked(uid)
-    return emit({ status: 'idle', lastSync: Date.now() })
+    return emit({ status: 'idle', lastSync: Date.now(), ready: true })
   }
   // 둘 다 기록이 있으면 사용자에게 묻는다
   emit({ status: 'idle', choice: { remote: r.data, remoteAt: r.at } })
@@ -133,7 +145,7 @@ async function firstSync() {
 export async function choose(which: 'local' | 'remote') {
   const c = cs.choice
   if (!c || !cs.session) return
-  emit({ choice: undefined })
+  emit({ choice: undefined, ready: true })
   setLinked(cs.session.user.id)
   if (which === 'remote') {
     applyRemote(c.remote, c.remoteAt)
@@ -155,6 +167,11 @@ export async function pull() {
   else emit({ status: 'idle', lastSync: Date.now() })
 }
 
+/** 첫 동기화가 서버 연결 실패로 멈췄을 때 다시 시도 */
+export function retrySync() {
+  if (cs.session && !cs.ready && !cs.choice) void firstSync()
+}
+
 let timer: ReturnType<typeof setTimeout> | undefined
 let started = false
 let handled: string | null = null
@@ -164,17 +181,23 @@ export function startCloud() {
   if (!sb || started) return
   started = true
   const handle = (session: Session | null) => {
-    emit({ session })
+    emit({ session, checked: true })
     if (!session || handled === session.user.id) return
     handled = session.user.id
-    if (linkedTo() === session.user.id) void pull()
-    else void firstSync()
+    if (linkedTo() === session.user.id) {
+      // 이 기기에 이미 이 사용자 기록이 있으니 바로 쓰고, 뒤에서 최신으로 맞춘다
+      emit({ ready: true })
+      void pull()
+    } else void firstSync()
   }
-  sb.auth.getSession().then(({ data }) => handle(data.session))
+  sb.auth
+    .getSession()
+    .then(({ data }) => handle(data.session))
+    .catch(() => emit({ checked: true }))
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
       handled = null
-      return emit({ session: null })
+      return emit({ session: null, ready: false })
     }
     handle(session)
   })

@@ -18,8 +18,6 @@ export interface Settings {
   themeChosen?: boolean
   /** 쉬는 시간 끝 알림음 (기본 켬) */
   sound?: boolean
-  /** 마지막 백업 날짜 */
-  lastBackup?: string
   /** 언어 (없으면 기기 언어) */
   lang?: 'ko' | 'en'
 }

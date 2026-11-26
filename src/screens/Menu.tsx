@@ -1,18 +1,17 @@
-import { AccountSheet, LoginSheet } from './Account'
+import { AccountSheet } from './Account'
 import { cloudReady, providerOf, useCloud } from '../cloud'
 import { L, getLang, isEn, timesLabel } from '../i18n'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
-import { backupJson, changeUnit, parseBackup, restoreBackup, setOneRM } from '../actions'
+import { changeUnit, setOneRM } from '../actions'
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
-import type { AppState } from '../store'
-import { GEAR, allGear, resetAll, setState, today, useApp } from '../store'
-import { CARD_ORDER, fmt, gearName, md } from '../theme'
+import { GEAR, allGear, resetAll, setState, useApp } from '../store'
+import { CARD_ORDER, fmt, gearName } from '../theme'
 import { Confirm, SegToggle, Sheet } from '../ui'
 import type { Go } from '../App'
 
-type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'restore' | 'badFile' | 'account'
+type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'account'
 
 /** 피드백을 받을 인스타그램 계정 */
 const FEEDBACK_IG = 'pharmaco_lifting_stlog'
@@ -45,40 +44,6 @@ export default function Menu({ go }: { go: Go }) {
   const u = st.unit
   const [pop, setPop] = useState<Pop>(null)
   const cloud = useCloud()
-  const [backup, setBackup] = useState<{ data: AppState; exportedAt: string } | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
-
-  /** 백업 파일을 만들어 공유창(파일에 저장·카톡 등)으로 보낸다 */
-  const exportBackup = async () => {
-    const name = `${L('stlog-백업', 'stlog-backup')}-${today()}.json`
-    const file = new File([backupJson()], name, { type: 'application/json' })
-    try {
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: L('ST LOG 백업', 'ST LOG backup') })
-        setState((x) => ({ ...x, settings: { ...x.settings, lastBackup: today() } }))
-        return
-      }
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return
-    }
-    // 공유창이 없으면 파일로 내려받기
-    const url = URL.createObjectURL(file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 2000)
-    setState((x) => ({ ...x, settings: { ...x.settings, lastBackup: today() } }))
-  }
-
-  const pickFile = async (f: File | undefined) => {
-    if (!f) return
-    const b = parseBackup(await f.text())
-    if (fileRef.current) fileRef.current.value = ''
-    if (!b) return setPop('badFile')
-    setBackup(b)
-    setPop('restore')
-  }
   const [rm, setRm] = useState<Record<LiftKey, number>>({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })
   const [goal, setGoal] = useState(st.goal)
   const [plate, setPlate] = useState(st.minPlate)
@@ -111,9 +76,6 @@ export default function Menu({ go }: { go: Go }) {
         <Section title={L('내 기록', 'My records')}>
           <Row label={L('1RM 설정', '1RM')} value={trio({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })} onClick={() => open('rm')} />
           <Row label={L('목표 중량', 'Goals')} value={trio(st.goal)} onClick={() => open('goal')} />
-          <Row label={L('백업 내보내기', 'Export backup')} value={st.lastBackup ? `${L('마지막', 'Last')} ${md(st.lastBackup)} ›` : '›'} onClick={exportBackup} />
-          <Row label={L('백업 불러오기', 'Import backup')} value="›" onClick={() => fileRef.current?.click()} />
-          <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => pickFile(e.target.files?.[0])} />
         </Section>
         <Section title={L('운동 환경', 'Training')}>
           <Row label={L('원판 최소 단위', 'Smallest plate')} value={`${st.minPlate} ${u} ›`} onClick={() => open('plate')} />
@@ -146,7 +108,9 @@ export default function Menu({ go }: { go: Go }) {
           <Row label={L('사용법 보기', 'How to use')} value="›" onClick={() => go({ name: 'tutorial', back: 'menu' })} />
           <Row label={L('제작자에게 피드백', 'Send feedback')} value={`@${FEEDBACK_IG} ›`} onClick={() => window.open(`https://ig.me/m/${FEEDBACK_IG}`, '_blank')} />
           <Row label={L('개인정보처리방침', 'Privacy policy')} value="›" onClick={() => window.open(`${import.meta.env.BASE_URL}privacy.html${isEn() ? '#en' : ''}`, '_blank')} />
-          <Row label={L('계정', 'Account')} value={`${!cloudReady ? L('로그인 준비 중', 'Sign-in coming soon') : cloud.session ? (providerOf(cloud.session) === 'kakao' ? L('카카오로 로그인됨', 'Signed in with Kakao') : L('Google로 로그인됨', 'Signed in with Google')) : L('로그인', 'Sign in')} ›`} onClick={() => setPop('account')} />
+          {cloudReady && cloud.session && (
+            <Row label={L('계정', 'Account')} value={`${providerOf(cloud.session) === 'kakao' ? L('카카오로 로그인됨', 'Signed in with Kakao') : L('Google로 로그인됨', 'Signed in with Google')} ›`} onClick={() => setPop('account')} />
+          )}
           <Row label={L('모든 기록 지우기', 'Erase all data')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />
         </Section>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.3</div>
@@ -277,51 +241,7 @@ export default function Menu({ go }: { go: Go }) {
           }}
         />
       )}
-      {pop === 'restore' && backup && (
-        <Confirm
-          eyebrow={L('백업 불러오기', 'Import backup')}
-          title={L('이 백업으로 바꿀까요?', 'Replace with this backup?')}
-          rows={[
-            [L('백업 날짜', 'Backup date'), backup.exportedAt ? md(backup.exportedAt.slice(0, 10)) : '–'],
-            [L('훈련 기록', 'Workouts'), timesLabel(backup.data.sessions.length)],
-            [L('1RM 테스트', '1RM tests'), timesLabel(backup.data.tests?.length ?? 0)],
-            [L('지금 기록', 'Current data'), L(`${s.sessions.length}회는 지워져요`, `${s.sessions.length} workouts will be replaced`)],
-          ]}
-          cta={L('덮어쓰기', 'Replace')}
-          onCancel={() => setPop(null)}
-          onOk={() => {
-            restoreBackup(backup.data)
-            setBackup(null)
-            setPop(null)
-            go({ name: 'home' })
-          }}
-        />
-      )}
-      {pop === 'badFile' && (
-        <Sheet onClose={() => setPop(null)} title={L('ST LOG 백업 파일이 아니에요', 'Not an ST LOG backup file')}>
-          <button style={saveBtn} onClick={() => setPop(null)}>
-            {L('확인', 'OK')}
-          </button>
-        </Sheet>
-      )}
-      {pop === 'account' && cloudReady && !cloud.session && <LoginSheet onClose={() => setPop(null)} />}
-      {pop === 'account' && cloudReady && cloud.session && <AccountSheet onClose={() => setPop(null)} />}
-      {pop === 'account' && !cloudReady && (
-        <Sheet onClose={() => setPop(null)} title={L('계정', 'Account')}>
-          <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px' }}>
-            {L('구글·애플·카카오 로그인과 기기 간 동기화는 곧 추가돼요. 지금 기록은 이 기기에만 있으니 백업 내보내기로 보관해 주세요.', 'Sign in with Google, Apple, or Kakao and syncing are coming soon. For now your data lives on this device only, so export a backup to keep it safe.')}
-          </p>
-          <button
-            style={saveBtn}
-            onClick={() => {
-              setPop(null)
-              exportBackup()
-            }}
-          >
-            {L('백업 내보내기', 'Export backup')}
-          </button>
-        </Sheet>
-      )}
+      {pop === 'account' && cloud.session && <AccountSheet onClose={() => setPop(null)} />}
       {pop === 'reset' && (
         <Confirm
           eyebrow={L('설정', 'Settings')}

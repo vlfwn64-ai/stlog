@@ -1,5 +1,5 @@
-import { ChoiceSheet } from './screens/Account'
-import { startCloud } from './cloud'
+import { ChoiceSheet, LoginScreen, Splash } from './screens/Account'
+import { cloudReady, startCloud, useCloud } from './cloud'
 import { deviceLang, setLang } from './i18n'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import type { LiftKey } from './logic/program'
@@ -50,6 +50,7 @@ function setStatusColor(color: string) {
 
 export default function App() {
   const s = useApp()
+  const cloud = useCloud()
   const sysDark = useSystemDark()
   const [route, setRoute] = useState<Route>({ name: 'home' })
   const go: Go = useCallback((r) => setRoute(r), [])
@@ -65,6 +66,14 @@ export default function App() {
     startCloud()
   }, [])
 
+  // 로그아웃하면 다음 로그인은 홈에서 시작
+  const signedIn = !!cloud.session
+  const [wasIn, setWasIn] = useState(signedIn)
+  if (wasIn !== signedIn) {
+    setWasIn(signedIn)
+    if (!signedIn) setRoute({ name: 'home' })
+  }
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
@@ -78,7 +87,10 @@ export default function App() {
   }, [route, dark, s.onboarded])
 
   let view
-  if (!s.onboarded) view = <Onboarding onDone={() => go({ name: 'tutorial' })} />
+  // 로그인부터: 저장된 로그인 확인 → 로그인 화면 → 기록 불러오기 → 온보딩(새 사용자) → 홈
+  if (cloudReady && (!cloud.checked || (cloud.session && !cloud.ready))) view = <Splash />
+  else if (cloudReady && !cloud.session) view = <LoginScreen />
+  else if (!s.onboarded) view = <Onboarding onDone={() => go({ name: 'tutorial' })} />
   else if (route.name === 'menu') view = <Menu go={go} />
   else if (route.name === 'tutorial') view = <Tutorial onDone={() => go({ name: route.back ?? 'home' })} />
   else if (route.name === 'lift') view = <Lift key={route.lift} lift={route.lift} go={go} enter={route.from === 'home'} slide={route.from === 'left' || route.from === 'right' ? route.from : undefined} />

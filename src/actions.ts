@@ -12,7 +12,7 @@ import {
   testResult,
   warmups,
 } from './logic/program'
-import type { AppState, RestState, SessionLog, SetRow } from './store'
+import type { RestState, SessionLog, SetRow } from './store'
 import { getState, setState, step, today, uid } from './store'
 
 const row = (type: SetRow['type'], weight: number, reps: number): SetRow => ({
@@ -201,26 +201,6 @@ export function saveSession(id: string, sets: SetRow[]) {
 /** 지난 기록 삭제 (지금 처방은 그대로) */
 export function deleteSession(id: string) {
   setState((x) => ({ ...x, sessions: x.sessions.filter((ss) => ss.id !== id) }))
-}
-
-/** 백업 파일 내용 */
-export function backupJson(): string {
-  return JSON.stringify({ app: 'stlog', version: 1, exportedAt: new Date().toISOString(), data: getState() })
-}
-
-/** 백업 파일 읽기: 맞으면 상태, 아니면 null */
-export function parseBackup(text: string): { data: AppState; exportedAt: string } | null {
-  try {
-    const j = JSON.parse(text)
-    if (j?.app !== 'stlog' || !j.data?.lifts || !Array.isArray(j.data.sessions)) return null
-    return { data: j.data as AppState, exportedAt: String(j.exportedAt ?? '') }
-  } catch {
-    return null
-  }
-}
-
-export function restoreBackup(data: AppState) {
-  setState((x) => ({ ...x, ...data, onboarded: true, active: undefined, settings: { ...x.settings, ...data.settings } }))
 }
 
 /** 테스트 기록 수정 (기록만 바뀌고 지금 1RM·처방은 그대로) */
