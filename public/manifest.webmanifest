@@ -1,7 +1,7 @@
 {
   "name": "ST LOG",
   "short_name": "ST LOG",
-  "description": "스쿼트·벤치·데드 자동 프로그램 기록",
+  "description": "3대 500 약대생의 파워리프팅 전용 앱",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

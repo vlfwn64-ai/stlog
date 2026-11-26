@@ -21,11 +21,7 @@ export function LoginScreen() {
     <div className="screen">
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 12, padding: '0 24px' }}>
         <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: -1 }}>ST LOG</span>
-        <p style={{ fontSize: 17, lineHeight: 1.5, fontWeight: 600, color: 'var(--sub)' }}>
-          {L('스쿼트·벤치·데드만 기록하면', 'Log squat, bench and deadlift.')}
-          <br />
-          {L('다음 무게는 앱이 정해요.', 'The app sets your next weights.')}
-        </p>
+        <p style={{ fontSize: 17, lineHeight: 1.5, fontWeight: 600, color: 'var(--sub)' }}>{L('3대 500 약대생의 파워리프팅 전용 앱', 'A powerlifting app by a pharmacy student with a 500kg total')}</p>
       </main>
       <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button disabled={!!busy} onClick={() => go('kakao')} style={{ ...big, background: '#FEE500', color: 'rgba(0,0,0,0.85)', opacity: busy && busy !== 'kakao' ? 0.5 : 1 }}>
