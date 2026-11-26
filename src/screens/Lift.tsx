@@ -231,7 +231,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                       key={i}
                       onClick={() => setOpenId(b.id)}
                       aria-label={b.deload ? L(`${b.d} 디로드 기록 보기`, `View deload ${b.d}`) : L(`${b.d} 기록 보기`, `View ${b.d}`)}
-                      style={{ position: 'relative', width: 44, height: 44, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: b.deload ? 'var(--sub)' : 'var(--ink)' }}>
                         {b.w}
@@ -239,9 +239,6 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                       <span className="num" style={{ fontSize: 10, color: 'var(--mute)' }}>
                         {b.d}
                       </span>
-                      {b.deload && (
-                        <span style={{ position: 'absolute', top: -7, right: -6, height: 14, padding: '0 4px', borderRadius: 7, background: th.boxLine, color: th.deep, fontSize: 9, fontWeight: 800, lineHeight: '14px' }}>DL</span>
-                      )}
                     </button>
                   ))}
                   {todayW && (
