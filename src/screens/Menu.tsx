@@ -1,6 +1,6 @@
 import { AccountSheet, LoginSheet } from './Account'
 import { cloudReady, providerOf, useCloud } from '../cloud'
-import { L, getLang, timesLabel } from '../i18n'
+import { L, getLang, isEn, timesLabel } from '../i18n'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
@@ -145,6 +145,7 @@ export default function Menu({ go }: { go: Go }) {
           </div>
           <Row label={L('사용법 보기', 'How to use')} value="›" onClick={() => go({ name: 'tutorial', back: 'menu' })} />
           <Row label={L('제작자에게 피드백', 'Send feedback')} value={`@${FEEDBACK_IG} ›`} onClick={() => window.open(`https://ig.me/m/${FEEDBACK_IG}`, '_blank')} />
+          <Row label={L('개인정보처리방침', 'Privacy policy')} value="›" onClick={() => window.open(`${import.meta.env.BASE_URL}privacy.html${isEn() ? '#en' : ''}`, '_blank')} />
           <Row label={L('계정', 'Account')} value={`${!cloudReady ? L('로그인 준비 중', 'Sign-in coming soon') : cloud.session ? (providerOf(cloud.session) === 'kakao' ? L('카카오로 로그인됨', 'Signed in with Kakao') : L('Google로 로그인됨', 'Signed in with Google')) : L('로그인', 'Sign in')} ›`} onClick={() => setPop('account')} />
           <Row label={L('모든 기록 지우기', 'Erase all data')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />
         </Section>
