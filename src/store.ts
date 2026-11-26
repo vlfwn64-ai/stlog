@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import type { LiftKey, LiftProgress, Rpe, SetType, Unit } from './logic/program'
-import { stagePrescription, stepOf } from './logic/program'
+import { stepOf } from './logic/program'
+import type { ProgramId, Sex } from './logic/programs'
+import { programOf, withMain } from './logic/programs'
 
 export interface Settings {
   unit: Unit
@@ -20,6 +22,16 @@ export interface Settings {
   sound?: boolean
   /** 언어 (없으면 기기 언어) */
   lang?: 'ko' | 'en'
+  /** 훈련 프로그램 (없으면 ST LOG 기본) */
+  program?: ProgramId
+  /** 성별·키(cm)·몸무게(설정 단위) */
+  body?: Body
+}
+
+export interface Body {
+  sex: Sex
+  height: number
+  weight: number
 }
 
 export interface SetRow {
@@ -30,10 +42,15 @@ export interface SetRow {
   done: boolean
   rpe?: Rpe
   gear: string[]
+  /** 완료할 때 RPE를 묻지 않는 세트 */
+  noRpe?: boolean
+  /** 처방 횟수 (기록한 횟수와 비교해 성공·실패 판정) */
+  goal?: number
 }
 
 export interface ActiveWorkout {
   lift: LiftKey
+  program?: ProgramId
   date: string
   stage: number
   deload: boolean
@@ -57,7 +74,9 @@ export interface SessionLog {
   sets: SetRow[]
   e1rm: number | null
   cycle?: number
-  next?: { top: number; backoff: number; topChange: number; boChange: number; advanced: boolean; stage: number }
+  /** 이 세션을 한 프로그램 */
+  program?: ProgramId
+  next?: { top: number; backoff: number; topChange: number; boChange: number; advanced: boolean; stage: number; newCycle?: boolean }
 }
 
 export interface TestLog {
@@ -71,6 +90,8 @@ export interface TestLog {
   endedCycle?: string
   /** 끝난 사이클 번호 */
   cycleNo?: number
+  /** 테스트할 때 프로그램 */
+  program?: ProgramId
 }
 
 export interface LiftState extends LiftProgress {
@@ -107,18 +128,20 @@ export const today = () => {
 
 export const uid = () => Math.random().toString(36).slice(2, 10)
 
-export function initialLifts(now: Record<LiftKey, number>, minPlate: number): Record<LiftKey, LiftState> {
+/** 프로그램 첫 처방 (대표 무게까지 맞춘 것) */
+export function initLift(program: ProgramId | undefined, lift: LiftKey, oneRM: number, step: number): LiftProgress {
+  const prog = programOf(program)
+  return withMain(prog, lift, prog.init(lift, oneRM, step), step)
+}
+
+export function initialLifts(now: Record<LiftKey, number>, minPlate: number, program?: ProgramId): Record<LiftKey, LiftState> {
   const step = stepOf(minPlate)
-  const mk = (k: LiftKey): LiftState => ({
-    oneRM: now[k],
-    stage: 1,
-    stall: 0,
-    cycleStart: today(),
-    cycle: 1,
-    ...stagePrescription(now[k], 1, step),
-  })
+  const mk = (k: LiftKey): LiftState => ({ ...initLift(program, k, now[k], step), cycleStart: today(), cycle: 1 })
   return { S: mk('S'), B: mk('B'), D: mk('D') }
 }
+
+/** 지금 프로그램 */
+export const progOf = (s: AppState) => programOf(s.settings.program)
 
 function defaults(): AppState {
   const now = { S: 140, B: 100, D: 180 }

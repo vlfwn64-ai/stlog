@@ -1,8 +1,8 @@
-import { L, setsLabel, stageLabel, topLabel } from '../i18n'
+import { L, setsLabel } from '../i18n'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
-import { STAGES } from '../logic/program'
+import { phaseTitle, programOf } from '../logic/programs'
 import { applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
 import { REST_STEP, useRestTimer } from '../rest'
 import type { SetRow } from '../store'
@@ -30,7 +30,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
   // 지난 기록 수정: 고친 내용은 저장 누르기 전까지 여기에만
   const [draft, setDraft] = useState(() => {
     const x = editId ? s.sessions.find((ss) => ss.id === editId) : undefined
-    return x ? { lift: x.lift, date: x.date, stage: x.stage, deload: x.deload, sets: x.sets.map((r) => ({ ...r })) } : null
+    return x ? { lift: x.lift, program: x.program, date: x.date, stage: x.stage, deload: x.deload, sets: x.sets.map((r) => ({ ...r })) } : null
   })
   const a = editing ? draft : s.active
   const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
@@ -53,11 +53,10 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
   const warmDone = warm.length > 0 && warm.every((r) => r.done)
   const collapsed = warmDone && !warmOpen && !warm.some((r) => r.id === edit?.id)
   const nextId = a.sets.find((r) => !r.done)?.id
-  const stage3 = Math.min(3, a.stage) as 1 | 2 | 3
-  const sub = a.deload ? `${L('디로드', 'Deload')} · ${md(a.date)}` : `${stageLabel(a.stage)} · ${topLabel(STAGES[stage3].topReps)} · ${md(a.date)}`
+  const sub = a.deload ? `${L('디로드', 'Deload')} · ${md(a.date)}` : `${phaseTitle(programOf(a.program), a.lift, a.stage)} · ${md(a.date)}`
 
   const patch = (id: string, p: Partial<SetRow>) => upd((sets) => sets.map((r) => (r.id === id ? { ...r, ...p } : r)))
-  const needsRpe = (r: SetRow) => !a.deload && (r.type === 'T' || r.type === 'B')
+  const needsRpe = (r: SetRow) => !a.deload && !r.noRpe && (r.type === 'T' || r.type === 'B')
   const label = (r: SetRow) => {
     const same = a.sets.filter((x) => x.type === r.type)
     const idx = same.findIndex((x) => x.id === r.id) + 1

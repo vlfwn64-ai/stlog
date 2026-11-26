@@ -1,33 +1,25 @@
 import type { LiftKey, Rpe, Unit } from './logic/program'
-import {
-  STAGES,
-  advanceStage,
-  deloadSets,
-  e1rm,
-  newCycle,
-  nextAfterSession,
-  roundDown,
-  stagePrescription,
-  stepOf,
-  testResult,
-  warmups,
-} from './logic/program'
-import type { RestState, SessionLog, SetRow } from './store'
-import { getState, setState, step, today, uid } from './store'
+import { deloadSets, roundDown, stepOf, testResult, warmups } from './logic/program'
+import type { AfterResult, ProgramId } from './logic/programs'
+import { atTest, programOf, sessionE1rm, toPlate, withMain } from './logic/programs'
+import type { AppState, Body, LiftState, RestState, SessionLog, SetRow } from './store'
+import { getState, initLift, progOf, setState, step, today, uid } from './store'
 
-const row = (type: SetRow['type'], weight: number, reps: number): SetRow => ({
+const row = (type: SetRow['type'], weight: number, reps: number, extra?: Partial<SetRow>): SetRow => ({
   id: uid(),
   type,
   weight,
   reps,
   done: false,
   gear: [],
+  ...extra,
 })
 
 /** 오늘 훈련 시작 (정규 세션 또는 디로드) */
 export function startWorkout(lift: LiftKey, deload = false) {
   const s = getState()
   const p = s.lifts[lift]
+  const prog = progOf(s)
   const st = step(s)
   const { bar, unit } = s.settings
   let sets: SetRow[]
@@ -38,15 +30,14 @@ export function startWorkout(lift: LiftKey, deload = false) {
       ...work.map((w) => row('B', w.weight, w.reps)),
     ]
   } else {
-    const stage = Math.min(3, p.stage) as 1 | 2 | 3
-    const cfg = STAGES[stage]
+    const work = prog.sets(lift, p, st)
+    const top = Math.max(...work.map((w) => w.weight))
     sets = [
-      ...warmups(p.top, { lift, step: st, bar, unit, heavy: stage === 3 }).map((w) => row('W', w.weight, w.reps)),
-      row('T', p.top, cfg.topReps),
-      ...Array.from({ length: cfg.boSets }, () => row('B', p.backoff, cfg.boReps[lift])),
+      ...warmups(top, { lift, step: st, bar, unit, heavy: prog.heavy(p) }).map((w) => row('W', w.weight, w.reps)),
+      ...work.map((w) => row(w.type, w.weight, w.reps, { goal: w.reps, ...(w.rpe ? {} : { noRpe: true }) })),
     ]
   }
-  setState((x) => ({ ...x, active: { lift, date: today(), stage: p.stage, deload, sets } }))
+  setState((x) => ({ ...x, active: { lift, program: prog.id, date: today(), stage: p.stage, deload, sets } }))
 }
 
 export function updateSets(fn: (sets: SetRow[]) => SetRow[]) {
@@ -71,6 +62,12 @@ export function applyTopRpe(rowId: string, rpe: Rpe) {
   })
 }
 
+/** 프로그램 결과를 종목 상태에 반영 (새 사이클이면 사이클 번호·시작일도) */
+function applyResult(prog: ReturnType<typeof programOf>, lift: LiftKey, p: LiftState, r: AfterResult, st: number): LiftState {
+  const next = withMain(prog, lift, r.next, st)
+  return r.newCycle ? { ...p, ...next, cycleStart: today(), cycle: (p.cycle ?? 1) + 1 } : { ...p, ...next }
+}
+
 /** 기록 완료 → 세션 저장, 다음 처방 계산. 저장된 세션 id 반환 */
 export function finishWorkout(): string | null {
   const s = getState()
@@ -78,71 +75,105 @@ export function finishWorkout(): string | null {
   if (!a) return null
   const st = step(s)
   const p = s.lifts[a.lift]
-  const done = a.sets.filter((r) => r.done)
-  const top = [...done].reverse().find((r) => r.type === 'T' && r.rpe !== undefined)
-  const bos = done.filter((r) => r.type === 'B' && r.rpe !== undefined)
-  const bo = bos[bos.length - 1]
-  const est = top && top.rpe !== undefined ? e1rm(top.weight, top.reps, top.rpe) : null
-
-  const log: SessionLog = { id: uid(), date: a.date, lift: a.lift, stage: a.stage, deload: a.deload, sets: a.sets, e1rm: est, cycle: p.cycle ?? 1 }
+  const prog = programOf(a.program)
+  const est = sessionE1rm(a.sets)
+  const log: SessionLog = { id: uid(), date: a.date, lift: a.lift, stage: a.stage, deload: a.deload, sets: a.sets, e1rm: est, cycle: p.cycle ?? 1, program: prog.id }
   let lifts = s.lifts
-  if (!a.deload && top && top.rpe !== undefined) {
-    const r = nextAfterSession(
-      p,
-      { topWeight: top.weight, topRpe: top.rpe, boWeight: bo?.weight ?? p.backoff, boRpe: bo?.rpe ?? 9 },
-      st,
-    )
-    log.next = {
-      top: r.next.top,
-      backoff: r.next.backoff,
-      topChange: r.topChange,
-      boChange: bo ? r.boChange : 0,
-      advanced: r.advanced,
-      stage: r.next.stage,
+  if (!a.deload) {
+    const r = prog.after(a.lift, p, a.sets, st)
+    const np = applyResult(prog, a.lift, p, r, st)
+    if (r !== null && (r.advanced || r.change !== 0 || r.next !== p)) {
+      log.next = { top: np.top, backoff: np.backoff, topChange: r.change, boChange: r.boChange, advanced: r.advanced, stage: np.stage, newCycle: r.newCycle }
     }
-    lifts = { ...lifts, [a.lift]: { ...p, ...r.next } }
+    lifts = { ...lifts, [a.lift]: np }
   }
   setState((x) => ({ ...x, lifts, sessions: [...x.sessions, log], active: undefined }))
   return log.id
 }
 
+/** 다음 단계(주)로 */
 export function goNextStage(lift: LiftKey) {
   const s = getState()
   const p = s.lifts[lift]
-  setState((x) => ({ ...x, lifts: { ...x.lifts, [lift]: { ...p, ...advanceStage(p, step(s)) } } }))
+  const prog = progOf(s)
+  const st = step(s)
+  const np = applyResult(prog, lift, p, prog.advance(lift, p, st), st)
+  setState((x) => ({ ...x, lifts: { ...x.lifts, [lift]: np } }))
 }
 
-/** 테스트 저장. mode: new = 새 사이클(1단계), keep = 1RM만 갱신 */
+/** 다음 단계로 넘기면 어떻게 되는지 (확인 팝업용) */
+export function previewNextStage(s: AppState, lift: LiftKey) {
+  const p = s.lifts[lift]
+  const prog = progOf(s)
+  const st = step(s)
+  const r = prog.advance(lift, p, st)
+  return { next: withMain(prog, lift, r.next, st), newCycle: r.newCycle }
+}
+
+/** 테스트 저장. mode: new = 새 사이클(처음부터), keep = 1RM만 갱신 */
 export function finishTest(lift: LiftKey, attempts: { weight: number; ok: boolean }[], mode: 'new' | 'keep'): string {
   const s = getState()
   const p = s.lifts[lift]
   const newRM = testResult(p.oneRM, attempts)
   const id = uid()
-  const lp =
-    mode === 'new' ? { ...newCycle(newRM, step(s)), cycleStart: today(), cycle: (p.cycle ?? 1) + 1 } : { ...p, oneRM: newRM }
+  const lp: LiftState =
+    mode === 'new' ? { ...initLift(s.settings.program, lift, newRM, step(s)), cycleStart: today(), cycle: (p.cycle ?? 1) + 1 } : { ...p, oneRM: newRM }
   setState((x) => ({
     ...x,
     lifts: { ...x.lifts, [lift]: lp },
     tests: [
       ...x.tests,
-      { id, date: today(), lift, attempts, prevRM: p.oneRM, newRM, endedCycle: mode === 'new' ? p.cycleStart : undefined, cycleNo: mode === 'new' ? (p.cycle ?? 1) : undefined },
+      {
+        id,
+        date: today(),
+        lift,
+        attempts,
+        prevRM: p.oneRM,
+        newRM,
+        endedCycle: mode === 'new' ? p.cycleStart : undefined,
+        cycleNo: mode === 'new' ? (p.cycle ?? 1) : undefined,
+        program: s.settings.program ?? 'stlog',
+      },
     ],
     rmHistory: [...x.rmHistory, { date: today(), lift, rm: newRM }],
   }))
   return id
 }
 
-/** 설정에서 1RM을 직접 바꾸면 지금 단계 처방도 다시 계산 */
+/** 설정에서 1RM을 직접 바꾸면 지금 줄 처방도 다시 계산 */
 export function setOneRM(lift: LiftKey, rm: number) {
   const s = getState()
   const p = s.lifts[lift]
-  const presc = p.stage < 4 ? stagePrescription(rm, p.stage as 1 | 2 | 3, step(s)) : {}
+  const prog = progOf(s)
+  const st = step(s)
+  const np = withMain(prog, lift, prog.rebase(lift, p, rm, st), st)
   setState((x) => ({
     ...x,
-    lifts: { ...x.lifts, [lift]: { ...p, oneRM: rm, ...presc } },
+    lifts: { ...x.lifts, [lift]: { ...p, ...np } },
     rmHistory: [...x.rmHistory, { date: today(), lift, rm }],
   }))
 }
+
+/** 프로그램 바꾸기: 세 종목 모두 지금 1RM으로 새 사이클 */
+export function setProgram(id: ProgramId) {
+  const s = getState()
+  const st = step(s)
+  const lifts = Object.fromEntries(
+    (Object.keys(s.lifts) as LiftKey[]).map((k) => {
+      const p = s.lifts[k]
+      return [k, { ...initLift(id, k, p.oneRM, st), cycleStart: today(), cycle: (p.cycle ?? 1) + 1 }]
+    }),
+  ) as typeof s.lifts
+  setState((x) => ({ ...x, settings: { ...x.settings, program: id }, lifts }))
+}
+
+/** 성별·키·몸무게 */
+export function setBody(body: Body) {
+  setState((x) => ({ ...x, settings: { ...x.settings, body } }))
+}
+
+/** 오늘 1RM 테스트 날인지 */
+export const testDay = (s: AppState, lift: LiftKey) => atTest(progOf(s), s.lifts[lift])
 
 /** kg ↔ lb 바꾸기: 저장된 모든 무게를 환산 */
 export function changeUnit(to: Unit) {
@@ -157,7 +188,8 @@ export function changeUnit(to: Unit) {
   const lifts = Object.fromEntries(
     (Object.keys(s.lifts) as LiftKey[]).map((k) => {
       const p = s.lifts[k]
-      return [k, { ...p, oneRM: five(p.oneRM), top: roundDown(p.top * f, st), backoff: roundDown(p.backoff * f, st) }]
+      const q = { ...p, oneRM: five(p.oneRM), top: roundDown(p.top * f, st), backoff: roundDown(p.backoff * f, st), ...(p.tm !== undefined ? { tm: roundDown(p.tm * f, st) } : {}) }
+      return [k, withMain(progOf(s), k, q, st)]
     }),
   ) as typeof s.lifts
   setState((x) => ({
@@ -168,6 +200,7 @@ export function changeUnit(to: Unit) {
       minPlate,
       bar: to === 'lb' ? 45 : 20,
       goal: { S: five(x.settings.goal.S), B: five(x.settings.goal.B), D: five(x.settings.goal.D) },
+      body: x.settings.body ? { ...x.settings.body, weight: Math.round(x.settings.body.weight * f * 2) / 2 } : undefined,
     },
     lifts,
     sessions: x.sessions.map((ss) => ({
@@ -182,16 +215,16 @@ export function changeUnit(to: Unit) {
   }))
 }
 
-/** 원판 최소 단위 바꾸기. adjust면 지금 처방(탑세트·백오프)도 새 단위로 내림 */
-export function setMinPlate(minPlate: number, adjust: boolean) {
+/** 원판 단위를 바꾸면 지금 처방이 어떻게 되는지 */
+export function liftsAtPlate(s: AppState, minPlate: number): AppState['lifts'] {
   const st = stepOf(minPlate)
-  setState((x) => ({
-    ...x,
-    settings: { ...x.settings, minPlate },
-    lifts: adjust
-      ? (Object.fromEntries((Object.keys(x.lifts) as LiftKey[]).map((k) => [k, { ...x.lifts[k], top: roundDown(x.lifts[k].top, st), backoff: roundDown(x.lifts[k].backoff, st) }])) as typeof x.lifts)
-      : x.lifts,
-  }))
+  const prog = progOf(s)
+  return Object.fromEntries((Object.keys(s.lifts) as LiftKey[]).map((k) => [k, { ...s.lifts[k], ...toPlate(prog, k, s.lifts[k], st) }])) as AppState['lifts']
+}
+
+/** 원판 최소 단위 바꾸기. adjust면 지금 처방도 새 단위로 내림 */
+export function setMinPlate(minPlate: number, adjust: boolean) {
+  setState((x) => ({ ...x, settings: { ...x.settings, minPlate }, lifts: adjust ? liftsAtPlate(x, minPlate) : x.lifts }))
 }
 
 /** 쉬는 시간 상태 저장 (기록 중 화면을 나갔다 와도 이어진다) */
@@ -199,15 +232,9 @@ export function setRest(rest: RestState) {
   setState((x) => (x.active ? { ...x, active: { ...x.active, rest } } : x))
 }
 
-/** 세트 완료 여부·탑세트로 추정 1RM 다시 계산 */
-function estOf(sets: SetRow[]): number | null {
-  const top = [...sets].reverse().find((r) => r.done && r.type === 'T' && r.rpe !== undefined)
-  return top && top.rpe !== undefined ? e1rm(top.weight, top.reps, top.rpe) : null
-}
-
 /** 지난 기록 수정 (기록만 바뀌고 지금 처방은 그대로) */
 export function saveSession(id: string, sets: SetRow[]) {
-  setState((x) => ({ ...x, sessions: x.sessions.map((ss) => (ss.id === id ? { ...ss, sets, e1rm: estOf(sets) } : ss)) }))
+  setState((x) => ({ ...x, sessions: x.sessions.map((ss) => (ss.id === id ? { ...ss, sets, e1rm: sessionE1rm(sets) } : ss)) }))
 }
 
 /** 지난 기록 삭제 (지금 처방은 그대로) */

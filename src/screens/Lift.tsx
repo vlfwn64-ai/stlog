@@ -1,10 +1,12 @@
-import { L, attemptLabel, setsLabel, shortReps, stageLabel, topLabel } from '../i18n'
+import { L, attemptLabel, setsLabel } from '../i18n'
 import { useRef, useState } from 'react'
 import type { LiftKey } from '../logic/program'
-import { STAGES, advanceStage, deloadSets, firstAttempt, warmups } from '../logic/program'
-import { cancelWorkout, goNextStage, startWorkout } from '../actions'
+import { deloadSets, firstAttempt, warmups } from '../logic/program'
+import type { Program } from '../logic/programs'
+import { atTest, groupSets, levelName, mainSet, phaseTitle, programOf, repsText } from '../logic/programs'
+import { cancelWorkout, goNextStage, previewNextStage, startWorkout } from '../actions'
 import type { AppState, SessionLog } from '../store'
-import { step as stepOf, useApp } from '../store'
+import { progOf, step as stepOf, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
 import { Confirm, LiftChart, PillToggle, Sheet, SummaryRows, ts } from '../ui'
 import type { Go } from '../App'
@@ -13,51 +15,69 @@ import DaySheet from './DaySheet'
 
 type Pop = null | 'deload' | 'next' | 'test' | 'prev' | 'start' | 'startDeload' | 'discard'
 
-const topOf = (x: SessionLog) => x.sets.find((r) => r.type === 'T' && r.done)
-
-/** 디로드 날 무게 (완료한 본 세트 중 가장 무거운 것) */
-const deloadOf = (x: SessionLog) => {
-  const w = x.sets.filter((r) => r.type !== 'W' && r.done).map((r) => r.weight)
-  return w.length ? Math.max(...w) : null
+/** 세션 대표 세트 (완료한 본 세트 중 가장 무거운 것) */
+const mainOf = (x: SessionLog) =>
+  x.sets.filter((r) => r.type !== 'W' && r.done).reduce<SessionLog['sets'][number] | undefined>((m, r) => (!m || r.weight > m.weight ? r : m), undefined)
+/** 이전 사이클 글자: 암렙이면 "90×9" */
+const mainText = (x: SessionLog) => {
+  const m = mainOf(x)
+  return m ? `${fmt(m.weight)}${m.type === 'A' ? `×${m.reps}` : ''}` : ''
 }
 
 type Box = { w: string; d: string; id: string; deload?: boolean }
 
-/** 이번 사이클 단계별 기록 (디로드한 날도 그 단계 자리에 날짜순으로) */
-function cycleRows(s: AppState, lift: LiftKey) {
+/** 이번 사이클 줄별 기록 (디로드한 날도 그 줄에 날짜순으로) */
+function cycleRows(s: AppState, lift: LiftKey, prog: Program) {
   const p = s.lifts[lift]
   const cyc = s.sessions.filter((x) => x.lift === lift && (x.cycle ?? 1) === (p.cycle ?? 1))
-  return ([1, 2, 3, 4] as const).map((n) => ({
-    n: n as number,
-    label: shortReps(n === 4 ? 1 : STAGES[n].topReps),
+  return prog.phases(lift).map((ph) => ({
+    ...ph,
     boxes: cyc
-      .filter((x) => x.stage === n)
+      .filter((x) => x.stage === ph.n)
       .flatMap((x): Box[] => {
-        if (x.deload) {
-          const w = deloadOf(x)
-          return w === null ? [] : [{ w: fmt(w), d: md(x.date), id: x.id, deload: true }]
-        }
-        const t = topOf(x)
-        return t ? [{ w: fmt(t.weight), d: md(x.date), id: x.id }] : []
+        const m = mainOf(x)
+        return m ? [{ w: fmt(m.weight), d: md(x.date), id: x.id, deload: x.deload }] : []
       }),
   }))
 }
 
-/** 끝난 사이클 (새 사이클로 넘어간 테스트 기준) */
+/** 끝난 사이클 (테스트로 끝났거나, 프로그램을 바꿨거나, 5/3/1 방식 4주가 끝난 것) */
 function prevCycles(s: AppState, lift: LiftKey) {
-  return s.tests
-    .filter((t) => t.lift === lift && t.endedCycle)
+  const p = s.lifts[lift]
+  const out: { id: string; range: string; from?: number; to?: number; weeks: number; program: string; rows: { label: string; text: string }[] }[] = []
+  const weeksOf = (a: string, b: string) => Math.max(1, Math.ceil((ts(b) - ts(a)) / (7 * 86400000)))
+  for (let c = (p.cycle ?? 1) - 1; c >= 1; c--) {
+    const t = s.tests.find((x) => x.lift === lift && x.endedCycle && x.cycleNo === c)
+    const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && (x.cycle ?? 1) === c && mainOf(x))
+    if (!t && !ss.length) continue
+    const prog = programOf(ss[0]?.program ?? t?.program)
+    const start = t?.endedCycle ?? ss[0].date
+    const end = t?.date ?? ss[ss.length - 1].date
+    const rows = prog
+      .phases(lift)
+      .filter((ph) => !ph.test)
+      .map((ph) => ({ label: ph.sub ? `${ph.label} ${ph.sub}` : ph.label, text: ss.filter((x) => x.stage === ph.n).map(mainText).join(' → ') }))
+      .filter((r) => r.text)
+    if (t) rows.push({ label: L('테스트', 'Test'), text: t.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ') })
+    out.push({ id: t?.id ?? `c${c}`, range: `${md(start)} – ${md(end)}`, from: t?.prevRM, to: t?.newRM, weeks: weeksOf(start, end), program: prog.name(), rows })
+  }
+  // 사이클 번호가 없던 예전 테스트
+  s.tests
+    .filter((t) => t.lift === lift && t.endedCycle && t.cycleNo === undefined)
     .reverse()
-    .map((t) => {
+    .forEach((t) => {
       const start = t.endedCycle as string
-      const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && (t.cycleNo !== undefined ? (x.cycle ?? 1) === t.cycleNo : x.date >= start && x.date <= t.date))
-      const rows = ([1, 2, 3] as const)
-        .map((n) => ({ label: shortReps(STAGES[n].topReps), text: ss.filter((x) => x.stage === n && topOf(x)).map((x) => fmt(topOf(x)!.weight)).join(' → ') }))
+      const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && x.date >= start && x.date <= t.date && mainOf(x))
+      const prog = programOf(t.program)
+      const rows = prog
+        .phases(lift)
+        .filter((ph) => !ph.test)
+        .map((ph) => ({ label: ph.label, text: ss.filter((x) => x.stage === ph.n).map(mainText).join(' → ') }))
         .filter((r) => r.text)
       rows.push({ label: L('테스트', 'Test'), text: t.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ') })
-      const weeks = Math.max(1, Math.ceil((ts(t.date) - ts(start)) / (7 * 86400000)))
-      return { id: t.id, range: `${md(start)} – ${md(t.date)}`, from: t.prevRM, to: t.newRM, weeks, rows }
+      out.push({ id: t.id, range: `${md(start)} – ${md(t.date)}`, from: t.prevRM, to: t.newRM, weeks: weeksOf(start, t.date), program: prog.name(), rows })
     })
+  return out
 }
 
 export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go; enter?: boolean; slide?: 'left' | 'right' }) {
@@ -76,18 +96,23 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
   const goal = s.settings.goal[lift]
   const live = s.active?.lift === lift
   const otherLive = !!s.active && !live
-  const stage3 = Math.min(3, p.stage) as 1 | 2 | 3
-  const cfg = STAGES[stage3]
-  const rows = cycleRows(s, lift)
-  const nextP = advanceStage(p, st)
+  const prog = progOf(s)
+  const test = atTest(prog, p)
+  const main = mainSet(prog, lift, p, st)
+  const work = test ? [] : groupSets(prog.sets(lift, p, st))
+  /** 대표 세트 "100kg × 3+" */
+  const mainW = main ? `${fmt(main.weight)}${u} × ${repsText(main)}` : ''
+  const rows = cycleRows(s, lift, prog)
+  const nextPre = prog.canAdvance ? previewNextStage(s, lift) : null
+  const nextP = nextPre?.next
   const dl = deloadSets(lift, p.oneRM, st)
   const fa = firstAttempt(p.oneRM, st)
   const bar = s.settings.bar
   const testWarm = warmups(fa, { lift, step: st, bar, unit: u, heavy: true })
-  const todayWarm = warmups(p.top, { lift, step: st, bar, unit: u, heavy: stage3 === 3 })
+  const todayWarm = warmups(main?.weight ?? p.top, { lift, step: st, bar, unit: u, heavy: prog.heavy(p) })
   const dlWarm = warmups(dl[0].weight, { lift, step: st, bar, unit: u, heavy: false })
-  const lastSession = [...s.sessions].reverse().find((x) => x.lift === lift && !x.deload && topOf(x))
-  const lastTop = lastSession && topOf(lastSession)
+  const lastSession = [...s.sessions].reverse().find((x) => x.lift === lift && !x.deload && mainOf(x))
+  const lastTop = lastSession && mainOf(lastSession)
   const prev = prevCycles(s, lift)
 
   const begin = (deload: boolean) => {
@@ -98,7 +123,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
   const onStart = () => {
     if (live) return go({ name: 'workout' })
     if (otherLive) return setPop('discard')
-    if (p.stage === 4) return setPop('test')
+    if (test) return setPop('test')
     setPop('start')
   }
 
@@ -156,15 +181,15 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
 
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 20px 0', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) both' : slide ? `${slide === 'right' ? 'fromRight' : 'fromLeft'} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}>
         <h1 className="num" style={{ fontSize: 22, fontWeight: 800 }}>
-          {p.stage === 4 ? (
+          {test || !main ? (
             <>
               1RM <span style={{ color: th.text }}>TEST</span>
             </>
           ) : (
             <>
-              {topLabel(cfg.topReps)}{' '}
+              {prog.id === 'stlog' ? L(`${main.reps}회 탑`, `Top ${main.reps}`) : phaseTitle(prog, lift, p.stage)}{' '}
               <span style={{ color: th.text }}>
-                {fmt(p.top)}
+                {fmt(main.weight)}
                 {u}
               </span>
             </>
@@ -219,12 +244,28 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
               </svg>
             </button>
           </div>
-          {rows.filter((r) => r.n < 4 || p.stage === 4 || r.boxes.length).map((r) => {
+          {prog.id !== 'stlog' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: -4 }}>
+              <span style={{ height: 24, padding: '0 9px', borderRadius: 7, background: 'var(--fill)', fontSize: 12, fontWeight: 700, color: 'var(--ink2)', lineHeight: '24px' }}>
+                {levelName(prog.level)} · {prog.name()}
+              </span>
+              {p.tm !== undefined && (
+                <span className="num" style={{ fontSize: 12, color: 'var(--mute)' }}>
+                  {L('트레이닝 맥스', 'Training max')} {fmt(p.tm)}
+                  {u}
+                </span>
+              )}
+            </div>
+          )}
+          {rows.filter((r) => !r.test || test || r.boxes.length).map((r) => {
             const cur = r.n === p.stage
-            const todayW = cur ? fmt(p.stage === 4 ? fa : p.top) : null
+            const todayW = cur ? fmt(test ? fa : (main?.weight ?? p.top)) : null
             return (
               <div key={r.n} style={cur ? { display: 'flex', alignItems: 'center', gap: 10, margin: '-6px -10px', padding: '6px 10px', borderRadius: 14, background: th.rowBg } : { display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 34, flexShrink: 0, fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
+                <span style={{ width: prog.id === 'stlog' ? 34 : 44, flexShrink: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+                  <span style={{ fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
+                  {r.sub && <span style={{ fontSize: 11, fontWeight: 600, color: cur ? th.deep : 'var(--mute)' }}>{r.sub}</span>}
+                </span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                   {r.boxes.map((b, i) => (
                     <button
@@ -257,21 +298,23 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
             )
           })}
           {/* 사이클 마지막 테스트 날에는 아래 '테스트 시작' 하나만 */}
-          {p.stage < 4 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 2 }}>
+          {!test && (
+            <div style={{ display: 'grid', gridTemplateColumns: prog.canAdvance ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 8, marginTop: 2 }}>
               <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
                 {L('TEST하기', 'Test now')}
               </button>
-              <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
-                {L('다음 단계로', 'Next stage')}
-              </button>
+              {prog.canAdvance && (
+                <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
+                  {prog.advanceLabel()}
+                </button>
+              )}
             </div>
           )}
         </section>
       </main>
 
       <div style={{ display: 'flex', gap: 8, padding: '14px 20px var(--safe-bot)', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) 60ms both' : undefined }}>
-        {(live || p.stage < 4) && (
+        {(live || !test) && (
         <button
           onClick={() => setPop(live ? 'discard' : 'deload')}
           style={{ width: 96, flexShrink: 0, height: 56, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}
@@ -280,7 +323,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
         </button>
         )}
         <button onClick={onStart} style={{ flex: 1, height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}>
-          {live ? L('이어서 기록', 'Resume') : p.stage === 4 ? L('테스트 시작', 'Start test') : L('훈련 시작', 'Start workout')}
+          {live ? L('이어서 기록', 'Resume') : test ? L('테스트 시작', 'Start test') : L('훈련 시작', 'Start workout')}
         </button>
       </div>
 
@@ -290,19 +333,20 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: th.text }}>Now</span>
             <span className="num" style={{ fontSize: 40, fontWeight: 800, letterSpacing: -1 }}>
-              {fmt(p.top)}
-              {u} × {cfg.topReps}
+              {mainW}
             </span>
             <span style={{ fontSize: 14, color: 'var(--sub)' }}>
-              {th.name} · {L(`${stage3}단계 탑세트 · RPE 9까지`, `Stage ${stage3} top set · up to RPE 9`)}
+              {th.name} · {prog.id === 'stlog' ? L(`${p.stage}단계 탑세트 · RPE 9까지`, `Stage ${p.stage} top set · up to RPE 9`) : `${prog.name()} · ${phaseTitle(prog, lift, p.stage)}`}
             </span>
           </div>
           <SummaryRows
             small
             rows={[
               [`${L('웜업', 'Warm-up')} ${setsLabel(todayWarm.length)}`, todayWarm.map((w) => fmt(w.weight)).join(' → ')],
-              [L('탑세트', 'Top set'), `${fmt(p.top)}${u} × ${cfg.topReps}`],
-              [L('백오프', 'Back-off'), `${fmt(p.backoff)}${u} × ${cfg.boReps[lift]} × ${cfg.boSets}`],
+              ...work.map((x, i): [string, string] => [
+                x.type === 'B' ? L('백오프', 'Back-off') : x.type === 'A' ? L('암렙', 'AMRAP') : prog.id === 'stlog' || prog.id === 'rpe1' ? L('탑세트', 'Top set') : `${L('본세트', 'Set')}${work.filter((y) => y.type !== 'B').length > 1 ? ` ${i + 1}` : ''}`,
+                `${fmt(x.weight)}${u} × ${x.reps}${x.type === 'A' ? '+' : ''}${x.count > 1 ? ` × ${x.count}` : ''}`,
+              ]),
             ]}
           />
           {lastSession && lastTop && (
@@ -331,7 +375,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
             rows={[
               [`${L('웜업', 'Warm-up')} ${setsLabel(dlWarm.length)}`, dlWarm.map((w) => fmt(w.weight)).join(' → ')],
               [L('디로드', 'Deload'), `${fmt(dl[0].weight)}${u} × ${dl[0].reps} × ${dl.length}`],
-              [L('다음 훈련', 'Next workout'), L(`원래 무게 ${fmt(p.top)}${u} × ${cfg.topReps}`, `Back to ${fmt(p.top)}${u} × ${cfg.topReps}`)],
+              [L('다음 훈련', 'Next workout'), test ? L('1RM 테스트', '1RM test') : L(`원래 무게 ${mainW}`, `Back to ${mainW}`)],
             ]}
           />
           {startButtons(true)}
@@ -346,29 +390,32 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           rows={[
             [L('오늘 무게', 'Today'), `${fmt(dl[0].weight)}${u} × ${dl[0].reps} × ${dl.length}`],
             [L('기준', 'Based on'), L(`1RM ${fmt(p.oneRM)}${u}의 65%`, `65% of 1RM ${fmt(p.oneRM)}${u}`)],
-            [L('다음 훈련', 'Next workout'), L(`원래 무게 ${fmt(p.top)}${u} × ${cfg.topReps}`, `Back to ${fmt(p.top)}${u} × ${cfg.topReps}`)],
+            [L('다음 훈련', 'Next workout'), test ? L('1RM 테스트', '1RM test') : L(`원래 무게 ${mainW}`, `Back to ${mainW}`)],
           ]}
           cta={L('디로드로 시작', 'Start deload')}
           onCancel={() => setPop(null)}
           onOk={() => setPop(otherLive ? 'discard' : 'startDeload')}
         />
       )}
-      {pop === 'next' && (
+      {pop === 'next' && nextP && (
         <Confirm
           lift={lift}
-          eyebrow={`${th.name} · ${L('다음 단계', 'Next stage')}`}
-          title={L('다음 단계로 넘어갈까요?', 'Move to the next stage?')}
+          eyebrow={`${th.name} · ${prog.id === '531' ? L('다음 주', 'Next week') : L('다음 단계', 'Next stage')}`}
+          title={prog.id === '531' ? L('다음 주로 넘어갈까요?', 'Move to the next week?') : L('다음 단계로 넘어갈까요?', 'Move to the next stage?')}
           rows={[
-            [L('지금', 'Now'), `${stageLabel(p.stage)} · ${topLabel(cfg.topReps)} ${fmt(p.top)}${u}`],
-            ...((nextP.stage === 4
+            [L('지금', 'Now'), `${phaseTitle(prog, lift, p.stage)} · ${mainW}`],
+            ...((atTest(prog, nextP)
               ? [
                   [L('다음', 'Next'), L('1RM 테스트', '1RM test')],
                   [attemptLabel(1), `${fmt(fa)}${u}`],
                 ]
-              : [
-                  [L('다음', 'Next'), `${stageLabel(nextP.stage)} · ${topLabel(STAGES[nextP.stage as 1 | 2 | 3].topReps)} ${fmt(nextP.top)}${u}`],
-                  [L('백오프', 'Back-off'), `${fmt(nextP.backoff)}${u} × ${STAGES[nextP.stage as 1 | 2 | 3].boReps[lift]} × ${STAGES[nextP.stage as 1 | 2 | 3].boSets}`],
-                ]) as [string, string][]),
+              : (() => {
+                  const m = mainSet(prog, lift, nextP, st)
+                  return [
+                    [L('다음', 'Next'), `${nextPre?.newCycle ? `${L('새 사이클', 'New cycle')} · ` : ''}${phaseTitle(prog, lift, nextP.stage)}${m ? ` · ${fmt(m.weight)}${u} × ${repsText(m)}` : ''}`],
+                    ...(nextP.tm !== undefined && nextPre?.newCycle ? [[L('트레이닝 맥스', 'Training max'), `${fmt(p.tm ?? 0)} → ${fmt(nextP.tm)}${u}`]] : []),
+                  ]
+                })()) as [string, string][]),
           ]}
           cta={L('넘어가기', 'Move on')}
           onCancel={() => setPop(null)}
@@ -406,7 +453,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           onCancel={() => setPop(null)}
           onOk={() => {
             cancelWorkout()
-            setPop(live ? null : p.stage === 4 ? 'test' : 'start')
+            setPop(live ? null : test ? 'test' : 'start')
           }}
         />
       )}
@@ -423,17 +470,25 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           {prev.map((c) => (
             <article key={c.id} style={{ border: '1px solid var(--line)', borderRadius: 16, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span className="num" style={{ fontSize: 17, fontWeight: 800 }}>
-                  {c.range}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span className="num" style={{ fontSize: 17, fontWeight: 800 }}>
+                    {c.range}
+                  </span>
+                  <span style={{ height: 22, padding: '0 8px', borderRadius: 6, background: 'var(--fill)', fontSize: 12, fontWeight: 700, color: 'var(--ink2)', lineHeight: '22px', whiteSpace: 'nowrap' }}>{c.program}</span>
+                </div>
                 <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-                  <span style={{ fontWeight: 800, color: th.deep }}>{c.to > c.from ? L(`+${fmt(c.to - c.from)}${u} 상승`, `+${fmt(c.to - c.from)}${u}`) : L('유지', 'Same')}</span> · 1RM {fmt(c.from)} → {fmt(c.to)}
-                  {u} · {L(`${c.weeks}주`, `${c.weeks} wk`)}
+                  {c.from !== undefined && c.to !== undefined && (
+                    <>
+                      <span style={{ fontWeight: 800, color: th.deep }}>{c.to > c.from ? L(`+${fmt(c.to - c.from)}${u} 상승`, `+${fmt(c.to - c.from)}${u}`) : L('유지', 'Same')}</span> · 1RM {fmt(c.from)} → {fmt(c.to)}
+                      {u} ·{' '}
+                    </>
+                  )}
+                  {L(`${c.weeks}주`, `${c.weeks} wk`)}
                 </span>
               </div>
               {c.rows.map((r) => (
                 <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 44, flexShrink: 0, fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>{r.label}</span>
+                  <span style={{ width: 52, flexShrink: 0, fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>{r.label}</span>
                   <span className="num" style={{ fontSize: 14, color: 'var(--ink2)' }}>
                     {r.text}
                   </span>

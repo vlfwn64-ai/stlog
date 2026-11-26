@@ -4,15 +4,19 @@ import { L, getLang, isEn, timesLabel } from '../i18n'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
-import { roundDown, stepOf } from '../logic/program'
-import { changeUnit, setMinPlate, setOneRM } from '../actions'
-import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
-import { GEAR, allGear, resetAll, setState, useApp } from '../store'
+import { stepOf } from '../logic/program'
+import type { Level, ProgramId } from '../logic/programs'
+import { levelName, mainSet, programOf } from '../logic/programs'
+import { changeUnit, liftsAtPlate, setBody, setMinPlate, setOneRM, setProgram } from '../actions'
+import { AddGearSheet, BODY_DEFAULT, BodyPicker, DialSet, GearGrid, PlatePicker } from '../dial'
+import type { Body } from '../store'
+import { LevelTabs, ProgramCards } from './ProgramPicker'
+import { GEAR, allGear, progOf, resetAll, setState, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, gearName } from '../theme'
 import { Confirm, SegToggle, Sheet, SummaryRows } from '../ui'
 import type { Go } from '../App'
 
-type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'account' | 'plateAdjust'
+type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'account' | 'plateAdjust' | 'program' | 'body'
 
 /** 피드백을 받을 인스타그램 계정 */
 const FEEDBACK_IG = 'pharmaco_lifting_stlog'
@@ -59,15 +63,26 @@ export default function Menu({ go }: { go: Go }) {
     setBar(st.bar)
     setGear(st.gear)
     setDeleting(false)
+    setLv(prog.level)
+    setPick(prog.id)
+    setBodyDraft(bodyOf())
     setPop(p)
   }
-  /** 새 원판 단위로 바꿀 때 달라지는 처방 무게 [종목, 탑세트 전→후, 백오프 전→후] */
+  const prog = progOf(s)
+  const [lv, setLv] = useState<Level>(prog.level)
+  const [pick, setPick] = useState<ProgramId>(prog.id)
+  const bodyOf = (): Body => st.body ?? { sex: 'm', height: BODY_DEFAULT.m.height, weight: u === 'kg' ? BODY_DEFAULT.m.kg : Math.round(BODY_DEFAULT.m.kg * 2.2046) }
+  const [body, setBodyDraft] = useState<Body>(bodyOf)
+  /** 새 원판 단위로 바꿀 때 달라지는 처방 무게 [종목, 대표 무게 전→후, 백오프 전→후] */
   const plateChanges = (mp: number) => {
     const sp = stepOf(mp)
+    const cur = stepOf(st.minPlate)
+    const nl = liftsAtPlate(s, mp)
     return CARD_ORDER.map((k) => {
-      const p = s.lifts[k]
-      return { k, top: [p.top, roundDown(p.top, sp)], bo: [p.backoff, roundDown(p.backoff, sp)] }
-    }).filter((c) => c.top[0] !== c.top[1] || c.bo[0] !== c.bo[1])
+      const a = mainSet(prog, k, s.lifts[k], cur)
+      const b = mainSet(prog, k, nl[k], sp)
+      return { k, top: [a?.weight ?? s.lifts[k].top, b?.weight ?? nl[k].top], bo: [s.lifts[k].backoff, nl[k].backoff] }
+    }).filter((c) => c.top[0] !== c.top[1] || (prog.id === 'stlog' && c.bo[0] !== c.bo[1]))
   }
   const trio = (o: Record<LiftKey, number>) => `${CARD_ORDER.map((k) => fmt(o[k])).join(' · ')} ${u} ›`
 
@@ -85,8 +100,10 @@ export default function Menu({ go }: { go: Go }) {
         <Section title={L('내 기록', 'My records')}>
           <Row label={L('1RM 설정', '1RM')} value={trio({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })} onClick={() => open('rm')} />
           <Row label={L('목표 중량', 'Goals')} value={trio(st.goal)} onClick={() => open('goal')} />
+          <Row label={L('내 정보', 'About me')} value={st.body ? `${st.body.height}cm · ${fmt(st.body.weight)}${u} ›` : `${L('입력', 'Add')} ›`} onClick={() => open('body')} />
         </Section>
         <Section title={L('운동 환경', 'Training')}>
+          <Row label={L('프로그램', 'Program')} value={`${levelName(prog.level)} · ${prog.name()} ›`} onClick={() => open('program')} />
           <Row label={L('원판 최소 단위', 'Smallest plate')} value={`${st.minPlate} ${u} ›`} onClick={() => open('plate')} />
           <Row label={L('바 무게', 'Bar weight')} value={`${fmt(st.bar)} ${u} ›`} onClick={() => open('bar')} />
           <Row label={L('장비 설정', 'Gear')} value={`${st.gear.length ? st.gear.map(gearName).join(' · ') : L('없음', 'None')} ›`} onClick={() => open('gear')} />
@@ -263,8 +280,8 @@ export default function Menu({ go }: { go: Go }) {
             rows={plateChanges(plate).flatMap((c) => {
               const r: [string, string][] = []
               const name = TH[c.k].name
-              if (c.top[0] !== c.top[1]) r.push([`${name} ${L('탑세트', 'top set')}`, `${fmt(c.top[0])} → ${fmt(c.top[1])}${u}`])
-              if (c.bo[0] !== c.bo[1]) r.push([`${name} ${L('백오프', 'back-off')}`, `${fmt(c.bo[0])} → ${fmt(c.bo[1])}${u}`])
+              if (c.top[0] !== c.top[1]) r.push([`${name} ${prog.id === 'stlog' ? L('탑세트', 'top set') : L('본세트', 'main set')}`, `${fmt(c.top[0])} → ${fmt(c.top[1])}${u}`])
+              if (prog.id === 'stlog' && c.bo[0] !== c.bo[1]) r.push([`${name} ${L('백오프', 'back-off')}`, `${fmt(c.bo[0])} → ${fmt(c.bo[1])}${u}`])
               return r
             })}
           />
@@ -288,6 +305,53 @@ export default function Menu({ go }: { go: Go }) {
               {L('무게 바꾸기', 'Update weights')}
             </button>
           </div>
+        </Sheet>
+      )}
+      {pop === 'program' && (
+        <Sheet onClose={() => setPop(null)} title={L('프로그램', 'Program')}>
+          <LevelTabs value={lv} onChange={setLv} />
+          <ProgramCards level={lv} value={pick} current={prog.id} compact onChange={setPick} />
+          <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>
+              {s.active ? L('기록 중인 훈련이 있어요', 'A workout is in progress') : pick === prog.id ? L('지금 하고 있는 프로그램이에요', 'This is your current program') : L('세 종목 모두 새 사이클로 시작해요', 'All three lifts start a new cycle')}
+            </span>
+            <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
+              {s.active
+                ? L('기록을 끝내거나 취소한 뒤에 바꿀 수 있어요.', 'Finish or discard it first.')
+                : pick === prog.id
+                  ? L('다른 프로그램을 고르면 바꿀 수 있어요.', 'Pick another program to switch.')
+                  : L('지금 사이클 기록은 이전 사이클에 그대로 남아요. 시작 무게는 지금 1RM으로 다시 계산해요.', 'Your current cycle stays in Past cycles. Starting weights are recalculated from your current 1RM.')}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setPop(null)} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>
+              {L('취소', 'Cancel')}
+            </button>
+            <button
+              disabled={pick === prog.id || !!s.active}
+              onClick={() => {
+                setProgram(pick)
+                setPop(null)
+              }}
+              style={{ ...saveBtn, flex: 1, ...(pick === prog.id || s.active ? { background: 'var(--line)', color: 'var(--faint)' } : {}) }}
+            >
+              {pick === prog.id || s.active ? L('바꾸기', 'Switch') : L(`${programOf(pick).name()} 시작`, `Start ${programOf(pick).name()}`)}
+            </button>
+          </div>
+        </Sheet>
+      )}
+      {pop === 'body' && (
+        <Sheet onClose={() => setPop(null)} title={L('내 정보', 'About me')} gap={20}>
+          <BodyPicker value={body} unit={u} onChange={setBodyDraft} />
+          <button
+            style={saveBtn}
+            onClick={() => {
+              setBody(body)
+              setPop(null)
+            }}
+          >
+            {L('저장', 'Save')}
+          </button>
         </Sheet>
       )}
       {pop === 'reset' && (

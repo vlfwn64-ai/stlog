@@ -4,9 +4,10 @@ import { useRestTimer } from '../rest'
 import { unlockAudio } from '../sound'
 import type { RestState } from '../store'
 import type { LiftKey } from '../logic/program'
-import { STAGES, firstAttempt, testResult, warmups } from '../logic/program'
+import { firstAttempt, testResult, warmups } from '../logic/program'
+import { atTest, phaseTitle } from '../logic/programs'
 import { finishTest } from '../actions'
-import { step as stepOf, useApp } from '../store'
+import { progOf, step as stepOf, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
 import type { Go } from '../App'
 
@@ -60,8 +61,8 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
 
   const best = testResult(p.oneRM, attempts)
   const others = CARD_ORDER.filter((k) => k !== lift).reduce((a, k) => a + s.lifts[k].oneRM, 0)
-  const stage3 = Math.min(3, p.stage) as 1 | 2 | 3
-  const midCycle = p.stage < 4
+  const prog = progOf(s)
+  const midCycle = !atTest(prog, p)
 
   const commit = (mode: 'new' | 'keep') => {
     finishTest(lift, attempts, mode)
@@ -188,13 +189,13 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 20px var(--safe-bot)' }}>
             {midCycle && (
               <p style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.6, textAlign: 'center', marginBottom: 8 }}>
-                {L(`이번 사이클은 ${p.stage}단계(${STAGES[stage3].topReps}회 탑) 진행 중이었어요.`, `You were on stage ${p.stage} (top ${STAGES[stage3].topReps}) of this cycle.`)}
+                {L(`이번 사이클은 ${phaseTitle(prog, lift, p.stage)} 진행 중이었어요.`, `You were on ${phaseTitle(prog, lift, p.stage)} of this cycle.`)}
                 <br />
                 {L('어떻게 이어갈까요?', 'How do you want to continue?')}
               </p>
             )}
             <button onClick={() => commit('new')} style={{ height: 56, borderRadius: 14, background: fg, color: th.testBg, fontSize: 17, fontWeight: 700 }}>
-              {midCycle ? L('새 사이클 시작 (1단계부터)', 'New cycle (from stage 1)') : L('새 사이클 시작', 'Start new cycle')}
+              {midCycle ? L('새 사이클 시작 (처음부터)', 'New cycle (from the start)') : L('새 사이클 시작', 'Start new cycle')}
             </button>
             {midCycle && (
               <button onClick={() => commit('keep')} style={{ height: 56, borderRadius: 14, background: ghost, color: fg, fontSize: 17, fontWeight: 700 }}>

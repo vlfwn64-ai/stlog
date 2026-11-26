@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { STAGES } from '../logic/program'
+import { phaseTitle, programOf } from '../logic/programs'
 import { testResult } from '../logic/program'
 import { deleteSession, deleteTest, saveTest } from '../actions'
 import type { SessionLog, TestLog } from '../store'
 import { step as stepOf, useApp } from '../store'
 import { TH, chipColors, fmt } from '../theme'
-import { L, attemptLabel, dayTitle, setsLabel, stageLabel, topLabel } from '../i18n'
+import { L, attemptLabel, dayTitle, setsLabel } from '../i18n'
 import { Confirm, Sheet } from '../ui'
 import type { Go, Route } from '../App'
 
@@ -153,12 +153,15 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
         const done = x.sets.filter((r) => r.done)
         const warm = done.filter((r) => r.type === 'W')
         const work = done.filter((r) => r.type !== 'W')
-        const st = Math.min(3, x.stage) as 1 | 2 | 3
+        const prog = programOf(x.program)
         return (
           <article key={x.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: th.text, padding: '0 4px' }}>
-              {th.name} · {x.deload ? L('디로드', 'Deload') : `${stageLabel(x.stage)} ${topLabel(STAGES[st].topReps)}`}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 4px' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: th.text }}>
+                {th.name} · {x.deload ? L('디로드', 'Deload') : phaseTitle(prog, x.lift, x.stage)}
+              </span>
+              <span style={{ height: 22, padding: '0 8px', borderRadius: 6, background: 'var(--fill)', fontSize: 12, fontWeight: 700, color: 'var(--ink2)', lineHeight: '22px', whiteSpace: 'nowrap' }}>{prog.name()}</span>
+            </div>
             <div style={{ background: 'var(--fill2)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
               {warm.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36 }}>

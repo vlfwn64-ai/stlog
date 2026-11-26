@@ -3,11 +3,13 @@ import { useRef, useState } from 'react'
 import { Sheet } from './ui'
 import type { LiftKey } from './logic/program'
 import { CARD_ORDER, TH, fmt, gearName } from './theme'
+import type { Body } from './store'
 import { tick, unlockAudio } from './sound'
 
 /** 세로 다이얼: 위아래로 끌거나 위·아래 숫자를 눌러 바꾼다 */
-export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; value: number; step: number; unit: string; onChange: (v: number) => void }) {
-  const th = TH[lift]
+export function Dial({ lift, name, min = 0, value, step, unit, onChange }: { lift?: LiftKey; name?: string; min?: number; value: number; step: number; unit: string; onChange: (v: number) => void }) {
+  // 종목이 없으면(키·몸무게) 검정 기본
+  const th = lift ? TH[lift] : { boxLine: 'var(--ink)', text: 'var(--ink)', name: name ?? '' }
   const ROW = 56
   // 위는 작은 수, 아래는 큰 수. 손가락을 올리면 아래 큰 수가 가운데로 올라온다
   const drag = useRef<{ y: number; v: number; moved: boolean } | null>(null)
@@ -15,7 +17,7 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
   const [snap, setSnap] = useState(false)
   /** 증량 단위에 맞춘 값 (원판 단위를 바꿔서 칸이 어긋났을 때) */
   const align = (v: number) => +(Math.round(v / step) * step).toFixed(2)
-  const at = (base: number, n: number) => Math.max(0, +(base + n * step).toFixed(2))
+  const at = (base: number, n: number) => Math.max(min, +(base + n * step).toFixed(2))
   const change = (v: number) => {
     onChange(v)
     tick()
@@ -105,7 +107,7 @@ export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; val
           const dist = Math.min(1, Math.abs((i - 2) * ROW + off) / ROW)
           return (
             <div key={i} style={{ height: ROW, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {v >= 0 && (
+              {v >= min && (
                 <span className="num" style={{ fontSize: 30 - 15 * dist, fontWeight: dist < 0.5 ? 800 : 400, color: dist < 0.5 ? th.text : 'var(--mute)', lineHeight: 1 }}>
                   {fmt(v)}
                 </span>
@@ -247,5 +249,53 @@ export function AddGearSheet({ onClose, onAdd }: { onClose: () => void; onAdd: (
         </button>
       </div>
     </Sheet>
+  )
+}
+
+/** 성별 기본 키·몸무게 */
+export const BODY_DEFAULT = { m: { height: 175, kg: 75 }, f: { height: 162, kg: 57 } }
+
+/** 성별 + 키·몸무게 다이얼 (온보딩, 설정 › 내 정보) */
+export function BodyPicker({ value, unit, onChange }: { value: Body; unit: 'kg' | 'lb'; onChange: (b: Body) => void }) {
+  const seg = (on: boolean) =>
+    ({ height: 44, borderRadius: 10, fontSize: 16, background: on ? 'var(--pill)' : 'transparent', fontWeight: on ? 700 : 500, color: on ? 'var(--ink)' : 'var(--sub)', boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }) as const
+  const box = { height: 64, borderRadius: 14, background: 'var(--fill)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 } as const
+  const wStep = unit === 'kg' ? 0.5 : 1
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div role="group" aria-label={L('성별', 'Sex')} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', background: 'var(--fill)', borderRadius: 12, padding: 3 }}>
+        {(['m', 'f'] as const).map((k) => (
+          <button
+            key={k}
+            aria-pressed={value.sex === k}
+            onClick={() => {
+              if (value.sex === k) return
+              // 성별을 바꾸면 다이얼을 그 성별 평균 근처로
+              const d = BODY_DEFAULT[k]
+              onChange({ sex: k, height: d.height, weight: unit === 'kg' ? d.kg : Math.round(d.kg * 2.2046) })
+            }}
+            style={seg(value.sex === k)}
+          >
+            {k === 'm' ? L('남성', 'Male') : L('여성', 'Female')}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+        {(
+          [
+            ['height', L('키', 'Height'), 'cm', 1, 100],
+            ['weight', L('몸무게', 'Weight'), unit, wStep, 30],
+          ] as const
+        ).map(([key, name, u, st, min]) => (
+          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={box}>
+              <span style={{ fontSize: 17, fontWeight: 800 }}>{name}</span>
+              <span style={{ fontSize: 12, color: 'var(--sub)' }}>{u}</span>
+            </div>
+            <Dial name={name} min={min} value={value[key]} step={st} unit={u} onChange={(v) => onChange({ ...value, [key]: v })} />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

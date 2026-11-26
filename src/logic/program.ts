@@ -115,6 +115,12 @@ export interface LiftProgress {
   backoff: number
   /** 증량 없이 끝난 연속 세션 수 */
   stall: number
+  /** 트레이닝 맥스 (5/3/1 방식) */
+  tm?: number
+  /** 이번 줄에서 한 세션 수 (6주 블록) */
+  count?: number
+  /** 3주차 암렙 실패 (5/3/1 방식) */
+  fail?: boolean
 }
 
 /**

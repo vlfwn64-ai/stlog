@@ -2,9 +2,9 @@ import { L, monthTitle, weekHead } from '../i18n'
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LiftKey } from '../logic/program'
-import { STAGES } from '../logic/program'
+import { atTest, mainSet, repsText } from '../logic/programs'
 import type { AppState } from '../store'
-import { useApp } from '../store'
+import { progOf, step as stepOf, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
 import { HomeChart, PillToggle, ts } from '../ui'
 import type { Pt } from '../ui'
@@ -223,7 +223,7 @@ export default function Home({ go }: { go: Go }) {
                 onClick={() => open(k)}
                 style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 148, visibility: anim ? 'hidden' : undefined }}
               >
-                <CardFace k={k} p={s.lifts[k]} live={s.active?.lift === k} />
+                <CardFace k={k} p={s.lifts[k]} live={s.active?.lift === k} main={mainText(s, k)} />
               </button>
             ))}
           </div>
@@ -254,7 +254,7 @@ export default function Home({ go }: { go: Go }) {
               }}
             >
               <div style={{ position: 'absolute', inset: 0, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, opacity: moving ? 0 : 1, transition: 'opacity 180ms ease' }}>
-                <CardFace k={k} p={s.lifts[k]} live={false} />
+                <CardFace k={k} p={s.lifts[k]} live={false} main={mainText(s, k)} />
               </div>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 8, opacity: moving ? 1 : 0, transition: `opacity 260ms ease ${moving ? 200 : 0}ms` }}>
                 <span style={{ fontSize: 16, fontWeight: on ? 700 : 500, color: on ? TH[k].text : 'var(--sub)' }}>{TH[k].tab}</span>
@@ -269,7 +269,16 @@ export default function Home({ go }: { go: Go }) {
   )
 }
 
-function CardFace({ k, p, live }: { k: LiftKey; p: AppState['lifts'][LiftKey]; live: boolean }) {
+/** 카드에 보일 이번 훈련 (테스트 날이면 null) */
+function mainText(s: AppState, k: LiftKey): string | null {
+  const prog = progOf(s)
+  const p = s.lifts[k]
+  if (atTest(prog, p)) return null
+  const m = mainSet(prog, k, p, stepOf(s))
+  return m ? `${fmt(m.weight)} × ${repsText(m)}` : null
+}
+
+function CardFace({ k, p, live, main }: { k: LiftKey; p: AppState['lifts'][LiftKey]; live: boolean; main: string | null }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -280,11 +289,11 @@ function CardFace({ k, p, live }: { k: LiftKey; p: AppState['lifts'][LiftKey]; l
       </div>
       <span style={{ height: 1, background: 'currentColor', opacity: 0.35 }} />
       <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>{live ? L('기록 중', 'In progress') : L('이번 훈련', 'Next')}</span>
-      {p.stage === 4 ? (
+      {main === null ? (
         <span style={{ fontSize: 17, fontWeight: 800 }}>{L('1RM 테스트', '1RM test')}</span>
       ) : (
         <span className="num" style={{ fontSize: 17, fontWeight: 800 }}>
-          {fmt(p.top)} × {STAGES[p.stage].topReps}
+          {main}
         </span>
       )}
     </>

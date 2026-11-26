@@ -1,6 +1,6 @@
-import { L, setsLabel, stageLabel, topLabel } from '../i18n'
-import { STAGES } from '../logic/program'
-import { useApp } from '../store'
+import { L, setsLabel } from '../i18n'
+import { atTest, groupSets, phaseChip, phaseTitle, programOf } from '../logic/programs'
+import { progOf, step as stepOf, useApp } from '../store'
 import { TH, chipColors, fmt, md } from '../theme'
 import type { Go } from '../App'
 
@@ -17,20 +17,34 @@ export default function Result({ id, go }: { id: string; go: Go }) {
   const warm = done.filter((r) => r.type === 'W')
   const work = done.filter((r) => r.type !== 'W')
   const best = Math.max(0, ...s.sessions.filter((x) => x.lift === lift && x.e1rm).map((x) => x.e1rm as number))
-  const stage3 = Math.min(3, log.stage) as 1 | 2 | 3
-  const meta = log.deload ? `${th.name} · ${md(log.date)} · ${L('디로드', 'Deload')}` : `${th.name} · ${md(log.date)} · ${stageLabel(log.stage)} ${topLabel(STAGES[stage3].topReps)}`
+  const meta = log.deload ? `${th.name} · ${md(log.date)} · ${L('디로드', 'Deload')}` : `${th.name} · ${md(log.date)} · ${phaseTitle(programOf(log.program), lift, log.stage)}`
 
   // 다음 훈련 줄: 탑세트 · 백오프
   const p = s.lifts[lift]
   const n = log.next
   let next: { k: string; what: string; chip: string }[]
-  if (p.stage === 4) next = [{ k: 'T', what: L('1RM 테스트', '1RM test'), chip: 'TEST' }]
+  const prog = progOf(s)
+  const stageChip = n?.newCycle ? L('새 사이클', 'New cycle') : phaseChip(prog, lift, p.stage)
+  if (atTest(prog, p)) next = [{ k: 'T', what: L('1RM 테스트', '1RM test'), chip: 'TEST' }]
   else {
-    const c = STAGES[p.stage]
-    next = [
-      { k: 'T', what: `${fmt(p.top)}${u} × ${c.topReps}`, chip: n ? (n.advanced ? stageLabel(p.stage) : chip(n.topChange, u)) : L('유지', 'Same') },
-      { k: 'B', what: `${fmt(p.backoff)}${u} × ${c.boReps[lift]} × ${c.boSets}`, chip: n ? (n.advanced ? stageLabel(p.stage) : chip(n.boChange, u)) : L('유지', 'Same') },
-    ]
+    next = groupSets(prog.sets(lift, p, stepOf(s))).map((x, i) => ({
+      k: x.type,
+      what: `${fmt(x.weight)}${u} × ${x.reps}${x.type === 'A' ? '+' : ''}${x.count > 1 ? ` × ${x.count}` : ''}`,
+      chip:
+        i === 0
+          ? n
+            ? n.advanced
+              ? stageChip
+              : chip(n.topChange, u)
+            : L('유지', 'Same')
+          : prog.id === 'stlog' && x.type === 'B'
+            ? n
+              ? n.advanced
+                ? stageChip
+                : chip(n.boChange, u)
+              : L('유지', 'Same')
+            : '',
+    }))
   }
 
   return (
@@ -96,15 +110,17 @@ export default function Result({ id, go }: { id: string; go: Go }) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700 }}>{L('다음 훈련', 'Next workout')}</h2>
           <div style={{ borderRadius: 16, background: th.tint, border: `2px solid ${th.line}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {next.map((x) => (
-              <div key={x.k} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {next.map((x, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 28, height: 28, borderRadius: 7, background: x.k === 'T' ? th.acc : 'var(--surface)', color: x.k === 'T' ? th.on : th.deep, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{x.k}</span>
                 <span className="num" style={{ flex: 1, fontSize: 18, fontWeight: 800 }}>
                   {x.what}
                 </span>
-                <span className="num" style={{ fontSize: 13, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: th.acc, color: th.on }}>
-                  {x.chip}
-                </span>
+                {x.chip && (
+                  <span className="num" style={{ fontSize: 13, fontWeight: 800, padding: '4px 10px', borderRadius: 999, background: th.acc, color: th.on }}>
+                    {x.chip}
+                  </span>
+                )}
               </div>
             ))}
           </div>
