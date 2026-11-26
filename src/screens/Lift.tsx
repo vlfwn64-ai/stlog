@@ -212,26 +212,29 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
               </div>
             )
           })}
-          <div style={{ display: 'grid', gridTemplateColumns: p.stage < 4 ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 8, marginTop: 2 }}>
-            <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
-              TEST하기
-            </button>
-            {p.stage < 4 && (
+          {/* 사이클 마지막 테스트 날에는 아래 '테스트 시작' 하나만 */}
+          {p.stage < 4 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 2 }}>
+              <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
+                TEST하기
+              </button>
               <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
                 다음 단계로
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </section>
       </main>
 
       <div style={{ display: 'flex', gap: 8, padding: '14px 20px var(--safe-bot)', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) 60ms both' : undefined }}>
+        {(live || p.stage < 4) && (
         <button
           onClick={() => setPop(live ? 'discard' : 'deload')}
           style={{ width: 96, flexShrink: 0, height: 56, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}
         >
           {live ? '기록 취소' : '디로드'}
         </button>
+        )}
         <button onClick={onStart} style={{ flex: 1, height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}>
           {live ? '이어서 기록' : p.stage === 4 ? '테스트 시작' : '훈련 시작'}
         </button>
