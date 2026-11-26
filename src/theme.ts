@@ -1,3 +1,4 @@
+import { L, isEn } from './i18n'
 import type { LiftKey } from './logic/program'
 
 /** 목업(Claude Design 캔버스)의 종목 색 표 그대로 */
@@ -72,25 +73,31 @@ export const TH: Record<LiftKey, Theme> = {
 let darkOn = false
 export const isDark = () => darkOn
 
+const NAME_EN: Record<LiftKey, string> = { B: 'Bench Press', D: 'Deadlift', S: 'Squat' }
+
 export function setDark(dark: boolean) {
   darkOn = dark
-  for (const k of ['B', 'D', 'S'] as LiftKey[]) Object.assign(TH[k], LIGHT[k], dark ? DARK[k] : {})
+  for (const k of ['B', 'D', 'S'] as LiftKey[]) Object.assign(TH[k], LIGHT[k], dark ? DARK[k] : {}, isEn() ? { name: NAME_EN[k] } : {})
 }
 
 /** 홈 카드·종목 탭 순서 */
 export const CARD_ORDER: LiftKey[] = ['B', 'D', 'S']
 
-export const SET_TYPES: [string, string, string][] = [
-  ['W', '워밍업', '무게 계산에 들어가지 않아요'],
-  ['T', '탑세트', 'RPE로 다음 무게를 정해요'],
-  ['B', '백오프', '탑세트 뒤에 하는 볼륨 세트'],
-  ['A', '암렙 (AMRAP)', '정한 무게로 할 수 있는 만큼 최대 반복'],
-  ['D', '드롭세트', '무게를 줄여 쉬지 않고 이어서'],
-  ['S', '보조세트', '메인 세트 외에 추가로 하는 세트'],
-  ['F', '실패세트', '더 이상 못 할 때까지 반복'],
+export const setTypes = (): [string, string, string][] => [
+  ['W', L('워밍업', 'Warm-up'), L('무게 계산에 들어가지 않아요', "Doesn't count toward the next weight")],
+  ['T', L('탑세트', 'Top set'), L('RPE로 다음 무게를 정해요', 'Its RPE sets the next weight')],
+  ['B', L('백오프', 'Back-off'), L('탑세트 뒤에 하는 볼륨 세트', 'Volume sets after the top set')],
+  ['A', L('암렙 (AMRAP)', 'AMRAP'), L('정한 무게로 할 수 있는 만큼 최대 반복', 'As many reps as possible at a set weight')],
+  ['D', L('드롭세트', 'Drop set'), L('무게를 줄여 쉬지 않고 이어서', 'Lower the weight and keep going without rest')],
+  ['S', L('보조세트', 'Extra set'), L('메인 세트 외에 추가로 하는 세트', 'Additional set beyond the main work')],
+  ['F', L('실패세트', 'To failure'), L('더 이상 못 할 때까지 반복', 'Rep out until you can’t do another')],
 ]
 
-export const typeName = (k: string) => SET_TYPES.find(([t]) => t === k)?.[1] ?? k
+export const typeName = (k: string) => setTypes().find(([t]) => t === k)?.[1] ?? k
+
+const GEAR_EN: Record<string, string> = { 벨트: 'Belt', 스트랩: 'Straps', 니슬리브: 'Knee sleeves', 니랩: 'Knee wraps', 리스트랩: 'Wrist wraps', 엘보슬리브: 'Elbow sleeves', 역도화: 'Lifting shoes' }
+/** 장비 이름 (기본 장비는 영어로도) */
+export const gearName = (g: string) => (isEn() ? (GEAR_EN[g] ?? g) : g)
 
 /** 세트 종류 칩 색 (목업 TYPES 표) */
 export function chipColors(k: string, lift: LiftKey): { bg: string; fg: string } {

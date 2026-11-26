@@ -1,3 +1,4 @@
+import { L } from '../i18n'
 import { useState } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
@@ -45,7 +46,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
     <div className="screen">
       <header style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 20px 0 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={() => setStep(Math.max(0, step - 1))} aria-label="이전 단계" style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: step ? 1 : 0 }}>
+          <button onClick={() => setStep(Math.max(0, step - 1))} aria-label={L('이전 단계', 'Back')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: step ? 1 : 0 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M15 6l-6 6 6 6" />
             </svg>
@@ -66,10 +67,10 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         {step <= 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-              <h1 style={h1}>{step === 0 ? '얼마나 강해지고 싶으신가요?' : '지금은 얼마나 강하신가요?'}</h1>
+              <h1 style={h1}>{step === 0 ? L('얼마나 강해지고 싶으신가요?', 'How strong do you want to be?') : L('지금은 얼마나 강하신가요?', 'How strong are you now?')}</h1>
               <SegToggle options={['kg', 'lb'] as Unit[]} value={unit} onChange={changeUnit} />
             </div>
-            <p style={{ ...sub, marginTop: -12 }}>{step === 0 ? '종목별 목표 1RM을 정해주세요.' : '최근 1RM을 입력해주세요. 정확하지 않아도 괜찮아요.'}</p>
+            <p style={{ ...sub, marginTop: -12 }}>{step === 0 ? L('종목별 목표 1RM을 정해주세요.', 'Set a goal 1RM for each lift.') : L('최근 1RM을 입력해주세요. 정확하지 않아도 괜찮아요.', 'Enter your recent 1RM. A rough number is fine.')}</p>
             <DialSet vals={step === 0 ? goal : now} unit={unit} onChange={step === 0 ? setGoal : setNow} />
           </div>
         )}
@@ -77,8 +78,8 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <h1 style={h1}>장비는 뭐가 있으세요?</h1>
-              <p style={sub}>가진 장비를 모두 골라주세요. 운동할 때 착용 여부를 체크할 수 있어요.</p>
+              <h1 style={h1}>{L('장비는 뭐가 있으세요?', 'What gear do you have?')}</h1>
+              <p style={sub}>{L('가진 장비를 모두 골라주세요. 운동할 때 착용 여부를 체크할 수 있어요.', 'Pick everything you own. You can mark what you wore on each set.')}</p>
             </div>
             <GearGrid
               all={[...GEAR, ...custom]}
@@ -92,18 +93,16 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
         {step === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <h1 style={h1}>헬스장 원판 단위는요?</h1>
-              <p style={{ fontSize: 14, fontWeight: 600, color: TH.B.text }}>제일 가벼운 원판 1개의 무게를 입력해 주세요</p>
+              <h1 style={h1}>{L('헬스장 원판 단위는요?', 'Smallest plate at your gym?')}</h1>
+              <p style={{ fontSize: 14, fontWeight: 600, color: TH.B.text }}>{L('제일 가벼운 원판 1개의 무게를 입력해 주세요', 'Enter the weight of one lightest plate')}</p>
             </div>
             <PlatePicker value={plate} unit={unit} onChange={setPlate} />
             <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 15, fontWeight: 700 }}>
-                한 번에 {plate * 2}
-                {unit}씩 올려요
+                {L(`한 번에 ${plate * 2}${unit}씩 올려요`, `Weights go up by ${plate * 2}${unit}`)}
               </span>
               <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
-                양쪽에 {plate}
-                {unit} 원판을 하나씩 끼우는 기준이에요. 설정에서 언제든 바꿀 수 있어요.
+                {L(`양쪽에 ${plate}${unit} 원판을 하나씩 끼우는 기준이에요. 설정에서 언제든 바꿀 수 있어요.`, `One ${plate}${unit} plate on each side. You can change this anytime in Settings.`)}
               </span>
             </div>
           </div>
@@ -112,7 +111,7 @@ export default function Onboarding({ onDone }: { onDone: () => void }) {
 
       <div style={{ padding: '12px 20px var(--safe-bot)' }}>
         <button onClick={() => (step === 3 ? finish() : setStep(step + 1))} style={{ width: '100%', height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}>
-          {step === 3 ? '시작하기' : '다음'}
+          {step === 3 ? L('시작하기', 'Get started') : L('다음', 'Next')}
         </button>
       </div>
 

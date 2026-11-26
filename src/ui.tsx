@@ -1,3 +1,4 @@
+import { L } from './i18n'
 import type { CSSProperties, ReactNode } from 'react'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { LiftKey } from './logic/program'
@@ -180,7 +181,7 @@ export function Sheet({
   const shift = closing ? '100%' : `${dy}px`
   return (
     <div className="sheet-wrap">
-      <button className="sheet-dim" aria-label="닫기" onClick={close} style={{ opacity: closing ? 0 : 1 - Math.min(0.6, dy / 500), transition: drag ? 'none' : 'opacity 200ms ease' }} />
+      <button className="sheet-dim" aria-label={L('닫기', 'Close')} onClick={close} style={{ opacity: closing ? 0 : 1 - Math.min(0.6, dy / 500), transition: drag ? 'none' : 'opacity 200ms ease' }} />
       <section
         ref={ref}
         role="dialog"
@@ -225,7 +226,7 @@ export function Confirm({ lift, eyebrow, title, rows, cta, onCancel, onOk }: { l
       <SummaryRows rows={rows} />
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>
-          취소
+          {L('취소', 'Cancel')}
         </button>
         <button onClick={onOk} style={{ flex: 1, height: 56, borderRadius: 14, background: th?.acc ?? 'var(--ink)', color: th?.on ?? 'var(--onInk)', fontSize: 17, fontWeight: 700 }}>
           {cta}

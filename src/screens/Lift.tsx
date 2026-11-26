@@ -1,3 +1,4 @@
+import { L, attemptLabel, setsLabel, shortReps, stageLabel, topLabel } from '../i18n'
 import { useState } from 'react'
 import type { LiftKey } from '../logic/program'
 import { STAGES, advanceStage, deloadSets, firstAttempt, warmups } from '../logic/program'
@@ -20,7 +21,7 @@ function cycleRows(s: AppState, lift: LiftKey) {
   const cyc = s.sessions.filter((x) => x.lift === lift && !x.deload && (x.cycle ?? 1) === (p.cycle ?? 1))
   return ([1, 2, 3] as const).map((n) => ({
     n: n as number,
-    label: `${STAGES[n].topReps}회`,
+    label: shortReps(STAGES[n].topReps),
     boxes: cyc
       .filter((x) => x.stage === n && topOf(x))
       .map((x) => ({ w: fmt(topOf(x)!.weight), d: md(x.date), id: x.id })),
@@ -36,9 +37,9 @@ function prevCycles(s: AppState, lift: LiftKey) {
       const start = t.endedCycle as string
       const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && (t.cycleNo !== undefined ? (x.cycle ?? 1) === t.cycleNo : x.date >= start && x.date <= t.date))
       const rows = ([1, 2, 3] as const)
-        .map((n) => ({ label: `${STAGES[n].topReps}회`, text: ss.filter((x) => x.stage === n && topOf(x)).map((x) => fmt(topOf(x)!.weight)).join(' → ') }))
+        .map((n) => ({ label: shortReps(STAGES[n].topReps), text: ss.filter((x) => x.stage === n && topOf(x)).map((x) => fmt(topOf(x)!.weight)).join(' → ') }))
         .filter((r) => r.text)
-      rows.push({ label: '테스트', text: t.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ') })
+      rows.push({ label: L('테스트', 'Test'), text: t.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ') })
       const weeks = Math.max(1, Math.ceil((ts(t.date) - ts(start)) / (7 * 86400000)))
       return { id: t.id, range: `${md(start)} – ${md(t.date)}`, from: t.prevRM, to: t.newRM, weeks, rows }
     })
@@ -88,10 +89,10 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
   const startButtons = (deload: boolean) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <button onClick={() => begin(deload)} style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}>
-        훈련 시작
+        {L('훈련 시작', 'Start workout')}
       </button>
       <button onClick={() => setPop(null)} style={{ height: 48, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
-        취소
+        {L('취소', 'Cancel')}
       </button>
     </div>
   )
@@ -99,12 +100,12 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
   return (
     <div className="screen">
       <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 0 8px', borderBottom: '1px solid var(--fill)' }}>
-        <button aria-label="홈으로" onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: enter ? 'fadeIn 250ms ease both' : undefined }}>
+        <button aria-label={L('홈으로', 'Home')} onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: enter ? 'fadeIn 250ms ease both' : undefined }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
         </button>
-        <nav aria-label="종목" style={{ display: 'flex', gap: 4, flex: 1 }}>
+        <nav aria-label={L('종목', 'Lifts')} style={{ display: 'flex', gap: 4, flex: 1 }}>
           {CARD_ORDER.map((k) => {
             const on = k === lift
             return (
@@ -125,7 +126,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
             </>
           ) : (
             <>
-              {cfg.topReps}회 탑{' '}
+              {topLabel(cfg.topReps)}{' '}
               <span style={{ color: th.text }}>
                 {fmt(p.top)}
                 {u}
@@ -137,14 +138,14 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
         <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              1RM 추이
+              {L('1RM 추이', '1RM trend')}
               <span className="num" style={{ fontSize: 13, fontWeight: 500, color: 'var(--mute)' }}>
-                {goal > p.oneRM ? `목표까지 ${fmt(goal - p.oneRM)}${u}` : '목표 달성'}
+                {goal > p.oneRM ? L(`목표까지 ${fmt(goal - p.oneRM)}${u}`, `${fmt(goal - p.oneRM)}${u} to goal`) : L('목표 달성', 'Goal reached')}
               </span>
             </h2>
-            <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a="추정" b="실제" label={`그래프 기준 바꾸기, 지금 ${mode === 'est' ? '추정' : '실제'} 1RM`} />
+            <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a={L('추정', 'Est.')} b={L('실제', 'Actual')} label={L('그래프 기준 바꾸기', 'Switch chart')} />
           </div>
-          <button type="button" onClick={toggle} aria-label="눌러서 추정과 실제 전환" style={{ display: 'block', width: '100%' }}>
+          <button type="button" onClick={toggle} aria-label={L('눌러서 추정과 실제 전환', 'Tap to switch estimated and actual')} style={{ display: 'block', width: '100%' }}>
             <LiftChart lift={lift} pts={liftPoints(s, lift, mode)} />
           </button>
         </section>
@@ -152,9 +153,9 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, background: 'var(--fill2)', borderRadius: 14, padding: '12px 14px' }}>
           {(
             [
-              ['추정 1RM', est],
+              [L('추정 1RM', 'Est. 1RM'), est],
               ['1RM', p.oneRM],
-              ['목표', goal],
+              [L('목표', 'Goal'), goal],
             ] as [string, number | null][]
           ).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -170,19 +171,19 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
         <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              이번 사이클
+              {L('이번 사이클', 'This cycle')}
               <span className="num" style={{ fontSize: 12, fontWeight: 500, color: 'var(--mute)' }}>
                 {md(p.cycleStart)}~
               </span>
             </h2>
             <button onClick={() => setPop('prev')} style={{ height: 32, padding: '0 12px', borderRadius: 999, background: 'var(--fill2)', display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>
-              이전 사이클
+              {L('이전 사이클', 'Past cycles')}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
               </svg>
             </button>
           </div>
-          {[...rows, ...(p.stage === 4 ? [{ n: 4, label: '1회', boxes: [] as { w: string; d: string; id: string }[] }] : [])].map((r) => {
+          {[...rows, ...(p.stage === 4 ? [{ n: 4, label: shortReps(1), boxes: [] as { w: string; d: string; id: string }[] }] : [])].map((r) => {
             const cur = r.n === p.stage
             const todayW = cur ? fmt(p.stage === 4 ? fa : p.top) : null
             return (
@@ -190,7 +191,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
                 <span style={{ width: 34, flexShrink: 0, fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                   {r.boxes.map((b, i) => (
-                    <button key={i} onClick={() => setOpenId(b.id)} aria-label={`${b.d} 기록 보기`} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <button key={i} onClick={() => setOpenId(b.id)} aria-label={L(`${b.d} 기록 보기`, `View ${b.d}`)} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: 'var(--ink)' }}>
                         {b.w}
                       </span>
@@ -204,11 +205,11 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
                       <span className="num" style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2, color: th.on }}>
                         {todayW}
                       </span>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: th.on }}>오늘</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: th.on }}>{L('오늘', 'Today')}</span>
                     </div>
                   )}
                   {!r.boxes.length && !todayW && (
-                    <div style={{ height: 44, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>아직 기록 없음</div>
+                    <div style={{ height: 44, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>{L('아직 기록 없음', 'No sets yet')}</div>
                   )}
                 </div>
               </div>
@@ -218,10 +219,10 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
           {p.stage < 4 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 2 }}>
               <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
-                TEST하기
+                {L('TEST하기', 'Test now')}
               </button>
               <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
-                다음 단계로
+                {L('다음 단계로', 'Next stage')}
               </button>
             </div>
           )}
@@ -234,11 +235,11 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
           onClick={() => setPop(live ? 'discard' : 'deload')}
           style={{ width: 96, flexShrink: 0, height: 56, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}
         >
-          {live ? '기록 취소' : '디로드'}
+          {live ? L('기록 취소', 'Discard') : L('디로드', 'Deload')}
         </button>
         )}
         <button onClick={onStart} style={{ flex: 1, height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}>
-          {live ? '이어서 기록' : p.stage === 4 ? '테스트 시작' : '훈련 시작'}
+          {live ? L('이어서 기록', 'Resume') : p.stage === 4 ? L('테스트 시작', 'Start test') : L('훈련 시작', 'Start workout')}
         </button>
       </div>
 
@@ -252,22 +253,22 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
               {u} × {cfg.topReps}
             </span>
             <span style={{ fontSize: 14, color: 'var(--sub)' }}>
-              {th.name} · {stage3}단계 탑세트 · RPE 9까지
+              {th.name} · {L(`${stage3}단계 탑세트 · RPE 9까지`, `Stage ${stage3} top set · up to RPE 9`)}
             </span>
           </div>
           <SummaryRows
             small
             rows={[
-              [`웜업 ${todayWarm.length}세트`, todayWarm.map((w) => fmt(w.weight)).join(' → ')],
-              ['탑세트', `${fmt(p.top)}${u} × ${cfg.topReps}`],
-              ['백오프', `${fmt(p.backoff)}${u} × ${cfg.boReps[lift]} × ${cfg.boSets}`],
+              [`${L('웜업', 'Warm-up')} ${setsLabel(todayWarm.length)}`, todayWarm.map((w) => fmt(w.weight)).join(' → ')],
+              [L('탑세트', 'Top set'), `${fmt(p.top)}${u} × ${cfg.topReps}`],
+              [L('백오프', 'Back-off'), `${fmt(p.backoff)}${u} × ${cfg.boReps[lift]} × ${cfg.boSets}`],
             ]}
           />
           {lastSession && lastTop && (
             <span className="num" style={{ fontSize: 13, color: 'var(--mute)' }}>
-              지난번 {md(lastSession.date)} · {fmt(lastTop.weight)}
+              {L('지난번', 'Last')} {md(lastSession.date)} · {fmt(lastTop.weight)}
               {u} × {lastTop.reps}
-              {lastTop.rpe !== undefined ? ` @RPE ${lastTop.rpe === 'fail' ? '실패' : lastTop.rpe}` : ''}
+              {lastTop.rpe !== undefined ? ` @RPE ${lastTop.rpe === 'fail' ? L('실패', 'fail') : lastTop.rpe}` : ''}
             </span>
           )}
           {startButtons(false)}
@@ -282,14 +283,14 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
               {fmt(dl[0].weight)}
               {u} × {dl[0].reps}
             </span>
-            <span style={{ fontSize: 14, color: 'var(--sub)' }}>{th.name} · 디로드 · 1RM의 65%</span>
+            <span style={{ fontSize: 14, color: 'var(--sub)' }}>{th.name} · {L('디로드 · 1RM의 65%', 'Deload · 65% of 1RM')}</span>
           </div>
           <SummaryRows
             small
             rows={[
-              [`웜업 ${dlWarm.length}세트`, dlWarm.map((w) => fmt(w.weight)).join(' → ')],
-              ['디로드', `${fmt(dl[0].weight)}${u} × ${dl[0].reps} × ${dl.length}`],
-              ['다음 훈련', `원래 무게 ${fmt(p.top)}${u} × ${cfg.topReps}`],
+              [`${L('웜업', 'Warm-up')} ${setsLabel(dlWarm.length)}`, dlWarm.map((w) => fmt(w.weight)).join(' → ')],
+              [L('디로드', 'Deload'), `${fmt(dl[0].weight)}${u} × ${dl[0].reps} × ${dl.length}`],
+              [L('다음 훈련', 'Next workout'), L(`원래 무게 ${fmt(p.top)}${u} × ${cfg.topReps}`, `Back to ${fmt(p.top)}${u} × ${cfg.topReps}`)],
             ]}
           />
           {startButtons(true)}
@@ -299,14 +300,14 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
       {pop === 'deload' && (
         <Confirm
           lift={lift}
-          eyebrow={`${th.name} · 디로드`}
-          title="오늘은 가볍게 할까요?"
+          eyebrow={`${th.name} · ${L('디로드', 'Deload')}`}
+          title={L('오늘은 가볍게 할까요?', 'Go light today?')}
           rows={[
-            ['오늘 무게', `${fmt(dl[0].weight)}${u} × ${dl[0].reps} × ${dl.length}`],
-            ['기준', `1RM ${fmt(p.oneRM)}${u}의 65%`],
-            ['다음 훈련', `원래 무게 ${fmt(p.top)}${u} × ${cfg.topReps}`],
+            [L('오늘 무게', 'Today'), `${fmt(dl[0].weight)}${u} × ${dl[0].reps} × ${dl.length}`],
+            [L('기준', 'Based on'), L(`1RM ${fmt(p.oneRM)}${u}의 65%`, `65% of 1RM ${fmt(p.oneRM)}${u}`)],
+            [L('다음 훈련', 'Next workout'), L(`원래 무게 ${fmt(p.top)}${u} × ${cfg.topReps}`, `Back to ${fmt(p.top)}${u} × ${cfg.topReps}`)],
           ]}
-          cta="디로드로 시작"
+          cta={L('디로드로 시작', 'Start deload')}
           onCancel={() => setPop(null)}
           onOk={() => setPop(otherLive ? 'discard' : 'startDeload')}
         />
@@ -314,21 +315,21 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
       {pop === 'next' && (
         <Confirm
           lift={lift}
-          eyebrow={`${th.name} · 다음 단계`}
-          title="다음 단계로 넘어갈까요?"
+          eyebrow={`${th.name} · ${L('다음 단계', 'Next stage')}`}
+          title={L('다음 단계로 넘어갈까요?', 'Move to the next stage?')}
           rows={[
-            ['지금', `${p.stage}단계 · ${cfg.topReps}회 탑 ${fmt(p.top)}${u}`],
+            [L('지금', 'Now'), `${stageLabel(p.stage)} · ${topLabel(cfg.topReps)} ${fmt(p.top)}${u}`],
             ...((nextP.stage === 4
               ? [
-                  ['다음', '1RM 테스트'],
-                  ['1차 시도', `${fmt(fa)}${u}`],
+                  [L('다음', 'Next'), L('1RM 테스트', '1RM test')],
+                  [attemptLabel(1), `${fmt(fa)}${u}`],
                 ]
               : [
-                  ['다음', `${nextP.stage}단계 · ${STAGES[nextP.stage as 1 | 2 | 3].topReps}회 탑 ${fmt(nextP.top)}${u}`],
-                  ['백오프', `${fmt(nextP.backoff)}${u} × ${STAGES[nextP.stage as 1 | 2 | 3].boReps[lift]} × ${STAGES[nextP.stage as 1 | 2 | 3].boSets}`],
+                  [L('다음', 'Next'), `${stageLabel(nextP.stage)} · ${topLabel(STAGES[nextP.stage as 1 | 2 | 3].topReps)} ${fmt(nextP.top)}${u}`],
+                  [L('백오프', 'Back-off'), `${fmt(nextP.backoff)}${u} × ${STAGES[nextP.stage as 1 | 2 | 3].boReps[lift]} × ${STAGES[nextP.stage as 1 | 2 | 3].boSets}`],
                 ]) as [string, string][]),
           ]}
-          cta="넘어가기"
+          cta={L('넘어가기', 'Move on')}
           onCancel={() => setPop(null)}
           onOk={() => {
             goNextStage(lift)
@@ -339,14 +340,14 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
       {pop === 'test' && (
         <Confirm
           lift={lift}
-          eyebrow={`${th.name} · 1RM 테스트`}
-          title="한계를 시험해 볼까요?"
+          eyebrow={`${th.name} · ${L('1RM 테스트', '1RM test')}`}
+          title={L('한계를 시험해 볼까요?', 'Test your limit?')}
           rows={[
-            ['웜업', testWarm.length ? `${testWarm.length}세트 · ${fmt(testWarm[0].weight)} → ${fmt(testWarm[testWarm.length - 1].weight)}${u}` : '없음'],
-            ['1차 시도', `${fmt(fa)}${u}`],
-            ['지금 1RM', `${fmt(p.oneRM)}${u}`],
+            [L('웜업', 'Warm-up'), testWarm.length ? `${setsLabel(testWarm.length)} · ${fmt(testWarm[0].weight)} → ${fmt(testWarm[testWarm.length - 1].weight)}${u}` : L('없음', 'None')],
+            [attemptLabel(1), `${fmt(fa)}${u}`],
+            [L('지금 1RM', 'Current 1RM'), `${fmt(p.oneRM)}${u}`],
           ]}
-          cta="테스트 시작"
+          cta={L('테스트 시작', 'Start test')}
           onCancel={() => setPop(null)}
           onOk={() => {
             setPop(null)
@@ -357,10 +358,10 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
       {pop === 'discard' && s.active && (
         <Confirm
           lift={s.active.lift}
-          eyebrow={`${TH[s.active.lift].name} · 기록 중`}
-          title={live ? '이 기록을 지울까요?' : '진행 중인 기록이 있어요'}
-          rows={[['완료한 세트', `${s.active.sets.filter((r) => r.done).length}세트`]]}
-          cta={live ? '기록 지우기' : '지우고 새로 시작'}
+          eyebrow={`${TH[s.active.lift].name} · ${L('기록 중', 'In progress')}`}
+          title={live ? L('이 기록을 지울까요?', 'Discard this workout?') : L('진행 중인 기록이 있어요', 'A workout is in progress')}
+          rows={[[L('완료한 세트', 'Sets done'), setsLabel(s.active.sets.filter((r) => r.done).length)]]}
+          cta={live ? L('기록 지우기', 'Discard') : L('지우고 새로 시작', 'Discard and start')}
           onCancel={() => setPop(null)}
           onOk={() => {
             cancelWorkout()
@@ -371,8 +372,8 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
       {pop === 'prev' && (
         <Sheet onClose={() => setPop(null)} tall>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800 }}>이전 사이클</h2>
-            <button aria-label="닫기" onClick={() => setPop(null)} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800 }}>{L('이전 사이클', 'Past cycles')}</h2>
+            <button aria-label={L('닫기', 'Close')} onClick={() => setPop(null)} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -385,8 +386,8 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
                   {c.range}
                 </span>
                 <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-                  <span style={{ fontWeight: 800, color: th.deep }}>{c.to > c.from ? `+${fmt(c.to - c.from)}${u} 상승` : '유지'}</span> · 1RM {fmt(c.from)} → {fmt(c.to)}
-                  {u} · {c.weeks}주
+                  <span style={{ fontWeight: 800, color: th.deep }}>{c.to > c.from ? L(`+${fmt(c.to - c.from)}${u} 상승`, `+${fmt(c.to - c.from)}${u}`) : L('유지', 'Same')}</span> · 1RM {fmt(c.from)} → {fmt(c.to)}
+                  {u} · {L(`${c.weeks}주`, `${c.weeks} wk`)}
                 </span>
               </div>
               {c.rows.map((r) => (
@@ -399,7 +400,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
               ))}
             </article>
           ))}
-          {prev.length === 0 && <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 14, color: 'var(--mute)' }}>아직 끝난 사이클이 없어요</div>}
+          {prev.length === 0 && <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 14, color: 'var(--mute)' }}>{L('아직 끝난 사이클이 없어요', 'No finished cycles yet')}</div>}
         </Sheet>
       )}
     </div>

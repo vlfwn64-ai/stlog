@@ -1,3 +1,4 @@
+import { deviceLang, setLang } from './i18n'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import type { LiftKey } from './logic/program'
 import { useApp } from './store'
@@ -51,6 +52,8 @@ export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' })
   const go: Go = useCallback((r) => setRoute(r), [])
 
+  // 언어는 테마보다 먼저 (종목 이름이 언어를 따른다)
+  setLang(s.settings.lang ?? deviceLang())
   const pref = s.settings.theme ?? 'system'
   const dark = pref === 'dark' || (pref === 'system' && sysDark)
   // 렌더 전에 종목 색 표를 맞춘다

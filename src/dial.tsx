@@ -1,7 +1,8 @@
+import { L } from './i18n'
 import { useRef, useState } from 'react'
 import { Sheet } from './ui'
 import type { LiftKey } from './logic/program'
-import { CARD_ORDER, TH, fmt } from './theme'
+import { CARD_ORDER, TH, fmt, gearName } from './theme'
 
 /** 세로 다이얼: 위아래로 끌거나 위·아래 숫자를 눌러 바꾼다 */
 export function Dial({ lift, value, step, unit, onChange }: { lift: LiftKey; value: number; step: number; unit: string; onChange: (v: number) => void }) {
@@ -122,7 +123,7 @@ export function DialSet({ vals, unit, onChange }: { vals: Record<LiftKey, number
         ))}
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 10, paddingTop: 8 }}>
-        <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--sub)' }}>3대</span>
+        <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--sub)' }}>{L('3대', 'Total')}</span>
         <span className="num" style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>
           {fmt(vals.B + vals.D + vals.S)}
         </span>
@@ -141,7 +142,7 @@ export function PlatePicker({ value, unit, onChange }: { value: number; unit: 'k
   const round = { width: 56, height: 56, borderRadius: 28, border: '1.5px solid var(--line2)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' } as const
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, paddingTop: 12 }}>
-      <button style={round} aria-label="원판 단위 줄이기" onClick={() => onChange(list[Math.max(0, i - 1)])}>
+      <button style={round} aria-label={L('원판 단위 줄이기', 'Smaller plate')} onClick={() => onChange(list[Math.max(0, i - 1)])}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
           <path d="M5 12h14" />
         </svg>
@@ -152,7 +153,7 @@ export function PlatePicker({ value, unit, onChange }: { value: number; unit: 'k
         </span>
         <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--sub)' }}>{unit}</span>
       </div>
-      <button style={round} aria-label="원판 단위 늘리기" onClick={() => onChange(list[Math.min(list.length - 1, i + 1)])}>
+      <button style={round} aria-label={L('원판 단위 늘리기', 'Larger plate')} onClick={() => onChange(list[Math.min(list.length - 1, i + 1)])}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
@@ -171,11 +172,11 @@ export function GearGrid({ all, sel, onToggle, onAdd, deleting, onDelete }: { al
           return (
             <button
               key={g}
-              aria-label={`${g} 삭제`}
+              aria-label={L(`${g} 삭제`, `Delete ${gearName(g)}`)}
               onClick={() => onDelete?.(g)}
               style={{ height: 56, borderRadius: 14, border: '1.5px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px' }}
             >
-              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>{g}</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--ink2)' }}>{gearName(g)}</span>
               <span style={{ width: 24, height: 24, borderRadius: 12, background: '#D92B3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3.5" strokeLinecap="round" aria-hidden="true">
                   <path d="M5 12h14" />
@@ -190,7 +191,7 @@ export function GearGrid({ all, sel, onToggle, onAdd, deleting, onDelete }: { al
             onClick={() => onToggle(g)}
             style={{ height: 56, borderRadius: 14, border: `1.5px solid ${on ? 'var(--ink)' : 'var(--line)'}`, background: on ? 'var(--ink)' : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px' }}
           >
-            <span style={{ fontSize: 15, fontWeight: on ? 700 : 500, color: on ? 'var(--onInk)' : 'var(--ink2)' }}>{g}</span>
+            <span style={{ fontSize: 15, fontWeight: on ? 700 : 500, color: on ? 'var(--onInk)' : 'var(--ink2)' }}>{gearName(g)}</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: on ? 1 : 0 }}>
               <path d="M5 12l5 5 9-10" />
             </svg>
@@ -202,7 +203,7 @@ export function GearGrid({ all, sel, onToggle, onAdd, deleting, onDelete }: { al
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />
         </svg>
-        기타 추가
+        {L('기타 추가', 'Add other')}
       </button>
       )}
     </div>
@@ -214,7 +215,7 @@ export function AddGearSheet({ onClose, onAdd }: { onClose: () => void; onAdd: (
   const [name, setName] = useState('')
   const ok = name.trim().length > 0
   return (
-    <Sheet onClose={onClose} title="장비 추가">
+    <Sheet onClose={onClose} title={L('장비 추가', 'Add gear')}>
       <input
         autoFocus
         value={name}
@@ -223,15 +224,15 @@ export function AddGearSheet({ onClose, onAdd }: { onClose: () => void; onAdd: (
         onKeyDown={(e) => {
           if (e.key === 'Enter' && ok) onAdd(name.trim())
         }}
-        placeholder="장비 이름"
+        placeholder={L('장비 이름', 'Gear name')}
         style={{ height: 56, borderRadius: 14, border: '1.5px solid var(--ink)', padding: '0 16px', fontSize: 17, outline: 'none' }}
       />
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onClose} style={{ width: 110, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>
-          취소
+          {L('취소', 'Cancel')}
         </button>
         <button disabled={!ok} onClick={() => onAdd(name.trim())} style={{ flex: 1, height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700, opacity: ok ? 1 : 0.4 }}>
-          추가
+          {L('추가', 'Add')}
         </button>
       </div>
     </Sheet>

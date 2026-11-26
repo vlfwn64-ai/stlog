@@ -1,3 +1,4 @@
+import { L, monthTitle, weekHead } from '../i18n'
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LiftKey } from '../logic/program'
@@ -45,15 +46,15 @@ function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }
     <section>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <h2 className="num" style={{ fontSize: 18, fontWeight: 800 }}>
-          {y}년 {m + 1}월
+          {monthTitle(y, m)}
         </h2>
         <div style={{ display: 'flex' }}>
-          <button style={arrowBtn} aria-label="이전 달" onClick={() => setOff(off - 1)}>
+          <button style={arrowBtn} aria-label={L('이전 달', 'Previous month')} onClick={() => setOff(off - 1)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M15 6l-6 6 6 6" />
             </svg>
           </button>
-          <button style={arrowBtn} aria-label="다음 달" onClick={() => setOff(off + 1)}>
+          <button style={arrowBtn} aria-label={L('다음 달', 'Next month')} onClick={() => setOff(off + 1)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
@@ -61,8 +62,8 @@ function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, textAlign: 'center' }}>
-        {['일', '월', '화', '수', '목', '금', '토'].map((w) => (
-          <span key={w} style={{ fontSize: 12, color: 'var(--mute)', paddingBottom: 2 }}>
+        {weekHead().map((w, wi) => (
+          <span key={wi} style={{ fontSize: 12, color: 'var(--mute)', paddingBottom: 2 }}>
             {w}
           </span>
         ))}
@@ -84,7 +85,7 @@ function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }
               key={k}
               className="num"
               role={lifts.length ? 'button' : undefined}
-              aria-label={lifts.length ? `${m + 1}월 ${i + 1}일 기록 보기` : undefined}
+              aria-label={lifts.length ? L(`${m + 1}월 ${i + 1}일 기록 보기`, `View ${k}`) : undefined}
               onClick={lifts.length ? () => onPick(k) : undefined}
               style={{
                 cursor: lifts.length ? 'pointer' : undefined,
@@ -160,7 +161,7 @@ export default function Home({ go }: { go: Go }) {
     <div className="screen" ref={root}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 12px 4px 20px', opacity: moving ? 0 : 1, transition: 'opacity 220ms ease' }}>
         <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>ST LOG</span>
-        <button aria-label="메뉴 열기" onClick={() => go({ name: 'menu' })} style={arrowBtn}>
+        <button aria-label={L('메뉴 열기', 'Open menu')} onClick={() => go({ name: 'menu' })} style={arrowBtn}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
@@ -174,21 +175,21 @@ export default function Home({ go }: { go: Go }) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: 6, ...fade }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              3대 기록
+              {L('3대 기록', 'Big 3')}
               <span className="num" style={{ fontSize: 13, fontWeight: 500, color: 'var(--mute)' }}>
-                합계 {fmt(sum)}
+                {L('합계', 'Total')} {fmt(sum)}
                 {u}
               </span>
             </h2>
-            <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a="추정" b="실제" label={`그래프 기준 바꾸기, 지금 ${mode === 'est' ? '추정' : '실제'} 1RM`} />
+            <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a={L('추정', 'Est.')} b={L('실제', 'Actual')} label={L('그래프 기준 바꾸기', 'Switch chart')} />
           </div>
-          <button type="button" onClick={toggle} aria-label="눌러서 추정과 실제 전환" style={{ display: 'block', width: '100%' }}>
+          <button type="button" onClick={toggle} aria-label={L('눌러서 추정과 실제 전환', 'Tap to switch estimated and actual')} style={{ display: 'block', width: '100%' }}>
             <HomeChart series={series} />
           </button>
         </section>
 
         <section style={fade}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>훈련 기록하기</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{L('훈련 기록하기', 'Log a workout')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {CARD_ORDER.map((k, i) => (
               <button
@@ -255,9 +256,9 @@ function CardFace({ k, p, live }: { k: LiftKey; p: AppState['lifts'][LiftKey]; l
         </span>
       </div>
       <span style={{ height: 1, background: 'currentColor', opacity: 0.35 }} />
-      <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>{live ? '기록 중' : '이번 훈련'}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.85 }}>{live ? L('기록 중', 'In progress') : L('이번 훈련', 'Next')}</span>
       {p.stage === 4 ? (
-        <span style={{ fontSize: 17, fontWeight: 800 }}>1RM 테스트</span>
+        <span style={{ fontSize: 17, fontWeight: 800 }}>{L('1RM 테스트', '1RM test')}</span>
       ) : (
         <span className="num" style={{ fontSize: 17, fontWeight: 800 }}>
           {fmt(p.top)} × {STAGES[p.stage].topReps}

@@ -20,6 +20,8 @@ export interface Settings {
   sound?: boolean
   /** 마지막 백업 날짜 */
   lastBackup?: string
+  /** 언어 (없으면 기기 언어) */
+  lang?: 'ko' | 'en'
 }
 
 export interface SetRow {

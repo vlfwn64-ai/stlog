@@ -1,3 +1,4 @@
+import { L, getLang, timesLabel } from '../i18n'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
@@ -5,11 +6,14 @@ import { backupJson, changeUnit, parseBackup, restoreBackup, setOneRM } from '..
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
 import type { AppState } from '../store'
 import { GEAR, allGear, resetAll, setState, today, useApp } from '../store'
-import { CARD_ORDER, fmt, md } from '../theme'
+import { CARD_ORDER, fmt, gearName, md } from '../theme'
 import { Confirm, SegToggle, Sheet } from '../ui'
 import type { Go } from '../App'
 
-type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'restore' | 'badFile'
+type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'restore' | 'badFile' | 'account'
+
+/** 피드백을 받을 인스타그램 계정 */
+const FEEDBACK_IG = 'pharmaco_lifting_stlog'
 
 function Row({ label, value, onClick, color }: { label: string; value: ReactNode; onClick: () => void; color?: string }) {
   return (
@@ -43,11 +47,11 @@ export default function Menu({ go }: { go: Go }) {
 
   /** 백업 파일을 만들어 공유창(파일에 저장·카톡 등)으로 보낸다 */
   const exportBackup = async () => {
-    const name = `stlog-백업-${today()}.json`
+    const name = `${L('stlog-백업', 'stlog-backup')}-${today()}.json`
     const file = new File([backupJson()], name, { type: 'application/json' })
     try {
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'ST LOG 백업' })
+        await navigator.share({ files: [file], title: L('ST LOG 백업', 'ST LOG backup') })
         setState((x) => ({ ...x, settings: { ...x.settings, lastBackup: today() } }))
         return
       }
@@ -93,57 +97,59 @@ export default function Menu({ go }: { go: Go }) {
   return (
     <div className="screen" style={{ background: 'var(--page2)', paddingTop: 0 }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(var(--safe-top) + 16px) 12px 8px 20px', background: 'var(--surface)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800 }}>설정</h1>
-        <button aria-label="닫기" onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>{L('설정', 'Settings')}</h1>
+        <button aria-label={L('닫기', 'Close')} onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         </button>
       </header>
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0 var(--safe-bot)' }}>
-        <Section title="내 기록">
-          <Row label="1RM 설정" value={trio({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })} onClick={() => open('rm')} />
-          <Row label="목표 중량" value={trio(st.goal)} onClick={() => open('goal')} />
-          <Row label="백업 내보내기" value={st.lastBackup ? `마지막 ${md(st.lastBackup)} ›` : '›'} onClick={exportBackup} />
-          <Row label="백업 불러오기" value="›" onClick={() => fileRef.current?.click()} />
+        <Section title={L('내 기록', 'My records')}>
+          <Row label={L('1RM 설정', '1RM')} value={trio({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })} onClick={() => open('rm')} />
+          <Row label={L('목표 중량', 'Goals')} value={trio(st.goal)} onClick={() => open('goal')} />
+          <Row label={L('백업 내보내기', 'Export backup')} value={st.lastBackup ? `${L('마지막', 'Last')} ${md(st.lastBackup)} ›` : '›'} onClick={exportBackup} />
+          <Row label={L('백업 불러오기', 'Import backup')} value="›" onClick={() => fileRef.current?.click()} />
           <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => pickFile(e.target.files?.[0])} />
         </Section>
-        <Section title="운동 환경">
-          <Row label="원판 최소 단위" value={`${st.minPlate} ${u} ›`} onClick={() => open('plate')} />
-          <Row label="바 무게" value={`${fmt(st.bar)} ${u} ›`} onClick={() => open('bar')} />
-          <Row label="장비 설정" value={`${st.gear.length ? st.gear.join(' · ') : '없음'} ›`} onClick={() => open('gear')} />
+        <Section title={L('운동 환경', 'Training')}>
+          <Row label={L('원판 최소 단위', 'Smallest plate')} value={`${st.minPlate} ${u} ›`} onClick={() => open('plate')} />
+          <Row label={L('바 무게', 'Bar weight')} value={`${fmt(st.bar)} ${u} ›`} onClick={() => open('bar')} />
+          <Row label={L('장비 설정', 'Gear')} value={`${st.gear.length ? st.gear.map(gearName).join(' · ') : L('없음', 'None')} ›`} onClick={() => open('gear')} />
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <span style={{ fontSize: 16 }}>단위</span>
+            <span style={{ fontSize: 16 }}>{L('단위', 'Units')}</span>
             <SegToggle options={['kg', 'lb'] as Unit[]} value={u} onChange={(v) => changeUnit(v)} minWidth={52} height={38} />
           </div>
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <span style={{ fontSize: 16, whiteSpace: 'nowrap' }}>쉬는 시간 알림음</span>
-            <SegToggle options={['켬', '끔']} value={st.sound === false ? '끔' : '켬'} onChange={(v) => set({ sound: v === '켬' })} minWidth={52} height={38} />
+            <span style={{ fontSize: 16, whiteSpace: 'nowrap' }}>{L('쉬는 시간 알림음', 'Rest timer sound')}</span>
+            <SegToggle options={[L('켬', 'On'), L('끔', 'Off')]} value={st.sound === false ? L('끔', 'Off') : L('켬', 'On')} onChange={(v) => set({ sound: v === L('켬', 'On') })} minWidth={52} height={38} />
           </div>
         </Section>
-        <Section title="앱">
+        <Section title={L('앱', 'App')}>
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <span style={{ fontSize: 16 }}>테마</span>
+            <span style={{ fontSize: 16 }}>{L('테마', 'Theme')}</span>
             <SegToggle
-              options={['라이트', '다크', '시스템']}
-              value={({ light: '라이트', dark: '다크', system: '시스템' } as const)[st.theme ?? 'light']}
-              onChange={(v) => set({ theme: v === '라이트' ? 'light' : v === '다크' ? 'dark' : 'system', themeChosen: true })}
+              options={[L('라이트', 'Light'), L('다크', 'Dark'), L('시스템', 'System')]}
+              value={{ light: L('라이트', 'Light'), dark: L('다크', 'Dark'), system: L('시스템', 'System') }[st.theme ?? 'system']}
+              onChange={(v) => set({ theme: v === L('라이트', 'Light') ? 'light' : v === L('다크', 'Dark') ? 'dark' : 'system', themeChosen: true })}
               minWidth={52}
               height={38}
             />
           </div>
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 16 }}>언어</span>
-            <span style={{ fontSize: 14, color: 'var(--sub)' }}>한국어</span>
+            <span style={{ fontSize: 16 }}>{L('언어', 'Language')}</span>
+            <SegToggle options={['한국어', 'English']} value={getLang() === 'en' ? 'English' : '한국어'} onChange={(v) => set({ lang: v === 'English' ? 'en' : 'ko' })} minWidth={52} height={38} />
           </div>
-          <Row label="사용법 보기" value="›" onClick={() => go({ name: 'tutorial', back: 'menu' })} />
-          <Row label="모든 기록 지우기" value="›" onClick={() => setPop('reset')} color="#D92B3A" />
+          <Row label={L('사용법 보기', 'How to use')} value="›" onClick={() => go({ name: 'tutorial', back: 'menu' })} />
+          <Row label={L('제작자에게 피드백', 'Send feedback')} value={`@${FEEDBACK_IG} ›`} onClick={() => window.open(`https://ig.me/m/${FEEDBACK_IG}`, '_blank')} />
+          <Row label={L('계정', 'Account')} value={`${L('로그인 준비 중', 'Sign-in coming soon')} ›`} onClick={() => setPop('account')} />
+          <Row label={L('모든 기록 지우기', 'Erase all data')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />
         </Section>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.3</div>
       </main>
 
       {pop === 'rm' && (
-        <Sheet onClose={() => setPop(null)} title="1RM 설정" gap={20}>
+        <Sheet onClose={() => setPop(null)} title={L('1RM 설정', '1RM')} gap={20}>
           <DialSet vals={rm} unit={u} onChange={setRm} />
           <button
             style={saveBtn}
@@ -152,12 +158,12 @@ export default function Menu({ go }: { go: Go }) {
               setPop(null)
             }}
           >
-            저장
+            {L('저장', 'Save')}
           </button>
         </Sheet>
       )}
       {pop === 'goal' && (
-        <Sheet onClose={() => setPop(null)} title="목표 중량" gap={20}>
+        <Sheet onClose={() => setPop(null)} title={L('목표 중량', 'Goals')} gap={20}>
           <DialSet vals={goal} unit={u} onChange={setGoal} />
           <button
             style={saveBtn}
@@ -166,16 +172,15 @@ export default function Menu({ go }: { go: Go }) {
               setPop(null)
             }}
           >
-            저장
+            {L('저장', 'Save')}
           </button>
         </Sheet>
       )}
       {pop === 'plate' && (
-        <Sheet onClose={() => setPop(null)} title="원판 최소 단위" gap={20}>
+        <Sheet onClose={() => setPop(null)} title={L('원판 최소 단위', 'Smallest plate')} gap={20}>
           <PlatePicker value={plate} unit={u} onChange={setPlate} />
           <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: 16, fontSize: 15, fontWeight: 700 }}>
-            한 번에 {plate * 2}
-            {u}씩 올려요
+            {L(`한 번에 ${plate * 2}${u}씩 올려요`, `Weights go up by ${plate * 2}${u}`)}
           </div>
           <button
             style={saveBtn}
@@ -184,17 +189,17 @@ export default function Menu({ go }: { go: Go }) {
               setPop(null)
             }}
           >
-            저장
+            {L('저장', 'Save')}
           </button>
         </Sheet>
       )}
       {pop === 'bar' && (
-        <Sheet onClose={() => setPop(null)} title="바 무게" gap={20}>
+        <Sheet onClose={() => setPop(null)} title={L('바 무게', 'Bar weight')} gap={20}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, paddingTop: 12 }}>
             {[-5, 5].map((d, i) => (
               <button
                 key={d}
-                aria-label={d < 0 ? '바 무게 줄이기' : '바 무게 늘리기'}
+                aria-label={d < 0 ? L('바 무게 줄이기', 'Lighter bar') : L('바 무게 늘리기', 'Heavier bar')}
                 onClick={() => setBar(Math.max(0, bar + d))}
                 style={{ order: i ? 2 : 0, width: 56, height: 56, borderRadius: 28, border: '1.5px solid var(--line2)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -217,16 +222,16 @@ export default function Menu({ go }: { go: Go }) {
               setPop(null)
             }}
           >
-            저장
+            {L('저장', 'Save')}
           </button>
         </Sheet>
       )}
       {pop === 'gear' && (
         <Sheet onClose={() => setPop(null)} gap={20}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-            <h2 style={{ fontSize: 22, fontWeight: 800 }}>장비 설정</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 800 }}>{L('장비 설정', 'Gear')}</h2>
             <button onClick={() => setDeleting(!deleting)} style={{ height: 36, padding: '0 12px', borderRadius: 10, background: 'var(--fill)', fontSize: 14, fontWeight: 700, color: deleting ? 'var(--ink)' : '#D92B3A' }}>
-              {deleting ? '완료' : '삭제'}
+              {deleting ? L('완료', 'Done') : L('삭제', 'Delete')}
             </button>
           </div>
           <GearGrid
@@ -252,7 +257,7 @@ export default function Menu({ go }: { go: Go }) {
                 setPop(null)
               }}
             >
-              저장
+              {L('저장', 'Save')}
             </button>
           )}
         </Sheet>
@@ -270,15 +275,15 @@ export default function Menu({ go }: { go: Go }) {
       )}
       {pop === 'restore' && backup && (
         <Confirm
-          eyebrow="백업 불러오기"
-          title="이 백업으로 바꿀까요?"
+          eyebrow={L('백업 불러오기', 'Import backup')}
+          title={L('이 백업으로 바꿀까요?', 'Replace with this backup?')}
           rows={[
-            ['백업 날짜', backup.exportedAt ? md(backup.exportedAt.slice(0, 10)) : '모름'],
-            ['훈련 기록', `${backup.data.sessions.length}회`],
-            ['1RM 테스트', `${backup.data.tests?.length ?? 0}회`],
-            ['지금 기록', `${s.sessions.length}회는 지워져요`],
+            [L('백업 날짜', 'Backup date'), backup.exportedAt ? md(backup.exportedAt.slice(0, 10)) : '–'],
+            [L('훈련 기록', 'Workouts'), timesLabel(backup.data.sessions.length)],
+            [L('1RM 테스트', '1RM tests'), timesLabel(backup.data.tests?.length ?? 0)],
+            [L('지금 기록', 'Current data'), L(`${s.sessions.length}회는 지워져요`, `${s.sessions.length} workouts will be replaced`)],
           ]}
-          cta="덮어쓰기"
+          cta={L('덮어쓰기', 'Replace')}
           onCancel={() => setPop(null)}
           onOk={() => {
             restoreBackup(backup.data)
@@ -289,21 +294,37 @@ export default function Menu({ go }: { go: Go }) {
         />
       )}
       {pop === 'badFile' && (
-        <Sheet onClose={() => setPop(null)} title="ST LOG 백업 파일이 아니에요">
+        <Sheet onClose={() => setPop(null)} title={L('ST LOG 백업 파일이 아니에요', 'Not an ST LOG backup file')}>
           <button style={saveBtn} onClick={() => setPop(null)}>
-            확인
+            {L('확인', 'OK')}
+          </button>
+        </Sheet>
+      )}
+      {pop === 'account' && (
+        <Sheet onClose={() => setPop(null)} title={L('계정', 'Account')}>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--sub)', padding: '0 4px' }}>
+            {L('구글·애플·카카오 로그인과 기기 간 동기화는 곧 추가돼요. 지금 기록은 이 기기에만 있으니 백업 내보내기로 보관해 주세요.', 'Sign in with Google, Apple, or Kakao and syncing are coming soon. For now your data lives on this device only, so export a backup to keep it safe.')}
+          </p>
+          <button
+            style={saveBtn}
+            onClick={() => {
+              setPop(null)
+              exportBackup()
+            }}
+          >
+            {L('백업 내보내기', 'Export backup')}
           </button>
         </Sheet>
       )}
       {pop === 'reset' && (
         <Confirm
-          eyebrow="설정"
-          title="모든 기록을 지울까요?"
+          eyebrow={L('설정', 'Settings')}
+          title={L('모든 기록을 지울까요?', 'Erase all data?')}
           rows={[
-            ['훈련 기록', `${s.sessions.length}회`],
-            ['1RM 테스트', `${s.tests.length}회`],
+            [L('훈련 기록', 'Workouts'), timesLabel(s.sessions.length)],
+            [L('1RM 테스트', '1RM tests'), timesLabel(s.tests.length)],
           ]}
-          cta="지우기"
+          cta={L('지우기', 'Erase')}
           onCancel={() => setPop(null)}
           onOk={() => {
             resetAll()

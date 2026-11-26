@@ -222,3 +222,45 @@ export function parseBackup(text: string): { data: AppState; exportedAt: string 
 export function restoreBackup(data: AppState) {
   setState((x) => ({ ...x, ...data, onboarded: true, active: undefined, settings: { ...x.settings, ...data.settings } }))
 }
+
+/** 테스트 기록 수정 (기록만 바뀌고 지금 1RM·처방은 그대로) */
+export function saveTest(id: string, attempts: { weight: number; ok: boolean }[]) {
+  setState((x) => {
+    const t = x.tests.find((tt) => tt.id === id)
+    if (!t) return x
+    const newRM = testResult(t.prevRM, attempts)
+    // 이 테스트로 남긴 실제 1RM 기록도 같이 고친다
+    let done = false
+    const rmHistory = [...x.rmHistory]
+      .reverse()
+      .map((r) => {
+        if (!done && r.lift === t.lift && r.date === t.date && r.rm === t.newRM) {
+          done = true
+          return { ...r, rm: newRM }
+        }
+        return r
+      })
+      .reverse()
+    return { ...x, tests: x.tests.map((tt) => (tt.id === id ? { ...tt, attempts, newRM } : tt)), rmHistory }
+  })
+}
+
+/** 테스트 기록 삭제 (지금 1RM·처방은 그대로) */
+export function deleteTest(id: string) {
+  setState((x) => {
+    const t = x.tests.find((tt) => tt.id === id)
+    if (!t) return x
+    let done = false
+    const rmHistory = [...x.rmHistory]
+      .reverse()
+      .filter((r) => {
+        if (!done && r.lift === t.lift && r.date === t.date && r.rm === t.newRM) {
+          done = true
+          return false
+        }
+        return true
+      })
+      .reverse()
+    return { ...x, tests: x.tests.filter((tt) => tt.id !== id), rmHistory }
+  })
+}

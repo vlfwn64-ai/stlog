@@ -1,3 +1,4 @@
+import { L, setsLabel, stageLabel, topLabel } from '../i18n'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
@@ -6,18 +7,18 @@ import { applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '..
 import { REST_STEP, useRestTimer } from '../rest'
 import type { SetRow } from '../store'
 import { allGear, uid, useApp } from '../store'
-import { SET_TYPES, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
+import { gearName, setTypes, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
 import { BeltIcon, Sheet } from '../ui'
 import type { Go, Route } from '../App'
 
-const RPES: [Rpe, string, string][] = [
-  [10, '10', '더는 못 함'],
-  [9.5, '9.5', '1개는 애매, 무게는 조금 더 가능'],
-  [9, '9', '1개 더 가능'],
-  [8, '8', '2개 더 가능'],
-  [7, '7', '3개 더 가능'],
-  [6, '6', '4개 더 가능'],
-  ['fail', '실패', '목표 횟수를 못 채움'],
+const rpes = (): [Rpe, string, string][] => [
+  [10, '10', L('더는 못 함', 'Nothing left')],
+  [9.5, '9.5', L('1개는 애매, 무게는 조금 더 가능', 'Maybe 1 more, or a bit more weight')],
+  [9, '9', L('1개 더 가능', '1 rep left')],
+  [8, '8', L('2개 더 가능', '2 reps left')],
+  [7, '7', L('3개 더 가능', '3 reps left')],
+  [6, '6', L('4개 더 가능', '4+ reps left')],
+  ['fail', L('실패', 'Fail'), L('목표 횟수를 못 채움', 'Missed the target reps')],
 ]
 
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
@@ -53,14 +54,14 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
   const collapsed = warmDone && !warmOpen && !warm.some((r) => r.id === edit?.id)
   const nextId = a.sets.find((r) => !r.done)?.id
   const stage3 = Math.min(3, a.stage) as 1 | 2 | 3
-  const sub = a.deload ? `디로드 · ${md(a.date)}` : `${a.stage}단계 · ${STAGES[stage3].topReps}회 탑 · ${md(a.date)}`
+  const sub = a.deload ? `${L('디로드', 'Deload')} · ${md(a.date)}` : `${stageLabel(a.stage)} · ${topLabel(STAGES[stage3].topReps)} · ${md(a.date)}`
 
   const patch = (id: string, p: Partial<SetRow>) => upd((sets) => sets.map((r) => (r.id === id ? { ...r, ...p } : r)))
   const needsRpe = (r: SetRow) => !a.deload && (r.type === 'T' || r.type === 'B')
   const label = (r: SetRow) => {
     const same = a.sets.filter((x) => x.type === r.type)
     const idx = same.findIndex((x) => x.id === r.id) + 1
-    return `${typeName(r.type)}${same.length > 1 ? ` ${idx}세트` : ''} · ${fmt(r.weight)}${u} × ${r.reps}`
+    return `${typeName(r.type)}${same.length > 1 ? ` ${idx}` : ''} · ${fmt(r.weight)}${u} × ${r.reps}`
   }
 
   const tapDone = (r: SetRow) => {
@@ -100,41 +101,41 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
     let done
     if (r.done && r.rpe !== undefined)
       done = (
-        <button onClick={() => tapDone(r)} aria-label={`완료됨, RPE ${r.rpe}`} style={{ ...circle, background: doneBg, color: doneFg, fontSize: 15, fontWeight: 800 }}>
-          {r.rpe === 'fail' ? '실패' : r.rpe}
+        <button onClick={() => tapDone(r)} aria-label={`${L('완료됨', 'Done')}, RPE ${r.rpe}`} style={{ ...circle, background: doneBg, color: doneFg, fontSize: 15, fontWeight: 800 }}>
+          {r.rpe === 'fail' ? L('실패', 'F') : r.rpe}
         </button>
       )
     else if (r.done)
       done = (
-        <button onClick={() => tapDone(r)} aria-label="완료됨" style={{ ...circle, background: doneBg }}>
+        <button onClick={() => tapDone(r)} aria-label={L('완료됨', 'Done')} style={{ ...circle, background: doneBg }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={doneFg} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12l5 5 9-10" />
           </svg>
         </button>
       )
-    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? '완료하고 RPE 입력' : '완료'} style={{ ...circle, border: `2px solid ${lit ? '#fff' : dOpen ? 'var(--line2)' : r.id === nextId ? th.line : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }} />
+    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? L('완료하고 RPE 입력', 'Done, enter RPE') : L('완료', 'Done')} style={{ ...circle, border: `2px solid ${lit ? '#fff' : dOpen ? 'var(--line2)' : r.id === nextId ? th.line : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }} />
     const btnBg = dark ? th.press : th.soft
     const btnFg = dark ? '#fff' : th.strong
 
     return (
       <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -6px', padding: open ? '6px 4px 10px' : '0 4px', borderRadius: 16, border: `2px solid ${open ? th.acc : 'transparent'}`, background: open ? th.acc : 'transparent' }}>
         <div className="grid5" style={{ height: 48 }}>
-          <button onClick={() => (setEdit(null), setTypeFor({ id: r.id, sel: r.type }))} aria-label={`세트 종류 ${typeName(r.type)}, 바꾸기`} style={{ justifySelf: 'center', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => (setEdit(null), setTypeFor({ id: r.id, sel: r.type }))} aria-label={`${L('세트 종류', 'Set type')} ${typeName(r.type)}`} style={{ justifySelf: 'center', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ width: 32, height: 32, borderRadius: 8, background: lit ? '#fff' : chip.bg, color: lit ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
           </button>
-          <button className="num" onClick={() => setEdit(fw ? null : { id: r.id, f: 'w' })} aria-label={`무게 ${r.weight}${u}, 바꾸기`} style={cell(fw)}>
+          <button className="num" onClick={() => setEdit(fw ? null : { id: r.id, f: 'w' })} aria-label={`${L('무게', 'Weight')} ${r.weight}${u}`} style={cell(fw)}>
             {fmt(r.weight)}
           </button>
-          <button className="num" onClick={() => setEdit(fr ? null : { id: r.id, f: 'r' })} aria-label={`횟수 ${r.reps}회, 바꾸기`} style={cell(fr)}>
+          <button className="num" onClick={() => setEdit(fr ? null : { id: r.id, f: 'r' })} aria-label={`${L('횟수', 'Reps')} ${r.reps}`} style={cell(fr)}>
             {r.reps}
           </button>
           {done}
           {r.gear.length ? (
-            <button onClick={() => setGearFor({ id: r.id, sel: r.gear, rest: true })} aria-label={`장비: ${r.gear.join(', ')}`} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => setGearFor({ id: r.id, sel: r.gear, rest: true })} aria-label={`${L('장비', 'Gear')}: ${r.gear.map(gearName).join(', ')}`} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BeltIcon color={lit ? '#191f28' : 'var(--ink2)'} />
             </button>
           ) : (
-            <button onClick={() => setGearFor({ id: r.id, sel: [], rest: true })} aria-label="장비 선택" style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, border: `1.5px dashed ${lit ? '#fff' : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => setGearFor({ id: r.id, sel: [], rest: true })} aria-label={L('장비 선택', 'Choose gear')} style={{ justifySelf: 'center', width: 40, height: 40, borderRadius: 10, border: `1.5px dashed ${lit ? '#fff' : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: lit ? '#191f28' : 'var(--mute)' }} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
@@ -145,12 +146,12 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
           <>
             <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 76px', gridTemplateRows: 'repeat(2, 40px)', gap: 6 }}>
               {[10, 5, 1, -10, -5, -1].map((d) => (
-                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? '무게' : '횟수'} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: btnBg, color: btnFg }}>
+                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? L('무게', 'Weight') : L('횟수', 'Reps')} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: btnBg, color: btnFg }}>
                   {d > 0 ? `+${d}` : `−${-d}`}
                 </button>
               ))}
               <button onClick={() => setEdit(null)} style={{ gridColumn: 4, gridRow: '1 / span 2', fontSize: 15, fontWeight: 800, borderRadius: 10, background: btnBg, color: btnFg }}>
-                확인
+                {L('확인', 'Done')}
               </button>
             </div>
             <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
@@ -161,7 +162,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
                 }}
                 style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
               >
-                세트 삭제
+                {L('세트 삭제', 'Delete set')}
               </button>
               <button
                 onClick={() => {
@@ -174,7 +175,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
                 }}
                 style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
               >
-                세트 추가
+                {L('세트 추가', 'Add set')}
               </button>
             </div>
           </>
@@ -191,7 +192,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
   return (
     <div className="screen">
       <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 8px 8px' }}>
-        <button aria-label={editing ? '수정 취소' : '종목 화면으로'} onClick={() => go(editing ? (back ?? { name: 'home' }) : { name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button aria-label={editing ? L('수정 취소', 'Cancel edit') : L('종목 화면으로', 'Back')} onClick={() => go(editing ? (back ?? { name: 'home' }) : { name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
@@ -199,24 +200,26 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: th.text }}>{th.title}</h1>
           <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-            {editing ? `기록 수정 · ${sub}` : sub}
+            {editing ? `${L('기록 수정', 'Edit')} · ${sub}` : sub}
           </span>
         </div>
       </header>
 
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 16px 8px' }}>
         <div className="grid5" style={{ fontSize: 12, color: 'var(--mute)', textAlign: 'center', paddingBottom: 2 }}>
-          <span>세트</span>
-          <span>무게 ({u})</span>
-          <span>횟수</span>
-          <span>완료</span>
-          <span>장비</span>
+          <span>{L('세트', 'Set')}</span>
+          <span>
+            {L('무게', 'Weight')} ({u})
+          </span>
+          <span>{L('횟수', 'Reps')}</span>
+          <span>{L('완료', 'Done')}</span>
+          <span>{L('장비', 'Gear')}</span>
         </div>
         {collapsed && (
-          <button onClick={() => setWarmOpen(true)} aria-expanded="false" aria-label={`웜업 ${warm.length}세트 완료, 펼치기`} className="grid5" style={{ width: '100%', height: 48, textAlign: 'left' }}>
+          <button onClick={() => setWarmOpen(true)} aria-expanded="false" aria-label={L(`웜업 ${warm.length}세트 완료, 펼치기`, `Warm-up done, expand`)} className="grid5" style={{ width: '100%', height: 48, textAlign: 'left' }}>
             <span style={{ justifySelf: 'center', width: 32, height: 32, borderRadius: 8, background: 'var(--fill)', color: 'var(--sub)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>W</span>
             <span style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>웜업 {warm.length}세트 완료</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>{L(`웜업 ${warm.length}세트 완료`, `Warm-up · ${setsLabel(warm.length)} done`)}</span>
               <span className="num" style={{ fontSize: 12, color: 'var(--mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {warm.map((r) => fmt(r.weight)).join(' · ')}
                 {u}
@@ -236,7 +239,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
         )}
         {warmDone && !collapsed && (
           <button onClick={() => setWarmOpen(false)} aria-expanded="true" style={{ width: '100%', height: 40, borderRadius: 10, background: 'var(--fill)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>웜업 접기</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>{L('웜업 접기', 'Collapse warm-up')}</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 15l6-6 6 6" />
             </svg>
@@ -245,7 +248,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
         {a.sets.filter((r) => !(collapsed && r.type === 'W')).map(rowView)}
         {a.sets.length === 0 && (
           <button onClick={() => upd(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={{ height: 48, borderRadius: 12, border: '1.5px dashed var(--line2)', fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
-            세트 추가
+            {L('세트 추가', 'Add set')}
           </button>
         )}
       </main>
@@ -259,12 +262,12 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
             }}
             style={{ width: '100%', height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}
           >
-            저장
+            {L('저장', 'Save')}
           </button>
         </div>
       ) : (
       <div style={{ padding: '10px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <section aria-label="쉬는 시간 타이머" style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : 'var(--fill2)', boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
+          <section aria-label={L('쉬는 시간 타이머', 'Rest timer')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : 'var(--fill2)', boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
                 {mmss(timer.remain)}
@@ -273,17 +276,17 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
                 <div style={{ height: '100%', width: `${Math.round((timer.remain / Math.max(timer.base, 1)) * 100)}%`, background: th.acc, transition: timer.running ? 'width 250ms linear' : 'none' }} />
               </div>
             </div>
-            <button onClick={timer.minus} aria-label={`${REST_STEP}초 줄이기`} style={tBtn}>
+            <button onClick={timer.minus} aria-label={L(`${REST_STEP}초 줄이기`, `−${REST_STEP}s`)} style={tBtn}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                 <path d="M5 12h14" />
               </svg>
             </button>
-            <button onClick={timer.plus} aria-label={`${REST_STEP}초 늘리기`} style={tBtn}>
+            <button onClick={timer.plus} aria-label={L(`${REST_STEP}초 늘리기`, `+${REST_STEP}s`)} style={tBtn}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </button>
-            <button onClick={timer.toggle} aria-label={timer.running ? '일시정지' : '다시 시작'} style={tBtn}>
+            <button onClick={timer.toggle} aria-label={timer.running ? L('일시정지', 'Pause') : L('다시 시작', 'Start')} style={tBtn}>
               {timer.running ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
                   <rect x="6" y="5" width="4" height="14" rx="1" />
@@ -295,7 +298,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
                 </svg>
               )}
             </button>
-            <button onClick={timer.reset} aria-label="타이머 초기화" style={tBtn}>
+            <button onClick={timer.reset} aria-label={L('타이머 초기화', 'Reset timer')} style={tBtn}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M4 12a8 8 0 1 0 2.4-5.7" />
                 <path d="M4 4v4h4" />
@@ -309,15 +312,15 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
             }}
             style={{ height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}
           >
-            기록 완료
+            {L('기록 완료', 'Finish workout')}
           </button>
         </div>
       )}
 
       {typeFor && typeRow && (
-        <Sheet onClose={() => setTypeFor(null)} eyebrow={`${a.sets.indexOf(typeRow) + 1}번째 세트 · ${fmt(typeRow.weight)}${u} × ${typeRow.reps}`} eyebrowColor={th.text} title="어떤 세트인가요?">
+        <Sheet onClose={() => setTypeFor(null)} eyebrow={`${L(`${a.sets.indexOf(typeRow) + 1}번째 세트`, `Set ${a.sets.indexOf(typeRow) + 1}`)} · ${fmt(typeRow.weight)}${u} × ${typeRow.reps}`} eyebrowColor={th.text} title={L('어떤 세트인가요?', 'What kind of set?')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {SET_TYPES.map(([k, name, desc]) => {
+            {setTypes().map(([k, name, desc]) => {
               const on = typeFor.sel === k
               return (
                 <button
@@ -342,15 +345,15 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
             }}
             style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}
           >
-            저장
+            {L('저장', 'Save')}
           </button>
         </Sheet>
       )}
 
       {rpeFor && rpeRow && (
-        <Sheet onClose={() => setRpeFor(null)} eyebrow={label(rpeRow)} eyebrowColor={th.text} title="얼마나 힘들었나요?">
+        <Sheet onClose={() => setRpeFor(null)} eyebrow={label(rpeRow)} eyebrowColor={th.text} title={L('얼마나 힘들었나요?', 'How hard was it?')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {RPES.map(([v, lab, desc]) => {
+            {rpes().map(([v, lab, desc]) => {
               const on = rpeFor.sel === v
               return (
                 <button
@@ -381,7 +384,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
               }}
               style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700, opacity: rpeFor.sel === undefined ? 0.4 : 1 }}
             >
-              저장
+              {L('저장', 'Save')}
             </button>
             <button
               onClick={() => {
@@ -390,14 +393,14 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
               }}
               style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}
             >
-              {rpeRow.done ? '완료 취소' : '취소'}
+              {rpeRow.done ? L('완료 취소', 'Undo done') : L('취소', 'Cancel')}
             </button>
           </div>
         </Sheet>
       )}
 
       {gearFor && gearRow && (
-        <Sheet onClose={() => setGearFor(null)} eyebrow={label(gearRow)} eyebrowColor={th.text} title="어떤 장비를 썼나요?" gap={18}>
+        <Sheet onClose={() => setGearFor(null)} eyebrow={label(gearRow)} eyebrowColor={th.text} title={L('어떤 장비를 썼나요?', 'What did you wear?')} gap={18}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
             {owned.map((g) => {
               const on = gearFor.sel.includes(g)
@@ -408,7 +411,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
                   onClick={() => setGearFor({ ...gearFor, sel: on ? gearFor.sel.filter((x) => x !== g) : [...gearFor.sel, g] })}
                   style={{ height: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: on ? '0 14px' : '0 15px' }}
                 >
-                  <span style={{ fontSize: 15, fontWeight: on ? 700 : 400, color: on ? th.deep : 'var(--ink2)' }}>{g}</span>
+                  <span style={{ fontSize: 15, fontWeight: on ? 700 : 400, color: on ? th.deep : 'var(--ink2)' }}>{gearName(g)}</span>
                   {on && (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={th.deep} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M5 12l5 5 9-10" />
@@ -420,9 +423,9 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '0 4px', fontSize: 15, color: 'var(--ink2)' }}>
             <input type="checkbox" checked={gearFor.rest} onChange={(e) => setGearFor({ ...gearFor, rest: e.target.checked })} style={{ width: 20, height: 20, accentColor: th.line }} />
-            남은 세트에도 똑같이 적용
+            {L('남은 세트에도 똑같이 적용', 'Apply to the remaining sets')}
           </label>
-          <p style={{ padding: '0 4px', fontSize: 12, lineHeight: 1.6, color: 'var(--sub)' }}>장비는 기록에 아이콘으로만 남고, 중량 계산에는 쓰이지 않아요. 장비 목록은 설정 › 장비 설정에서 바꿀 수 있어요.</p>
+          <p style={{ padding: '0 4px', fontSize: 12, lineHeight: 1.6, color: 'var(--sub)' }}>{L('장비는 기록에 아이콘으로만 남고, 중량 계산에는 쓰이지 않아요. 장비 목록은 설정 › 장비 설정에서 바꿀 수 있어요.', 'Gear is only noted on your log and never changes the weights. Edit your gear list in Settings › Gear.')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <button
               onClick={() => {
@@ -435,10 +438,10 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
               }}
               style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}
             >
-              저장
+              {L('저장', 'Save')}
             </button>
             <button onClick={() => setGearFor(null)} style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
-              취소
+              {L('취소', 'Cancel')}
             </button>
           </div>
         </Sheet>
