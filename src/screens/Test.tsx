@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useRestTimer } from '../rest'
+import { unlockAudio } from '../sound'
+import type { RestState } from '../store'
 import type { LiftKey } from '../logic/program'
 import { STAGES, firstAttempt, testResult, warmups } from '../logic/program'
 import { finishTest } from '../actions'
@@ -28,39 +31,18 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
   const w = warm[Math.min(i, warm.length - 1)]
   const nextW = warm[i + 1]
 
-  // 성공 뒤 쉬는 시간 (기본 3분, 원이 줄어든다)
-  const [restBase, setRestBase] = useState(180)
-  const [remain, setRemain] = useState(0)
-  const [resting, setResting] = useState(false)
-  useEffect(() => {
-    if (!resting) return
-    const id = setInterval(() => {
-      setRemain((r) => {
-        if (r <= 1) {
-          setResting(false)
-          return 0
-        }
-        return r - 1
-      })
-    }, 1000)
-    return () => clearInterval(id)
-  }, [resting])
+  // 성공 뒤 쉬는 시간 (기본 3분, 원이 줄어든다). 끝나는 시각 기준이라 앱을 내려도 정확
+  const [rest, setRest] = useState<RestState>({ base: 180, endAt: null, left: 0 })
+  const timer = useRestTimer(rest, setRest, { sound: s.settings.sound !== false })
+  const remain = timer.remain
   const showRing = !inWarm && okList.length > 0 && !done
-  const restStep = (d: number) => {
-    if (resting) {
-      const r = Math.max(0, remain + d)
-      setRemain(r)
-      setRestBase(Math.max(restBase, r))
-      if (r === 0) setResting(false)
-    } else {
-      const b = Math.max(10, restBase + d)
-      setRestBase(b)
-      setRemain(b)
-      setResting(true)
-    }
+  const restStep = (d: number) => (d < 0 ? timer.minus() : timer.plus())
+  const setResting = (on: boolean) => {
+    if (!on) setRest((r) => ({ ...r, endAt: null, left: 0 }))
   }
 
   const step = (ok: boolean) => {
+    unlockAudio()
     if (inWarm) return setI(i + 1)
     const next = [...attempts, { weight: cur, ok }]
     setAttempts(next)
@@ -68,13 +50,12 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
       setResting(false)
       return setDone(true)
     }
-    setRemain(restBase)
-    setResting(true)
+    timer.restart()
   }
 
   const R = 146
   const C = 2 * Math.PI * R
-  const left = resting || remain > 0 ? remain / Math.max(restBase, 1) : 0
+  const left = remain > 0 ? remain / Math.max(timer.base, 1) : 0
 
   const best = testResult(p.oneRM, attempts)
   const others = CARD_ORDER.filter((k) => k !== lift).reduce((a, k) => a + s.lifts[k].oneRM, 0)
@@ -118,7 +99,7 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
                     strokeLinecap="round"
                     strokeDasharray={C}
                     strokeDashoffset={-C * (1 - left)}
-                    style={{ transition: 'stroke-dashoffset 1s linear', opacity: left > 0 ? 1 : 0 }}
+                    style={{ transition: 'stroke-dashoffset 250ms linear', opacity: left > 0 ? 1 : 0 }}
                   />
                 </svg>
               )}
@@ -134,7 +115,7 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
               </span>
             </div>
             {/* 쉬는 시간은 원 밖 (자리는 늘 잡아 둬서 무게 위치가 안 움직인다) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 48, visibility: showRing ? 'visible' : 'hidden' }} aria-hidden={!showRing}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 48, visibility: showRing ? 'visible' : 'hidden', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }} aria-hidden={!showRing}>
               <button onClick={() => restStep(-10)} aria-label="쉬는 시간 10초 줄이기" style={{ width: 44, height: 44, borderRadius: 22, border: `2px solid ${fg}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
                   <path d="M5 12h14" />

@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
-import { changeUnit, setOneRM } from '../actions'
+import { backupJson, changeUnit, parseBackup, restoreBackup, setOneRM } from '../actions'
 import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
-import { GEAR, allGear, resetAll, setState, useApp } from '../store'
-import { CARD_ORDER, fmt } from '../theme'
+import type { AppState } from '../store'
+import { GEAR, allGear, resetAll, setState, today, useApp } from '../store'
+import { CARD_ORDER, fmt, md } from '../theme'
 import { Confirm, SegToggle, Sheet } from '../ui'
 import type { Go } from '../App'
 
-type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset'
+type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'restore' | 'badFile'
 
 function Row({ label, value, onClick, color }: { label: string; value: ReactNode; onClick: () => void; color?: string }) {
   return (
@@ -37,6 +38,40 @@ export default function Menu({ go }: { go: Go }) {
   const st = s.settings
   const u = st.unit
   const [pop, setPop] = useState<Pop>(null)
+  const [backup, setBackup] = useState<{ data: AppState; exportedAt: string } | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  /** 백업 파일을 만들어 공유창(파일에 저장·카톡 등)으로 보낸다 */
+  const exportBackup = async () => {
+    const name = `stlog-백업-${today()}.json`
+    const file = new File([backupJson()], name, { type: 'application/json' })
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'ST LOG 백업' })
+        setState((x) => ({ ...x, settings: { ...x.settings, lastBackup: today() } }))
+        return
+      }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return
+    }
+    // 공유창이 없으면 파일로 내려받기
+    const url = URL.createObjectURL(file)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+    setState((x) => ({ ...x, settings: { ...x.settings, lastBackup: today() } }))
+  }
+
+  const pickFile = async (f: File | undefined) => {
+    if (!f) return
+    const b = parseBackup(await f.text())
+    if (fileRef.current) fileRef.current.value = ''
+    if (!b) return setPop('badFile')
+    setBackup(b)
+    setPop('restore')
+  }
   const [rm, setRm] = useState<Record<LiftKey, number>>({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })
   const [goal, setGoal] = useState(st.goal)
   const [plate, setPlate] = useState(st.minPlate)
@@ -69,6 +104,9 @@ export default function Menu({ go }: { go: Go }) {
         <Section title="내 기록">
           <Row label="1RM 설정" value={trio({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })} onClick={() => open('rm')} />
           <Row label="목표 중량" value={trio(st.goal)} onClick={() => open('goal')} />
+          <Row label="백업 내보내기" value={st.lastBackup ? `마지막 ${md(st.lastBackup)} ›` : '›'} onClick={exportBackup} />
+          <Row label="백업 불러오기" value="›" onClick={() => fileRef.current?.click()} />
+          <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => pickFile(e.target.files?.[0])} />
         </Section>
         <Section title="운동 환경">
           <Row label="원판 최소 단위" value={`${st.minPlate} ${u} ›`} onClick={() => open('plate')} />
@@ -77,6 +115,10 @@ export default function Menu({ go }: { go: Go }) {
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ fontSize: 16 }}>단위</span>
             <SegToggle options={['kg', 'lb'] as Unit[]} value={u} onChange={(v) => changeUnit(v)} minWidth={52} height={38} />
+          </div>
+          <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: 16, whiteSpace: 'nowrap' }}>쉬는 시간 알림음</span>
+            <SegToggle options={['켬', '끔']} value={st.sound === false ? '끔' : '켬'} onChange={(v) => set({ sound: v === '켬' })} minWidth={52} height={38} />
           </div>
         </Section>
         <Section title="앱">
@@ -225,6 +267,33 @@ export default function Menu({ go }: { go: Go }) {
             setPop('gear')
           }}
         />
+      )}
+      {pop === 'restore' && backup && (
+        <Confirm
+          eyebrow="백업 불러오기"
+          title="이 백업으로 바꿀까요?"
+          rows={[
+            ['백업 날짜', backup.exportedAt ? md(backup.exportedAt.slice(0, 10)) : '모름'],
+            ['훈련 기록', `${backup.data.sessions.length}회`],
+            ['1RM 테스트', `${backup.data.tests?.length ?? 0}회`],
+            ['지금 기록', `${s.sessions.length}회는 지워져요`],
+          ]}
+          cta="덮어쓰기"
+          onCancel={() => setPop(null)}
+          onOk={() => {
+            restoreBackup(backup.data)
+            setBackup(null)
+            setPop(null)
+            go({ name: 'home' })
+          }}
+        />
+      )}
+      {pop === 'badFile' && (
+        <Sheet onClose={() => setPop(null)} title="ST LOG 백업 파일이 아니에요">
+          <button style={saveBtn} onClick={() => setPop(null)}>
+            확인
+          </button>
+        </Sheet>
       )}
       {pop === 'reset' && (
         <Confirm

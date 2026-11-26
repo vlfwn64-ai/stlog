@@ -115,3 +115,4 @@ h1, h2, h3, p { margin: 0; }
 
 /* 기록 중 세트 표 */
 .grid5 { display: grid; grid-template-columns: 44px minmax(0,1fr) 64px 48px 48px; gap: 8px; align-items: center; }
+@keyframes pulse { 50% { transform: scale(1.02) } }

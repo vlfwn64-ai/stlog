@@ -8,6 +8,7 @@ import { CARD_ORDER, TH, fmt, md } from '../theme'
 import { HomeChart, PillToggle, ts } from '../ui'
 import type { Pt } from '../ui'
 import type { Go } from '../App'
+import DaySheet from './DaySheet'
 
 /** 종목별 추정(세션 e1RM) / 실제(1RM 기록) 점 */
 export function liftPoints(s: AppState, lift: LiftKey, mode: 'est' | 'act'): Pt[] {
@@ -26,7 +27,7 @@ export function latestEst(s: AppState, lift: LiftKey): number | null {
 
 const arrowBtn: CSSProperties = { width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }
 
-function Calendar({ s }: { s: AppState }) {
+function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }) {
   const [off, setOff] = useState(0)
   const base = new Date()
   const d0 = new Date(base.getFullYear(), base.getMonth() + off, 1)
@@ -82,7 +83,11 @@ function Calendar({ s }: { s: AppState }) {
             <span
               key={k}
               className="num"
+              role={lifts.length ? 'button' : undefined}
+              aria-label={lifts.length ? `${m + 1}월 ${i + 1}일 기록 보기` : undefined}
+              onClick={lifts.length ? () => onPick(k) : undefined}
               style={{
+                cursor: lifts.length ? 'pointer' : undefined,
                 height: 36,
                 borderRadius: 10,
                 display: 'flex',
@@ -116,6 +121,7 @@ const EASE = 'cubic-bezier(0.2,0.8,0.2,1)'
 export default function Home({ go }: { go: Go }) {
   const s = useApp()
   const [mode, setMode] = useState<'est' | 'act'>('est')
+  const [day, setDay] = useState<string | null>(null)
   const [anim, setAnim] = useState<null | { lift: LiftKey; from: Box[]; to: Box[]; phase: 0 | 1 }>(null)
   const root = useRef<HTMLDivElement>(null)
   const cards = useRef<(HTMLButtonElement | null)[]>([])
@@ -162,7 +168,7 @@ export default function Home({ go }: { go: Go }) {
       </header>
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px var(--safe-bot)' }}>
         <div style={fade}>
-          <Calendar s={s} />
+          <Calendar s={s} onPick={setDay} />
         </div>
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: 6, ...fade }}>
@@ -233,6 +239,7 @@ export default function Home({ go }: { go: Go }) {
             </div>
           )
         })}
+      {day && <DaySheet date={day} go={go} back={{ name: 'home' }} onClose={() => setDay(null)} />}
       {anim && <div style={{ position: 'absolute', left: 0, right: 0, top: anim.to[0].y + 44, height: 1, background: 'var(--fill)', opacity: moving ? 1 : 0, transition: 'opacity 250ms ease' }} />}
     </div>
   )

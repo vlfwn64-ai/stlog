@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
 import { STAGES } from '../logic/program'
-import { applyTopRpe, finishWorkout, updateSets } from '../actions'
+import { applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
+import { REST_STEP, useRestTimer } from '../rest'
 import type { SetRow } from '../store'
 import { allGear, uid, useApp } from '../store'
 import { SET_TYPES, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
 import { BeltIcon, Sheet } from '../ui'
-import type { Go } from '../App'
+import type { Go, Route } from '../App'
 
 const RPES: [Rpe, string, string][] = [
   [10, '10', '더는 못 함'],
@@ -19,75 +20,28 @@ const RPES: [Rpe, string, string][] = [
   ['fail', '실패', '목표 횟수를 못 채움'],
 ]
 
-const TIMER_STEP = 10
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
+const DEFAULT_REST = { base: 90, endAt: null, left: 90 }
 
-/** 쉬는 시간: 기본 1:30 정지. 멈춘 상태의 ±는 총시간, 도는 중의 ±는 남은 시간 */
-function useRestTimer() {
-  const [base, setBase] = useState(90)
-  const [remain, setRemain] = useState(90)
-  const [running, setRunning] = useState(false)
-  useEffect(() => {
-    if (!running) return
-    const id = setInterval(() => {
-      setRemain((r) => {
-        if (r <= 1) {
-          setRunning(false)
-          return 0
-        }
-        return r - 1
-      })
-    }, 1000)
-    return () => clearInterval(id)
-  }, [running])
-  return {
-    base,
-    remain,
-    running,
-    minus: () => {
-      if (running) setRemain((r) => Math.max(0, r - TIMER_STEP))
-      else {
-        const b = Math.max(TIMER_STEP, base - TIMER_STEP)
-        setBase(b)
-        setRemain(b)
-      }
-    },
-    plus: () => {
-      if (running) {
-        setRemain(remain + TIMER_STEP)
-        setBase(Math.max(base, remain + TIMER_STEP))
-      } else {
-        setBase(base + TIMER_STEP)
-        setRemain(base + TIMER_STEP)
-      }
-    },
-    toggle: () => {
-      if (!running && remain === 0) setRemain(base)
-      setRunning(!running)
-    },
-    reset: () => {
-      setRemain(base)
-      setRunning(false)
-    },
-    restart: () => {
-      setRemain(base)
-      setRunning(true)
-    },
-  }
-}
-
-export default function Workout({ go }: { go: Go }) {
+export default function Workout({ go, editId, back }: { go: Go; editId?: string; back?: Route }) {
   const s = useApp()
-  const a = s.active
+  const editing = !!editId
+  // 지난 기록 수정: 고친 내용은 저장 누르기 전까지 여기에만
+  const [draft, setDraft] = useState(() => {
+    const x = editId ? s.sessions.find((ss) => ss.id === editId) : undefined
+    return x ? { lift: x.lift, date: x.date, stage: x.stage, deload: x.deload, sets: x.sets.map((r) => ({ ...r })) } : null
+  })
+  const a = editing ? draft : s.active
+  const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
   const [edit, setEdit] = useState<{ id: string; f: 'w' | 'r' } | null>(null)
   const [typeFor, setTypeFor] = useState<{ id: string; sel: string } | null>(null)
   const [rpeFor, setRpeFor] = useState<{ id: string; sel?: Rpe } | null>(null)
   const [gearFor, setGearFor] = useState<{ id: string; sel: string[]; rest: boolean } | null>(null)
   const [warmOpen, setWarmOpen] = useState(false)
-  const timer = useRestTimer()
+  const timer = useRestTimer(s.active?.rest ?? DEFAULT_REST, setRest, { sound: s.settings.sound !== false })
   useEffect(() => {
-    if (!a) go({ name: 'home' })
-  }, [a, go])
+    if (!a) go(back ?? { name: 'home' })
+  }, [a, go, back])
 
   if (!a) return null
   const lift = a.lift
@@ -101,7 +55,7 @@ export default function Workout({ go }: { go: Go }) {
   const stage3 = Math.min(3, a.stage) as 1 | 2 | 3
   const sub = a.deload ? `디로드 · ${md(a.date)}` : `${a.stage}단계 · ${STAGES[stage3].topReps}회 탑 · ${md(a.date)}`
 
-  const patch = (id: string, p: Partial<SetRow>) => updateSets((sets) => sets.map((r) => (r.id === id ? { ...r, ...p } : r)))
+  const patch = (id: string, p: Partial<SetRow>) => upd((sets) => sets.map((r) => (r.id === id ? { ...r, ...p } : r)))
   const needsRpe = (r: SetRow) => !a.deload && (r.type === 'T' || r.type === 'B')
   const label = (r: SetRow) => {
     const same = a.sets.filter((x) => x.type === r.type)
@@ -113,7 +67,7 @@ export default function Workout({ go }: { go: Go }) {
     setEdit(null)
     if (needsRpe(r)) return setRpeFor({ id: r.id, sel: r.rpe })
     patch(r.id, { done: !r.done })
-    if (!r.done) timer.restart()
+    if (!r.done && !editing) timer.restart()
   }
 
   const bump = (r: SetRow, f: 'w' | 'r', d: number) => {
@@ -202,7 +156,7 @@ export default function Workout({ go }: { go: Go }) {
             <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
               <button
                 onClick={() => {
-                  updateSets((sets) => sets.filter((x) => x.id !== r.id))
+                  upd((sets) => sets.filter((x) => x.id !== r.id))
                   setEdit(null)
                 }}
                 style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
@@ -212,7 +166,7 @@ export default function Workout({ go }: { go: Go }) {
               <button
                 onClick={() => {
                   const n: SetRow = { ...r, id: uid(), done: false, rpe: undefined }
-                  updateSets((sets) => {
+                  upd((sets) => {
                     const i = sets.findIndex((x) => x.id === r.id)
                     return [...sets.slice(0, i + 1), n, ...sets.slice(i + 1)]
                   })
@@ -237,7 +191,7 @@ export default function Workout({ go }: { go: Go }) {
   return (
     <div className="screen">
       <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 8px 8px' }}>
-        <button aria-label="종목 화면으로" onClick={() => go({ name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button aria-label={editing ? '수정 취소' : '종목 화면으로'} onClick={() => go(editing ? (back ?? { name: 'home' }) : { name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
@@ -245,7 +199,7 @@ export default function Workout({ go }: { go: Go }) {
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: th.text }}>{th.title}</h1>
           <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-            {sub}
+            {editing ? `기록 수정 · ${sub}` : sub}
           </span>
         </div>
       </header>
@@ -290,61 +244,75 @@ export default function Workout({ go }: { go: Go }) {
         )}
         {a.sets.filter((r) => !(collapsed && r.type === 'W')).map(rowView)}
         {a.sets.length === 0 && (
-          <button onClick={() => updateSets(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={{ height: 48, borderRadius: 12, border: '1.5px dashed var(--line2)', fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
+          <button onClick={() => upd(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={{ height: 48, borderRadius: 12, border: '1.5px dashed var(--line2)', fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
             세트 추가
           </button>
         )}
       </main>
 
+      {editing ? (
+        <div style={{ padding: '10px 20px var(--safe-bot)' }}>
+          <button
+            onClick={() => {
+              if (editId && draft) saveSession(editId, draft.sets)
+              go(back ?? { name: 'home' })
+            }}
+            style={{ width: '100%', height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}
+          >
+            저장
+          </button>
+        </div>
+      ) : (
       <div style={{ padding: '10px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <section aria-label="쉬는 시간 타이머" style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--fill2)', borderRadius: 16, padding: '10px 10px 10px 16px' }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
-              {mmss(timer.remain)}
-            </span>
-            <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.round((timer.remain / Math.max(timer.base, 1)) * 100)}%`, background: th.acc, transition: 'width 900ms linear' }} />
+          <section aria-label="쉬는 시간 타이머" style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : 'var(--fill2)', boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
+                {mmss(timer.remain)}
+              </span>
+              <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.round((timer.remain / Math.max(timer.base, 1)) * 100)}%`, background: th.acc, transition: timer.running ? 'width 250ms linear' : 'none' }} />
+              </div>
             </div>
-          </div>
-          <button onClick={timer.minus} aria-label={`${TIMER_STEP}초 줄이기`} style={tBtn}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <path d="M5 12h14" />
-            </svg>
-          </button>
-          <button onClick={timer.plus} aria-label={`${TIMER_STEP}초 늘리기`} style={tBtn}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-          <button onClick={timer.toggle} aria-label={timer.running ? '일시정지' : '다시 시작'} style={tBtn}>
-            {timer.running ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
-                <rect x="6" y="5" width="4" height="14" rx="1" />
-                <rect x="14" y="5" width="4" height="14" rx="1" />
+            <button onClick={timer.minus} aria-label={`${REST_STEP}초 줄이기`} style={tBtn}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <path d="M5 12h14" />
               </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
-                <path d="M8 5v14l11-7z" />
+            </button>
+            <button onClick={timer.plus} aria-label={`${REST_STEP}초 늘리기`} style={tBtn}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
               </svg>
-            )}
+            </button>
+            <button onClick={timer.toggle} aria-label={timer.running ? '일시정지' : '다시 시작'} style={tBtn}>
+              {timer.running ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              )}
+            </button>
+            <button onClick={timer.reset} aria-label="타이머 초기화" style={tBtn}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+                <path d="M4 4v4h4" />
+              </svg>
+            </button>
+          </section>
+          <button
+            onClick={() => {
+              const id = finishWorkout()
+              if (id) go({ name: 'result', id })
+            }}
+            style={{ height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}
+          >
+            기록 완료
           </button>
-          <button onClick={timer.reset} aria-label="타이머 초기화" style={tBtn}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M4 12a8 8 0 1 0 2.4-5.7" />
-              <path d="M4 4v4h4" />
-            </svg>
-          </button>
-        </section>
-        <button
-          onClick={() => {
-            const id = finishWorkout()
-            if (id) go({ name: 'result', id })
-          }}
-          style={{ height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}
-        >
-          기록 완료
-        </button>
-      </div>
+        </div>
+      )}
 
       {typeFor && typeRow && (
         <Sheet onClose={() => setTypeFor(null)} eyebrow={`${a.sets.indexOf(typeRow) + 1}번째 세트 · ${fmt(typeRow.weight)}${u} × ${typeRow.reps}`} eyebrowColor={th.text} title="어떤 세트인가요?">
@@ -404,8 +372,11 @@ export default function Workout({ go }: { go: Go }) {
               disabled={rpeFor.sel === undefined}
               onClick={() => {
                 if (rpeFor.sel === undefined) return
-                applyTopRpe(rpeRow.id, rpeFor.sel)
-                if (!rpeRow.done) timer.restart()
+                if (editing) patch(rpeRow.id, { rpe: rpeFor.sel, done: true })
+                else {
+                  applyTopRpe(rpeRow.id, rpeFor.sel)
+                  if (!rpeRow.done) timer.restart()
+                }
                 setRpeFor(null)
               }}
               style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700, opacity: rpeFor.sel === undefined ? 0.4 : 1 }}
@@ -456,7 +427,7 @@ export default function Workout({ go }: { go: Go }) {
             <button
               onClick={() => {
                 const { id, sel, rest } = gearFor
-                updateSets((sets) => {
+                upd((sets) => {
                   const i = sets.findIndex((x) => x.id === id)
                   return sets.map((r, j) => (j === i || (rest && j > i && !r.done) ? { ...r, gear: sel } : r))
                 })

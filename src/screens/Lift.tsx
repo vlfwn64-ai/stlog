@@ -8,6 +8,7 @@ import { CARD_ORDER, TH, fmt, md } from '../theme'
 import { Confirm, LiftChart, PillToggle, Sheet, SummaryRows, ts } from '../ui'
 import type { Go } from '../App'
 import { latestEst, liftPoints } from './Home'
+import DaySheet from './DaySheet'
 
 type Pop = null | 'deload' | 'next' | 'test' | 'prev' | 'start' | 'startDeload' | 'discard'
 
@@ -22,7 +23,7 @@ function cycleRows(s: AppState, lift: LiftKey) {
     label: `${STAGES[n].topReps}회`,
     boxes: cyc
       .filter((x) => x.stage === n && topOf(x))
-      .map((x) => ({ w: fmt(topOf(x)!.weight), d: md(x.date) })),
+      .map((x) => ({ w: fmt(topOf(x)!.weight), d: md(x.date), id: x.id })),
   }))
 }
 
@@ -51,6 +52,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
   const st = stepOf(s)
   const [mode, setMode] = useState<'est' | 'act'>('est')
   const [pop, setPop] = useState<Pop>(null)
+  const [openId, setOpenId] = useState<string | null>(null)
   const toggle = () => setMode(mode === 'est' ? 'act' : 'est')
 
   const est = latestEst(s, lift)
@@ -180,7 +182,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
               </svg>
             </button>
           </div>
-          {[...rows, ...(p.stage === 4 ? [{ n: 4, label: '1회', boxes: [] as { w: string; d: string }[] }] : [])].map((r) => {
+          {[...rows, ...(p.stage === 4 ? [{ n: 4, label: '1회', boxes: [] as { w: string; d: string; id: string }[] }] : [])].map((r) => {
             const cur = r.n === p.stage
             const todayW = cur ? fmt(p.stage === 4 ? fa : p.top) : null
             return (
@@ -188,14 +190,14 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
                 <span style={{ width: 34, flexShrink: 0, fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
                   {r.boxes.map((b, i) => (
-                    <div key={i} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <button key={i} onClick={() => setOpenId(b.id)} aria-label={`${b.d} 기록 보기`} style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${th.boxLine}`, background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: 'var(--ink)' }}>
                         {b.w}
                       </span>
                       <span className="num" style={{ fontSize: 10, color: 'var(--mute)' }}>
                         {b.d}
                       </span>
-                    </div>
+                    </button>
                   ))}
                   {todayW && (
                     <div style={{ width: 44, height: 44, borderRadius: 10, background: th.acc, boxShadow: th.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -240,6 +242,7 @@ export default function Lift({ lift, go, enter }: { lift: LiftKey; go: Go; enter
         </button>
       </div>
 
+      {openId && <DaySheet sessionId={openId} go={go} back={{ name: 'lift', lift }} onClose={() => setOpenId(null)} />}
       {pop === 'start' && (
         <Sheet onClose={() => setPop(null)} gap={18}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

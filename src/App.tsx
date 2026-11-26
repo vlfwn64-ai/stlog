@@ -19,6 +19,7 @@ export type Route =
   | { name: 'workout'; lift?: LiftKey }
   | { name: 'result'; id: string }
   | { name: 'test'; lift: LiftKey }
+  | { name: 'edit'; id: string; back: Route }
 
 export type Go = (r: Route) => void
 
@@ -73,6 +74,7 @@ export default function App() {
   else if (route.name === 'tutorial') view = <Tutorial onDone={() => go({ name: route.back ?? 'home' })} />
   else if (route.name === 'lift') view = <Lift key={route.lift} lift={route.lift} go={go} enter={route.from === 'home'} />
   else if (route.name === 'workout') view = <Workout go={go} />
+  else if (route.name === 'edit') view = <Workout key={route.id} go={go} editId={route.id} back={route.back} />
   else if (route.name === 'result') view = <Result id={route.id} go={go} />
   else if (route.name === 'test') view = <Test lift={route.lift} go={go} />
   else view = <Home go={go} />

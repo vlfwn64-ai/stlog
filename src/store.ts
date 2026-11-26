@@ -16,6 +16,10 @@ export interface Settings {
   theme: 'light' | 'dark' | 'system'
   /** 사용자가 테마를 직접 골랐는지 (안 골랐으면 시스템을 따른다) */
   themeChosen?: boolean
+  /** 쉬는 시간 끝 알림음 (기본 켬) */
+  sound?: boolean
+  /** 마지막 백업 날짜 */
+  lastBackup?: string
 }
 
 export interface SetRow {
@@ -34,6 +38,14 @@ export interface ActiveWorkout {
   stage: number
   deload: boolean
   sets: SetRow[]
+  /** 쉬는 시간: endAt이 있으면 도는 중(끝나는 시각 ms), 없으면 멈춤(left초) */
+  rest?: RestState
+}
+
+export interface RestState {
+  base: number
+  endAt: number | null
+  left: number
 }
 
 export interface SessionLog {

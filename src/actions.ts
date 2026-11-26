@@ -12,7 +12,7 @@ import {
   testResult,
   warmups,
 } from './logic/program'
-import type { SessionLog, SetRow } from './store'
+import type { AppState, RestState, SessionLog, SetRow } from './store'
 import { getState, setState, step, today, uid } from './store'
 
 const row = (type: SetRow['type'], weight: number, reps: number): SetRow => ({
@@ -180,4 +180,45 @@ export function changeUnit(to: Unit) {
     rmHistory: x.rmHistory.map((r) => ({ ...r, rm: five(r.rm) })),
     active: x.active ? { ...x.active, sets: x.active.sets.map(conv) } : undefined,
   }))
+}
+
+/** 쉬는 시간 상태 저장 (기록 중 화면을 나갔다 와도 이어진다) */
+export function setRest(rest: RestState) {
+  setState((x) => (x.active ? { ...x, active: { ...x.active, rest } } : x))
+}
+
+/** 세트 완료 여부·탑세트로 추정 1RM 다시 계산 */
+function estOf(sets: SetRow[]): number | null {
+  const top = [...sets].reverse().find((r) => r.done && r.type === 'T' && r.rpe !== undefined)
+  return top && top.rpe !== undefined ? e1rm(top.weight, top.reps, top.rpe) : null
+}
+
+/** 지난 기록 수정 (기록만 바뀌고 지금 처방은 그대로) */
+export function saveSession(id: string, sets: SetRow[]) {
+  setState((x) => ({ ...x, sessions: x.sessions.map((ss) => (ss.id === id ? { ...ss, sets, e1rm: estOf(sets) } : ss)) }))
+}
+
+/** 지난 기록 삭제 (지금 처방은 그대로) */
+export function deleteSession(id: string) {
+  setState((x) => ({ ...x, sessions: x.sessions.filter((ss) => ss.id !== id) }))
+}
+
+/** 백업 파일 내용 */
+export function backupJson(): string {
+  return JSON.stringify({ app: 'stlog', version: 1, exportedAt: new Date().toISOString(), data: getState() })
+}
+
+/** 백업 파일 읽기: 맞으면 상태, 아니면 null */
+export function parseBackup(text: string): { data: AppState; exportedAt: string } | null {
+  try {
+    const j = JSON.parse(text)
+    if (j?.app !== 'stlog' || !j.data?.lifts || !Array.isArray(j.data.sessions)) return null
+    return { data: j.data as AppState, exportedAt: String(j.exportedAt ?? '') }
+  } catch {
+    return null
+  }
+}
+
+export function restoreBackup(data: AppState) {
+  setState((x) => ({ ...x, ...data, onboarded: true, active: undefined, settings: { ...x.settings, ...data.settings } }))
 }
