@@ -7,6 +7,8 @@ export interface Settings {
   minPlate: number
   bar: number
   gear: string[]
+  /** 직접 추가한 장비 이름 */
+  customGear: string[]
   goal: Record<LiftKey, number>
 }
 
@@ -36,6 +38,7 @@ export interface SessionLog {
   deload: boolean
   sets: SetRow[]
   e1rm: number | null
+  cycle?: number
   next?: { top: number; backoff: number; topChange: number; boChange: number; advanced: boolean; stage: number }
 }
 
@@ -48,10 +51,14 @@ export interface TestLog {
   newRM: number
   /** 이 테스트로 끝난 사이클의 시작일 (새 사이클을 시작한 경우) */
   endedCycle?: string
+  /** 끝난 사이클 번호 */
+  cycleNo?: number
 }
 
 export interface LiftState extends LiftProgress {
   cycleStart: string
+  /** 사이클 번호 (1부터) */
+  cycle?: number
 }
 
 export interface AppState {
@@ -70,6 +77,9 @@ const KEY = 'stlog:v1'
 
 export const GEAR = ['벨트', '스트랩', '니슬리브', '니랩', '리스트랩', '엘보슬리브', '역도화']
 
+/** 고를 수 있는 장비 전체 (기본 + 직접 추가) */
+export const allGear = (s: Settings) => [...GEAR, ...s.customGear.filter((g) => !GEAR.includes(g))]
+
 export const today = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -84,6 +94,7 @@ export function initialLifts(now: Record<LiftKey, number>, minPlate: number): Re
     stage: 1,
     stall: 0,
     cycleStart: today(),
+    cycle: 1,
     ...stagePrescription(now[k], 1, step),
   })
   return { S: mk('S'), B: mk('B'), D: mk('D') }
@@ -94,7 +105,7 @@ function defaults(): AppState {
   return {
     version: 1,
     onboarded: false,
-    settings: { unit: 'kg', minPlate: 2.5, bar: 20, gear: [], goal: { S: 200, B: 150, D: 250 } },
+    settings: { unit: 'kg', minPlate: 2.5, bar: 20, gear: [], customGear: [], goal: { S: 200, B: 150, D: 250 } },
     lifts: initialLifts(now, 2.5),
     sessions: [],
     tests: [],
@@ -105,7 +116,11 @@ function defaults(): AppState {
 function load(): AppState {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return { ...defaults(), ...JSON.parse(raw) }
+    if (raw) {
+      const d = defaults()
+      const p = JSON.parse(raw)
+      return { ...d, ...p, settings: { ...d.settings, ...p.settings } }
+    }
   } catch {
     /* 저장소를 못 읽으면 기본값 */
   }

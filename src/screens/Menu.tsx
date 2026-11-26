@@ -1,124 +1,208 @@
 import { useState } from 'react'
-import type { LiftKey } from '../logic/program'
-import { GEAR, resetAll, setState, useApp } from '../store'
-import { CARD_ORDER, TH, fmt } from '../theme'
-import { Confirm, Header } from '../ui'
+import type { ReactNode } from 'react'
+import type { LiftKey, Unit } from '../logic/program'
+import { changeUnit, setOneRM } from '../actions'
+import { AddGearSheet, DialSet, GearGrid, PlatePicker } from '../dial'
+import { allGear, resetAll, setState, useApp } from '../store'
+import { CARD_ORDER, fmt } from '../theme'
+import { Confirm, SegToggle, Sheet } from '../ui'
 import type { Go } from '../App'
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset'
+
+function Row({ label, value, onClick, color }: { label: string; value: ReactNode; onClick: () => void; color?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, gap: 12 }}>
-      <span style={{ fontSize: 16, fontWeight: 600 }}>{label}</span>
-      {children}
-    </div>
+    <button onClick={onClick} style={{ width: '100%', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: 16, color: color ?? '#191F28' }}>{label}</span>
+      <span className="num" style={{ fontSize: 14, color: '#4E5968', textAlign: 'right' }}>
+        {value}
+      </span>
+    </button>
   )
 }
 
-const stepBtn = { width: 40, height: 40, borderRadius: 10, background: 'var(--fill)', fontSize: 20, fontWeight: 700 }
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={{ background: '#FFFFFF', padding: '8px 20px' }}>
+      <h2 style={{ margin: '8px 0 4px', fontSize: 13, fontWeight: 600, color: '#6B7684' }}>{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+const saveBtn = { height: 56, borderRadius: 14, background: '#191F28', color: '#FFFFFF', fontSize: 17, fontWeight: 700 } as const
 
 export default function Menu({ go }: { go: Go }) {
   const s = useApp()
   const st = s.settings
   const u = st.unit
-  const [reset, setReset] = useState(false)
-  const plates = u === 'kg' ? [0.5, 1, 1.25, 2.5, 5] : [1, 2.5, 5, 10]
+  const [pop, setPop] = useState<Pop>(null)
+  const [rm, setRm] = useState<Record<LiftKey, number>>({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })
+  const [goal, setGoal] = useState(st.goal)
+  const [plate, setPlate] = useState(st.minPlate)
+  const [bar, setBar] = useState(st.bar)
+  const [gear, setGear] = useState(st.gear)
   const set = (p: Partial<typeof st>) => setState((x) => ({ ...x, settings: { ...x.settings, ...p } }))
-  const goalStep = u === 'kg' ? 5 : 10
-  const setGoal = (k: LiftKey, d: number) => set({ goal: { ...st.goal, [k]: Math.max(0, st.goal[k] + d) } })
+  const open = (p: Pop) => {
+    setRm({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })
+    setGoal(st.goal)
+    setPlate(st.minPlate)
+    setBar(st.bar)
+    setGear(st.gear)
+    setPop(p)
+  }
+  const trio = (o: Record<LiftKey, number>) => `${CARD_ORDER.map((k) => fmt(o[k])).join(' · ')} ${u} ›`
 
   return (
-    <div className="screen">
-      <Header onBack={() => go({ name: 'home' })} title="설정" />
-      <div className="scroll pad" style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 'var(--safe-bot)' }}>
-        <section>
-          <h2 className="label" style={{ marginBottom: 4 }}>
-            헬스장
-          </h2>
-          <Row label="제일 가벼운 원판">
-            <div className="seg">
-              {plates.map((p) => (
-                <button key={p} aria-pressed={st.minPlate === p} onClick={() => set({ minPlate: p })}>
-                  {p}
-                </button>
-              ))}
-            </div>
-          </Row>
-          <Row label="바 무게">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button style={stepBtn} onClick={() => set({ bar: Math.max(0, st.bar - (u === 'kg' ? 5 : 5)) })} aria-label="바 무게 빼기">
-                −
-              </button>
-              <b className="num" style={{ width: 56, textAlign: 'center' }}>
-                {fmt(st.bar)}
-                {u}
-              </b>
-              <button style={stepBtn} onClick={() => set({ bar: st.bar + 5 })} aria-label="바 무게 더하기">
-                +
-              </button>
-            </div>
-          </Row>
-        </section>
-
-        <section>
-          <h2 className="label" style={{ marginBottom: 10 }}>
-            보유 장비
-          </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {GEAR.map((g) => {
-              const on = st.gear.includes(g)
-              return (
-                <button key={g} aria-pressed={on} onClick={() => set({ gear: on ? st.gear.filter((x) => x !== g) : [...st.gear, g] })} style={{ height: 40, padding: '0 14px', borderRadius: 20, fontSize: 14, fontWeight: 700, background: on ? '#191F28' : '#F2F4F6', color: on ? '#fff' : '#333D4B' }}>
-                  {g}
-                </button>
-              )
-            })}
+    <div className="screen" style={{ background: '#F2F4F6', paddingTop: 0 }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'calc(var(--safe-top) + 16px) 12px 8px 20px', background: '#FFFFFF' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>설정</h1>
+        <button aria-label="닫기" onClick={() => go({ name: 'home' })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0 var(--safe-bot)' }}>
+        <Section title="내 기록">
+          <Row label="1RM 설정" value={trio({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })} onClick={() => open('rm')} />
+          <Row label="목표 중량" value={trio(st.goal)} onClick={() => open('goal')} />
+        </Section>
+        <Section title="운동 환경">
+          <Row label="원판 최소 단위" value={`${st.minPlate} ${u} ›`} onClick={() => open('plate')} />
+          <Row label="바 무게" value={`${fmt(st.bar)} ${u} ›`} onClick={() => open('bar')} />
+          <Row label="장비 설정" value={`${st.gear.length ? st.gear.join(' · ') : '없음'} ›`} onClick={() => open('gear')} />
+          <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ fontSize: 16 }}>단위</span>
+            <SegToggle options={['kg', 'lb'] as Unit[]} value={u} onChange={(v) => changeUnit(v)} minWidth={52} height={38} />
           </div>
-        </section>
+        </Section>
+        <Section title="앱">
+          <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 16 }}>언어</span>
+            <span style={{ fontSize: 14, color: '#4E5968' }}>한국어</span>
+          </div>
+          <Row label="모든 기록 지우기" value="›" onClick={() => setPop('reset')} color="#D92B3A" />
+        </Section>
+        <div style={{ textAlign: 'center', fontSize: 12, color: '#8B95A1', padding: '4px 0' }}>ST LOG v0.2</div>
+      </main>
 
-        <section>
-          <h2 className="label" style={{ marginBottom: 4 }}>
-            목표 1RM
-          </h2>
-          {CARD_ORDER.map((k) => (
-            <Row key={k} label={TH[k].name}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button style={stepBtn} onClick={() => setGoal(k, -goalStep)} aria-label={`${TH[k].name} 목표 빼기`}>
-                  −
-                </button>
-                <b className="num" style={{ width: 64, textAlign: 'center', color: TH[k].text }}>
-                  {fmt(st.goal[k])}
-                  {u}
-                </b>
-                <button style={stepBtn} onClick={() => setGoal(k, goalStep)} aria-label={`${TH[k].name} 목표 더하기`}>
-                  +
-                </button>
-              </div>
-            </Row>
-          ))}
-        </section>
-
-        <section>
-          <button className="btn btn-gray" onClick={() => setReset(true)}>
-            데이터 초기화
+      {pop === 'rm' && (
+        <Sheet onClose={() => setPop(null)} title="1RM 설정" gap={20}>
+          <DialSet vals={rm} unit={u} onChange={setRm} />
+          <button
+            style={saveBtn}
+            onClick={() => {
+              CARD_ORDER.forEach((k) => rm[k] !== s.lifts[k].oneRM && setOneRM(k, rm[k]))
+              setPop(null)
+            }}
+          >
+            저장
           </button>
-          <div className="label" style={{ textAlign: 'center', marginTop: 16 }}>
-            ST LOG v0.1
+        </Sheet>
+      )}
+      {pop === 'goal' && (
+        <Sheet onClose={() => setPop(null)} title="목표 중량" gap={20}>
+          <DialSet vals={goal} unit={u} onChange={setGoal} />
+          <button
+            style={saveBtn}
+            onClick={() => {
+              set({ goal })
+              setPop(null)
+            }}
+          >
+            저장
+          </button>
+        </Sheet>
+      )}
+      {pop === 'plate' && (
+        <Sheet onClose={() => setPop(null)} title="원판 최소 단위" gap={20}>
+          <PlatePicker value={plate} unit={u} onChange={setPlate} />
+          <div style={{ background: '#F7F8FA', borderRadius: 14, padding: 16, fontSize: 15, fontWeight: 700 }}>
+            한 번에 {plate * 2}
+            {u}씩 올려요
           </div>
-        </section>
-      </div>
-      {reset && (
+          <button
+            style={saveBtn}
+            onClick={() => {
+              set({ minPlate: plate })
+              setPop(null)
+            }}
+          >
+            저장
+          </button>
+        </Sheet>
+      )}
+      {pop === 'bar' && (
+        <Sheet onClose={() => setPop(null)} title="바 무게" gap={20}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, paddingTop: 12 }}>
+            {[-5, 5].map((d, i) => (
+              <button
+                key={d}
+                aria-label={d < 0 ? '바 무게 줄이기' : '바 무게 늘리기'}
+                onClick={() => setBar(Math.max(0, bar + d))}
+                style={{ order: i ? 2 : 0, width: 56, height: 56, borderRadius: 28, border: '1.5px solid #D1D6DB', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                  <path d={d < 0 ? 'M5 12h14' : 'M12 5v14M5 12h14'} />
+                </svg>
+              </button>
+            ))}
+            <div style={{ order: 1, width: 150, height: 96, borderRadius: 18, border: '2px solid #191F28', display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
+              <span className="num" style={{ fontSize: 44, fontWeight: 800, lineHeight: '92px' }}>
+                {fmt(bar)}
+              </span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: '#4E5968' }}>{u}</span>
+            </div>
+          </div>
+          <button
+            style={saveBtn}
+            onClick={() => {
+              set({ bar })
+              setPop(null)
+            }}
+          >
+            저장
+          </button>
+        </Sheet>
+      )}
+      {pop === 'gear' && (
+        <Sheet onClose={() => setPop(null)} title="장비 설정" gap={20}>
+          <GearGrid all={allGear(st)} sel={gear} onToggle={(g) => setGear(gear.includes(g) ? gear.filter((x) => x !== g) : [...gear, g])} onAdd={() => setPop('addGear')} />
+          <button
+            style={saveBtn}
+            onClick={() => {
+              set({ gear })
+              setPop(null)
+            }}
+          >
+            저장
+          </button>
+        </Sheet>
+      )}
+      {pop === 'addGear' && (
+        <AddGearSheet
+          onClose={() => setPop('gear')}
+          onAdd={(n) => {
+            if (!allGear(st).includes(n)) set({ customGear: [...st.customGear, n] })
+            if (!gear.includes(n)) setGear([...gear, n])
+            setPop('gear')
+          }}
+        />
+      )}
+      {pop === 'reset' && (
         <Confirm
           eyebrow="설정"
           title="모든 기록을 지울까요?"
           rows={[
             ['훈련 기록', `${s.sessions.length}회`],
-            ['테스트', `${s.tests.length}회`],
+            ['1RM 테스트', `${s.tests.length}회`],
           ]}
           cta="지우기"
-          onCancel={() => setReset(false)}
+          onCancel={() => setPop(null)}
           onOk={() => {
             resetAll()
-            setReset(false)
+            setPop(null)
           }}
         />
       )}

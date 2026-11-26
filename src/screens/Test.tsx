@@ -1,32 +1,43 @@
 import { useState } from 'react'
 import type { LiftKey } from '../logic/program'
-import { firstAttempt, testResult, warmups } from '../logic/program'
+import { STAGES, firstAttempt, roundDown, testResult, warmups } from '../logic/program'
 import { finishTest } from '../actions'
 import { step as stepOf, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
-import { I, Icon } from '../ui'
 import type { Go } from '../App'
 
 export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
   const s = useApp()
   const th = TH[lift]
   const u = s.settings.unit
-  const st = stepOf(s)
+  const S = stepOf(s)
   const p = s.lifts[lift]
-  const [fa] = useState(() => firstAttempt(p.oneRM, st))
-  const [warm] = useState(() => warmups(fa, { lift, step: st, bar: s.settings.bar, unit: u, heavy: true }))
-  const [wi, setWi] = useState(0)
+  const [first] = useState(() => firstAttempt(p.oneRM, S))
+  const [warm] = useState(() => warmups(first, { lift, step: S, bar: s.settings.bar, unit: u, heavy: true }))
+  const [i, setI] = useState(0)
   const [attempts, setAttempts] = useState<{ weight: number; ok: boolean }[]>([])
-  const [over, setOver] = useState(false)
+  const [done, setDone] = useState(false)
 
-  const inWarm = wi < warm.length
-  const lastOk = attempts.filter((a) => a.ok).pop()
-  const cur = inWarm ? warm[wi] : { weight: lastOk ? +(lastOk.weight + st).toFixed(2) : fa, reps: 1 }
-  const newRM = testResult(p.oneRM, attempts)
-  const sumBefore = CARD_ORDER.reduce((a, k) => a + s.lifts[k].oneRM, 0)
+  const fg = th.testFg
+  const inWarm = !done && i < warm.length
+  const n = attempts.length
+  const okList = attempts.filter((a) => a.ok)
+  const lastOk = okList.length ? okList[okList.length - 1].weight : null
+  const cur = lastOk === null ? first : +(lastOk + S).toFixed(2)
+  const w = warm[Math.min(i, warm.length - 1)]
+  const nextW = warm[i + 1]
 
-  const fg = th.on
-  const ghost = th.on === '#FFFFFF' ? 'rgba(255,255,255,.18)' : 'rgba(25,31,40,.1)'
+  const step = (ok: boolean) => {
+    if (inWarm) return setI(i + 1)
+    const next = [...attempts, { weight: cur, ok }]
+    setAttempts(next)
+    if (!ok) setDone(true)
+  }
+
+  const best = testResult(p.oneRM, attempts)
+  const others = CARD_ORDER.filter((k) => k !== lift).reduce((a, k) => a + s.lifts[k].oneRM, 0)
+  const stage3 = Math.min(3, p.stage) as 1 | 2 | 3
+  const midCycle = p.stage < 4
 
   const commit = (mode: 'new' | 'keep') => {
     finishTest(lift, attempts, mode)
@@ -34,102 +45,106 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
   }
 
   return (
-    <div className="screen" style={{ background: th.acc, color: fg }}>
-      <header className="hdr">
-        <button className="icon-btn" onClick={() => go({ name: 'lift', lift })} aria-label="나가기">
-          <Icon d={I.close} color={fg} />
+    <div className="screen" style={{ background: th.testBg, color: fg }}>
+      <header style={{ display: 'grid', gridTemplateColumns: '44px 1fr 72px', alignItems: 'center', padding: '12px 16px 0 8px' }}>
+        <button aria-label="테스트 그만하기" onClick={() => go({ name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
-        <h1 style={{ flex: 1, fontSize: 18, fontWeight: 800 }}>{th.name} TEST</h1>
+        <span style={{ textAlign: 'center', fontSize: 17, fontWeight: 800, letterSpacing: 0.2 }}>{th.title} TEST</span>
+        <span className="num" style={{ textAlign: 'right', fontSize: 13, fontWeight: 600 }}>
+          {done ? '' : inWarm ? `웜업 ${i + 1}/${warm.length}` : `${n + 1}차 시도`}
+        </span>
       </header>
 
-      {!over ? (
+      {!done ? (
         <>
-          <div className="pad" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 8, textAlign: 'center' }}>
-            <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.85 }}>{inWarm ? `웜업 ${wi + 1} / ${warm.length}` : `${attempts.length + 1}차 시도`}</span>
-            <span className="num" style={{ fontSize: 72, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1 }}>
-              {fmt(cur.weight)}
-              <span style={{ fontSize: 28, fontWeight: 800 }}>{u}</span>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '0 24px', textAlign: 'center' }}>
+            <span style={{ fontSize: 22, fontWeight: 700 }}>{inWarm ? '웜업' : `${n + 1}차 시도`}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span className="num" style={{ fontSize: inWarm ? 64 : 112, fontWeight: 900, lineHeight: 1, letterSpacing: -2 }}>
+                {inWarm ? `${fmt(w.weight)} × ${w.reps}` : fmt(cur)}
+              </span>
+              {!inWarm && <span style={{ fontSize: 22, fontWeight: 700 }}>{u}</span>}
+            </div>
+            <span className="num" style={{ fontSize: 15, fontWeight: 500, marginTop: 8 }}>
+              {inWarm ? (nextW ? `다음 ${fmt(nextW.weight)} × ${nextW.reps}` : `다음은 1차 시도 ${fmt(first)}${u}`) : `성공하면 다음은 ${fmt(cur + S)}${u}`}
             </span>
-            <span className="num" style={{ fontSize: 22, fontWeight: 800 }}>× {cur.reps}</span>
-            {attempts.length > 0 && (
-              <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {attempts.map((a, i) => (
-                  <span key={i} className="num" style={{ height: 30, padding: '0 12px', borderRadius: 15, background: ghost, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', textDecoration: a.ok ? undefined : 'line-through' }}>
-                    {fmt(a.weight)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="bottom">
-            {inWarm ? (
-              <button className="btn" style={{ background: fg, color: th.acc }} onClick={() => setWi(wi + 1)}>
-                완료
+          </main>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 20px var(--safe-bot)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+              <button onClick={() => step(false)} style={{ height: 64, borderRadius: 16, border: `2px solid ${fg}`, background: 'transparent', color: fg, fontSize: 18, fontWeight: 800 }}>
+                실패
               </button>
-            ) : (
-              <>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    className="btn"
-                    style={{ flex: 1, background: ghost, color: fg }}
-                    onClick={() => {
-                      setAttempts([...attempts, { weight: cur.weight, ok: false }])
-                      setOver(true)
-                    }}
-                  >
-                    실패
-                  </button>
-                  <button className="btn" style={{ flex: 2, background: fg, color: th.acc }} onClick={() => setAttempts([...attempts, { weight: cur.weight, ok: true }])}>
-                    성공
-                  </button>
-                </div>
-                {lastOk && (
-                  <button className="btn btn-sm" style={{ background: 'transparent', color: fg }} onClick={() => setOver(true)}>
-                    여기서 끝내기
-                  </button>
-                )}
-              </>
+              <button onClick={() => step(true)} style={{ height: 64, borderRadius: 16, background: th.solidBg, color: th.solidFg, fontSize: 18, fontWeight: 800 }}>
+                성공
+              </button>
+            </div>
+            {!inWarm && okList.length > 0 && (
+              <button onClick={() => setDone(true)} style={{ height: 44, color: fg, fontSize: 14, fontWeight: 600, textDecoration: 'underline' }}>
+                여기서 테스트 끝내기
+              </button>
             )}
           </div>
         </>
       ) : (
         <>
-          <div className="scroll pad" style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 24 }}>
-            <span style={{ fontSize: 16, fontWeight: 700, opacity: 0.85 }}>새 1RM</span>
-            <span className="num" style={{ fontSize: 64, fontWeight: 900, lineHeight: 1 }}>
-              {fmt(newRM)}
-              <span style={{ fontSize: 26 }}>{u}</span>
-            </span>
-            <span className="num" style={{ fontSize: 16, fontWeight: 700 }}>
-              {newRM > p.oneRM ? `+${fmt(newRM - p.oneRM)}${u}` : '유지'} · 3대 {fmt(sumBefore)} → {fmt(sumBefore - p.oneRM + newRM)}
-              {u}
-            </span>
-            <div style={{ borderRadius: 16, background: ghost, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {attempts.map((a, i) => (
-                <div key={i} className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
-                  <span>{i + 1}차</span>
-                  <span>
-                    {fmt(a.weight)}
-                    {u} · {a.ok ? '성공' : '실패'}
-                  </span>
-                </div>
-              ))}
+          <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '24px 24px 0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+              <span style={{ fontSize: 17, fontWeight: 700 }}>테스트 완료 · 새 1RM</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span className="num" style={{ fontSize: 88, fontWeight: 900, lineHeight: 1, letterSpacing: -2 }}>
+                  {fmt(best)}
+                </span>
+                <span style={{ fontSize: 22, fontWeight: 700 }}>{u}</span>
+              </div>
+              <span className="num" style={{ marginTop: 6, fontSize: 14, fontWeight: 800, color: th.solidFg, background: th.solidBg, padding: '5px 12px', borderRadius: 999 }}>
+                {best > p.oneRM ? `+${fmt(best - p.oneRM)}${u}` : '기존 1RM 유지'}
+              </span>
             </div>
-          </div>
-          <div className="bottom">
-            {p.stage === 4 ? (
-              <button className="btn" style={{ background: fg, color: th.acc }} onClick={() => commit('new')}>
-                새 사이클 시작
+            {attempts.length > 0 && (
+              <div style={{ background: 'rgba(0,0,0,0.16)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
+                {attempts.map((a, k) => (
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, fontSize: 15 }}>
+                    <span style={{ fontWeight: 600 }}>{k + 1}차 시도</span>
+                    <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800 }}>
+                      {fmt(a.weight)}
+                      {u}
+                      <span style={{ minWidth: 36, textAlign: 'center', fontSize: 12, fontWeight: 800, padding: '3px 8px', borderRadius: 999, background: a.ok ? th.solidBg : 'rgba(0,0,0,0.22)', color: a.ok ? th.solidFg : fg }}>{a.ok ? '성공' : '실패'}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, lineHeight: 1.6 }}>
+              <span className="num" style={{ fontWeight: 700 }}>
+                3대 {fmt(p.oneRM + others)} → {fmt(best + others)}
+                {u}
+              </span>
+              {midCycle && (
+                <span>
+                  이번 사이클은 {p.stage}단계({STAGES[stage3].topReps}회 탑) 진행 중이었어요. 어떻게 이어갈까요?
+                </span>
+              )}
+            </div>
+          </main>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '16px 20px var(--safe-bot)' }}>
+            <button onClick={() => commit('new')} style={{ minHeight: 64, borderRadius: 16, background: th.solidBg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '8px 16px' }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: th.solidFg }}>새 사이클 시작</span>
+              <span className="num" style={{ fontSize: 12, fontWeight: 600, color: th.solidFg }}>
+                1단계부터 · 탑 {fmt(roundDown(best * STAGES[1].topPct, S))}
+                {u} × 5
+              </span>
+            </button>
+            {midCycle && (
+              <button onClick={() => commit('keep')} style={{ minHeight: 64, borderRadius: 16, border: `2px solid ${fg}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '8px 16px' }}>
+                <span style={{ fontSize: 17, fontWeight: 800, color: fg }}>지금 사이클 이어가기</span>
+                <span className="num" style={{ fontSize: 12, fontWeight: 600, color: fg }}>
+                  1RM만 {fmt(best)}
+                  {u}으로 바꾸고 {p.stage}단계 그대로
+                </span>
               </button>
-            ) : (
-              <>
-                <button className="btn" style={{ background: fg, color: th.acc }} onClick={() => commit('new')}>
-                  새 사이클 시작 (1단계부터)
-                </button>
-                <button className="btn" style={{ background: ghost, color: fg }} onClick={() => commit('keep')}>
-                  지금 사이클 이어가기
-                </button>
-              </>
             )}
           </div>
         </>
