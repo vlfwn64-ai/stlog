@@ -1,5 +1,5 @@
 import { AccountSheet } from './Account'
-import { cloudReady, providerOf, useCloud } from '../cloud'
+import { cloudReady, providerOf, signOut, useCloud } from '../cloud'
 import { L, getLang, isEn, timesLabel } from '../i18n'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
@@ -11,7 +11,7 @@ import { changeUnit, liftsAtPlate, setBody, setMinPlate, setOneRM, setProgram } 
 import { AddGearSheet, BODY_DEFAULT, BodyPicker, DialSet, GearGrid, PlatePicker } from '../dial'
 import type { Body } from '../store'
 import { LevelTabs, ProgramCards } from './ProgramPicker'
-import { GEAR, allGear, progOf, resetAll, setState, useApp } from '../store'
+import { GEAR, allGear, progOf, setState, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, gearName } from '../theme'
 import { Confirm, SegToggle, Sheet, SummaryRows } from '../ui'
 import type { Go } from '../App'
@@ -137,7 +137,7 @@ export default function Menu({ go }: { go: Go }) {
           {cloudReady && cloud.session && (
             <Row label={L('계정', 'Account')} value={`${providerOf(cloud.session) === 'kakao' ? L('카카오로 로그인됨', 'Signed in with Kakao') : L('Google로 로그인됨', 'Signed in with Google')} ›`} onClick={() => setPop('account')} />
           )}
-          <Row label={L('모든 기록 지우기', 'Erase all data')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />
+          {cloudReady && cloud.session && <Row label={L('로그아웃', 'Sign out')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />}
         </Section>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.3</div>
       </main>
@@ -356,17 +356,17 @@ export default function Menu({ go }: { go: Go }) {
       )}
       {pop === 'reset' && (
         <Confirm
-          eyebrow={L('설정', 'Settings')}
-          title={L('모든 기록을 지울까요?', 'Erase all data?')}
+          eyebrow={L('계정', 'Account')}
+          title={L('로그아웃할까요?', 'Sign out?')}
           rows={[
-            [L('훈련 기록', 'Workouts'), timesLabel(s.sessions.length)],
-            [L('1RM 테스트', '1RM tests'), timesLabel(s.tests.length)],
+            [L('로그인', 'Signed in with'), providerOf(cloud.session) === 'kakao' ? L('카카오', 'Kakao') : 'Google'],
+            [L('기록', 'Your log'), L(`${timesLabel(s.sessions.length)} · 계정에 저장됨`, `${timesLabel(s.sessions.length)} · saved to your account`)],
           ]}
-          cta={L('지우기', 'Erase')}
+          cta={L('로그아웃', 'Sign out')}
           onCancel={() => setPop(null)}
           onOk={() => {
-            resetAll()
             setPop(null)
+            void signOut()
           }}
         />
       )}

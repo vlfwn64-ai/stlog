@@ -110,6 +110,9 @@ export async function signIn(provider: Provider) {
       redirectTo: window.location.origin + import.meta.env.BASE_URL,
       // 카카오는 이메일 없이 (비즈 앱 전환 없이도 되게)
       scopes: provider === 'kakao' ? 'profile_nickname profile_image' : undefined,
+      // 저장된 로그인으로 바로 넘어가지 않게: 카카오는 다시 로그인, 구글은 계정 고르기
+      // (같은 기기에서 다른 계정으로 로그인할 수 있게)
+      queryParams: { prompt: provider === 'kakao' ? 'login' : 'select_account' },
     },
   })
 }
