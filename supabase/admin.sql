@@ -40,3 +40,16 @@ revoke all on function public.is_admin() from public, anon;
 revoke all on function public.admin_users() from public, anon;
 grant execute on function public.is_admin() to authenticated;
 grant execute on function public.admin_users() to authenticated;
+
+-- ───────── 관리자 명단 관리 (필요할 때 SQL Editor에서) ─────────
+-- 새 관리자 추가: 그 사람이 앱에 한 번 로그인한 뒤, 이메일로
+-- insert into public.admins (user_id) select id from auth.users where email = '새관리자@이메일';
+-- (카카오라 이메일이 없으면 Authentication › Users에서 UID 복사)
+-- insert into public.admins (user_id) values ('UID');
+
+-- 지금 관리자 목록
+-- select a.user_id, u.email, u.raw_app_meta_data ->> 'provider' as 로그인, u.created_at
+-- from public.admins a join auth.users u on u.id = a.user_id;
+
+-- 관리자 빼기
+-- delete from public.admins where user_id = (select id from auth.users where email = '뺄사람@이메일');
