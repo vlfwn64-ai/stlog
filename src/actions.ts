@@ -234,7 +234,7 @@ export function setRest(rest: RestState) {
 
 /** 지난 기록 수정 (기록만 바뀌고 지금 처방은 그대로) */
 export function saveSession(id: string, sets: SetRow[]) {
-  setState((x) => ({ ...x, sessions: x.sessions.map((ss) => (ss.id === id ? { ...ss, sets, e1rm: sessionE1rm(sets) } : ss)) }))
+  setState((x) => ({ ...x, sessions: x.sessions.map((ss) => (ss.id === id ? { ...ss, sets, e1rm: sessionE1rm(sets) ?? (ss.free ? roughE1rm(sets) : null) } : ss)) }))
 }
 
 /** RPE가 없는 기록: 가장 무거운 세트를 끝까지 한 것으로 보고 추정 */
@@ -244,12 +244,12 @@ function roughE1rm(sets: SetRow[]): number | null {
 }
 
 /** 지난 날짜에 기록 추가 (지금 처방은 그대로) */
-export function addSession(d: { lift: LiftKey; program?: ProgramId; date: string; stage: number; deload: boolean; sets: SetRow[] }) {
+export function addSession(d: { lift: LiftKey; program?: ProgramId; date: string; stage: number; deload: boolean; free?: boolean; sets: SetRow[] }) {
   const sets = d.sets.filter((r) => r.done)
   if (!sets.length) return
   setState((x) => ({
     ...x,
-    sessions: [...x.sessions, { id: uid(), date: d.date, lift: d.lift, stage: d.stage as SessionLog['stage'], deload: d.deload, sets, e1rm: sessionE1rm(sets) ?? roughE1rm(sets), cycle: x.lifts[d.lift].cycle ?? 1, program: d.program }].sort((a, b) =>
+    sessions: [...x.sessions, { id: uid(), date: d.date, lift: d.lift, stage: d.stage as SessionLog['stage'], deload: d.deload, sets, e1rm: sessionE1rm(sets) ?? roughE1rm(sets), cycle: x.lifts[d.lift].cycle ?? 1, program: d.program, ...(d.free ? { free: true } : {}) }].sort((a, b) =>
       a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
     ),
   }))

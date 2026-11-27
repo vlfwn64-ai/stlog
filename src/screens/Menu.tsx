@@ -311,17 +311,27 @@ export default function Menu({ go }: { go: Go }) {
         <Sheet onClose={() => setPop(null)} title={L('프로그램', 'Program')}>
           <LevelTabs value={lv} onChange={setLv} />
           <ProgramCards level={lv} value={pick} current={prog.id} compact onChange={setPick} />
-          <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>
-              {s.active ? L('기록 중인 훈련이 있어요', 'A workout is in progress') : pick === prog.id ? L('지금 하고 있는 프로그램이에요', 'This is your current program') : L('세 종목 모두 새 사이클로 시작해요', 'All three lifts start a new cycle')}
-            </span>
-            <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>
-              {s.active
-                ? L('기록을 끝내거나 취소한 뒤에 바꿀 수 있어요.', 'Finish or discard it first.')
-                : pick === prog.id
-                  ? L('다른 프로그램을 고르면 바꿀 수 있어요.', 'Pick another program to switch.')
-                  : L('지금 사이클 기록은 이전 사이클에 그대로 남아요. 시작 무게는 지금 1RM으로 다시 계산해요.', 'Your current cycle stays in Past cycles. Starting weights are recalculated from your current 1RM.')}
-            </span>
+          {/* 고른 프로그램 설명 (높이 고정: 수준·프로그램을 바꿔도 창이 들썩이지 않게) */}
+          <div style={{ background: 'var(--fill2)', borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 4, minHeight: 168, boxSizing: 'border-box' }}>
+            {s.active ? (
+              <>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>{L('기록 중인 훈련이 있어요', 'A workout is in progress')}</span>
+                <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>{L('기록을 끝내거나 취소한 뒤에 바꿀 수 있어요.', 'Finish or discard it first.')}</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>
+                  {programOf(pick).name()}
+                  {pick === prog.id && <span style={{ fontWeight: 600, color: 'var(--mute)' }}> · {L('지금 하는 중', 'current')}</span>}
+                </span>
+                <span style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--sub)' }}>{programOf(pick).desc()}</span>
+                {pick !== prog.id && (
+                  <span style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--mute)', marginTop: 'auto', paddingTop: 4 }}>
+                    {L('바꾸면 세 종목 모두 새 사이클로 시작해요. 지금 사이클 기록은 이전 사이클에 남아요.', 'Switching starts a new cycle for all three lifts. Your current cycle stays in Past cycles.')}
+                  </span>
+                )}
+              </>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setPop(null)} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>

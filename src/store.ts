@@ -80,6 +80,8 @@ export interface SessionLog {
   cycle?: number
   /** 이 세션을 한 프로그램 */
   program?: ProgramId
+  /** 자유 운동 (프로그램 밖에서 지난 날짜에 추가한 기록) */
+  free?: boolean
   next?: { top: number; backoff: number; topChange: number; boChange: number; advanced: boolean; stage: number; newCycle?: boolean }
 }
 

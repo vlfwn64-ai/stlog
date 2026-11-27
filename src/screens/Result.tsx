@@ -1,5 +1,5 @@
 import { L, setsLabel } from '../i18n'
-import { atTest, groupSets, phaseChip, phaseTitle, programOf } from '../logic/programs'
+import { atTest, groupSets, phaseChip, sessionTag } from '../logic/programs'
 import { progOf, step as stepOf, useApp } from '../store'
 import { TH, chipText, dropsText, chipColors, fmt, md, rpeText } from '../theme'
 import type { Go } from '../App'
@@ -17,7 +17,7 @@ export default function Result({ id, go }: { id: string; go: Go }) {
   const warm = done.filter((r) => r.type === 'W')
   const work = done.filter((r) => r.type !== 'W')
   const best = Math.max(0, ...s.sessions.filter((x) => x.lift === lift && x.e1rm).map((x) => x.e1rm as number))
-  const meta = log.deload ? `${th.name} · ${md(log.date)} · ${L('디로드', 'Deload')}` : `${th.name} · ${md(log.date)} · ${phaseTitle(programOf(log.program), lift, log.stage)}`
+  const meta = `${th.name} · ${md(log.date)} · ${sessionTag(log)}`
 
   // 다음 훈련 줄: 탑세트 · 백오프
   const p = s.lifts[lift]

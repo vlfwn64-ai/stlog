@@ -2,7 +2,7 @@ import { L, dayTitle, monthTitle, setsLabel, weekHead } from '../i18n'
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LiftKey } from '../logic/program'
-import { atTest, mainSet, phaseTitle, programOf, repsText } from '../logic/programs'
+import { atTest, mainSet, repsText, sessionTag } from '../logic/programs'
 import type { AppState } from '../store'
 import { progOf, step as stepOf, today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, md, rpeText } from '../theme'
@@ -34,8 +34,14 @@ export function latestEst(s: AppState, lift: LiftKey): number | null {
 
 const arrowBtn: CSSProperties = { width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12 }
 
-function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }) {
-  const [off, setOff] = useState(0)
+/** 지금 달에서 off달 떨어진 달 */
+const monthAt = (off: number) => {
+  const d = new Date()
+  const d0 = new Date(d.getFullYear(), d.getMonth() + off, 1)
+  return { y: d0.getFullYear(), m: d0.getMonth() }
+}
+
+function Calendar({ s, onPick, off, setOff }: { s: AppState; onPick: (date: string) => void; off: number; setOff: (n: number) => void }) {
   // 달이 넘어간 방향 (새 달이 그쪽에서 들어온다)
   const [dir, setDir] = useState<'fromRight' | 'fromLeft' | null>(null)
   const swipe = useRef<{ x: number; y: number } | null>(null)
@@ -185,6 +191,8 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
   const [mode, setMode] = useState<'est' | 'act'>('est')
   const [range, setRange] = useState<Range>('3m')
   const [day, setDay] = useState<string | null>(null)
+  /** 기록 탭 달력이 보고 있는 달 (이번 달에서 몇 달 떨어졌나) */
+  const [calOff, setCalOff] = useState(0)
   const [anim, setAnim] = useState<null | { lift: LiftKey; from: Box[]; to: Box[]; phase: 0 | 1 }>(null)
   const root = useRef<HTMLDivElement>(null)
   const cards = useRef<(HTMLButtonElement | null)[]>([])
@@ -194,13 +202,15 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
   const val = (k: LiftKey) => (mode === 'est' ? (latestEst(s, k) ?? s.lifts[k].oneRM) : s.lifts[k].oneRM)
   const sum = CARD_ORDER.reduce((a, k) => a + val(k), 0)
   const lastS = [...s.sessions].sort((x, y) => (x.date < y.date ? 1 : -1))[0]
-  /** 기록 탭 목록: 세션과 1RM 테스트, 최근 것부터 */
+  /** 기록 탭 목록: 달력에 보이는 달의 세션과 1RM 테스트, 최근 것부터 */
+  const cal = monthAt(calOff)
+  const calKey = `${cal.y}-${String(cal.m + 1).padStart(2, '0')}`
   const history = [
-    ...s.sessions.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: x.deload ? L('디로드', 'Deload') : phaseTitle(programOf(x.program), x.lift, x.stage), text: sessionLine(x, u) })),
+    ...s.sessions.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: sessionTag(x), text: sessionLine(x, u) })),
     ...s.tests.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: L('1RM 테스트', '1RM test'), text: `${x.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ')}` })),
   ]
+    .filter((x) => x.date.startsWith(calKey))
     .sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))
-    .slice(0, 30)
 
   /** 카드를 누르면 세 카드가 작아지며 위로 올라가 종목 탭이 된다 (목업 HomeFlow) */
   const open = (k: LiftKey) => {
@@ -323,14 +333,14 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
         )}
         {tab === 'rec' && (
           <>
-            <Calendar s={s} onPick={setDay} />
+            <Calendar s={s} onPick={setDay} off={calOff} setOff={setCalOff} />
             <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('지난 기록', 'History')}</h2>
-              {history.length === 0 && <p style={{ fontSize: 14, color: 'var(--mute)', padding: '8px 4px' }}>{L('아직 기록이 없어요.', 'No workouts yet.')}</p>}
+              <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L(`${cal.m + 1}월 기록`, `${monthTitle(cal.y, cal.m)}`)}</h2>
+              {history.length === 0 && <p style={{ fontSize: 14, color: 'var(--mute)', padding: '8px 4px' }}>{L('이 달에는 기록이 없어요.', 'Nothing logged this month.')}</p>}
               {history.map((h) => (
                 <button key={h.id} onClick={() => setDay(h.date)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 14, background: 'var(--fill2)', textAlign: 'left' }}>
                   <span className="num" style={{ width: 40, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: 15, fontWeight: 800 }}>{md(h.date)}</span>
+                    <span style={{ fontSize: 15, fontWeight: 800 }}>{L(`${+h.date.slice(8, 10)}일`, `${+h.date.slice(8, 10)}`)}</span>
                     <span style={{ fontSize: 11, color: 'var(--mute)' }}>{weekHead()[new Date(h.date + 'T12:00:00').getDay()]}</span>
                   </span>
                   <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 8, background: TH[h.lift].acc, color: TH[h.lift].on, fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{h.lift}</span>

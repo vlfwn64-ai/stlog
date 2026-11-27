@@ -137,26 +137,8 @@ export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: (l
   const u = s.settings.unit
   return (
     <>
-      <button onClick={() => onOpen()} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 18, background: 'var(--fill2)', textAlign: 'left' }}>
-        <Badge tier={t.tier} size={56} />
-        <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
-          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.4 }}>
-            {t.tier.name()}{' '}
-            <span className="num" style={{ fontSize: 13, fontWeight: 600, color: 'var(--mute)' }}>
-              DOTS {Math.round(t.score)}
-            </span>
-          </span>
-          <span className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ color: 'var(--sub)' }}>
-              {L('3대', 'Total')} {fmt(total(s))}
-              {u} · {ratioText(total(s), b.weight, 1)}
-            </span>
-            <span style={{ fontWeight: 700, color: t.tier.text, whiteSpace: 'nowrap' }}>{nextText(t, u)}</span>
-          </span>
-          <Bar t={t} />
-        </span>
-      </button>
+      {/* 전체 티어: 홈 티어 카드와 같은 모양 */}
+      <TierCard s={s} go={go} onOpen={() => onOpen()} />
       <section style={{ display: 'flex', flexDirection: 'column' }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>{L('종목별 티어', 'Tier by lift')}</h2>
         {(['B', 'D', 'S'] as LiftKey[]).map((k) => {

@@ -38,10 +38,10 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
       // 지난 날짜에 기록 추가: 빈 목록에서 세트 추가 (일반 세트, 한 것으로)
       const p = s.lifts[add.lift]
       const prog = progOf(s)
-      return { lift: add.lift, program: prog.id, date: add.date, stage: p.stage, deload: false, sets: [] as SetRow[] }
+      return { lift: add.lift, program: prog.id, date: add.date, stage: p.stage, deload: false, free: true, sets: [] as SetRow[] }
     }
     const x = editId ? s.sessions.find((ss) => ss.id === editId) : undefined
-    return x ? { lift: x.lift, program: x.program, date: x.date, stage: x.stage, deload: x.deload, sets: x.sets.map((r) => ({ ...r })) } : null
+    return x ? { lift: x.lift, program: x.program, date: x.date, stage: x.stage, deload: x.deload, free: x.free, sets: x.sets.map((r) => ({ ...r })) } : null
   })
   const a = editing ? draft : s.active
   const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
@@ -81,7 +81,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const warmDone = warm.length > 0 && warm.every((r) => r.done)
   const collapsed = warmDone && !warmOpen && !warm.some((r) => r.id === edit?.id)
   const nextId = a.sets.find((r) => !r.done)?.id
-  const sub = a.deload ? `${L('디로드', 'Deload')} · ${md(a.date)}` : `${phaseTitle(programOf(a.program), a.lift, a.stage)} · ${md(a.date)}`
+  const sub = `${'free' in a && a.free ? L('자유 운동', 'Free workout') : a.deload ? L('디로드', 'Deload') : phaseTitle(programOf(a.program), a.lift, a.stage)} · ${md(a.date)}`
 
   const patch = (id: string, p: Partial<SetRow>) => upd((sets) => sets.map((r) => (r.id === id ? { ...r, ...p } : r)))
   const needsRpe = (r: SetRow) => !a.deload && !r.noRpe && (r.type === 'T' || r.type === 'B')

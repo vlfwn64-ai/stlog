@@ -436,3 +436,7 @@ export function phaseChip(prog: Program, lift: LiftKey, stage: number): string {
   if (prog.id === 'stlog') return L(`${stage}단계`, `Stage ${stage}`)
   return ph.sub ? `${ph.label} ${ph.sub}` : ph.label
 }
+
+/** 기록 한 줄 꼬리표: 디로드 / 자유 운동 / 프로그램 단계 */
+export const sessionTag = (x: { deload: boolean; free?: boolean; program?: ProgramId; lift: LiftKey; stage: number }) =>
+  x.deload ? L('디로드', 'Deload') : x.free ? L('자유 운동', 'Free workout') : phaseTitle(programOf(x.program), x.lift, x.stage)

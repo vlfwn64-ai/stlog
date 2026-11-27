@@ -30,7 +30,7 @@ type Box = { w: string; d: string; id: string; deload?: boolean }
 /** 이번 사이클 줄별 기록 (디로드한 날도 그 줄에 날짜순으로) */
 function cycleRows(s: AppState, lift: LiftKey, prog: Program) {
   const p = s.lifts[lift]
-  const cyc = s.sessions.filter((x) => x.lift === lift && (x.cycle ?? 1) === (p.cycle ?? 1)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  const cyc = s.sessions.filter((x) => x.lift === lift && !x.free && (x.cycle ?? 1) === (p.cycle ?? 1)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return prog.phases(lift).map((ph) => ({
     ...ph,
     boxes: cyc
@@ -49,7 +49,7 @@ function prevCycles(s: AppState, lift: LiftKey) {
   const weeksOf = (a: string, b: string) => Math.max(1, Math.ceil((ts(b) - ts(a)) / (7 * 86400000)))
   for (let c = (p.cycle ?? 1) - 1; c >= 1; c--) {
     const t = s.tests.find((x) => x.lift === lift && x.endedCycle && x.cycleNo === c)
-    const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && (x.cycle ?? 1) === c && mainOf(x)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && !x.free && (x.cycle ?? 1) === c && mainOf(x)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     if (!t && !ss.length) continue
     const prog = programOf(ss[0]?.program ?? t?.program)
     const start = t?.endedCycle ?? ss[0].date

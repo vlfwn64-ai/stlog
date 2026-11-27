@@ -41,7 +41,10 @@ export function ProgramCards({ level, value, current, compact, onChange }: { lev
               borderRadius: compact ? 14 : 16,
               border: on ? '2px solid var(--ink)' : '1.5px solid var(--line)',
               background: 'var(--surface)',
-              padding: compact ? '14px 16px' : 16,
+              // 고른 칸은 테두리가 0.5px 두꺼우니 안쪽을 그만큼 줄여 높이가 그대로
+              padding: compact ? (on ? '13.5px 15.5px' : '14px 16px') : on ? 15.5 : 16,
+              minHeight: compact ? 78 : undefined,
+              boxSizing: 'border-box',
               display: 'flex',
               gap: 12,
               alignItems: compact ? 'center' : 'flex-start',

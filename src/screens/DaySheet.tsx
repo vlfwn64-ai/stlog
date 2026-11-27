@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { phaseTitle, programOf } from '../logic/programs'
+import { programOf, sessionTag } from '../logic/programs'
 import { testResult } from '../logic/program'
 import { deleteSession, deleteTest, saveTest } from '../actions'
 import type { SessionLog, TestLog } from '../store'
@@ -162,9 +162,9 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
           <article key={x.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '0 4px' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: th.text }}>
-                {th.name} · {x.deload ? L('디로드', 'Deload') : phaseTitle(prog, x.lift, x.stage)}
+                {th.name} · {sessionTag(x)}
               </span>
-              <span style={{ height: 22, padding: '0 8px', borderRadius: 6, background: 'var(--fill)', fontSize: 12, fontWeight: 700, color: 'var(--ink2)', lineHeight: '22px', whiteSpace: 'nowrap' }}>{prog.name()}</span>
+              <span style={{ height: 22, padding: '0 8px', borderRadius: 6, background: 'var(--fill)', fontSize: 12, fontWeight: 700, color: 'var(--ink2)', lineHeight: '22px', whiteSpace: 'nowrap' }}>{x.free ? L('자유 운동', 'Free') : prog.name()}</span>
             </div>
             <div style={{ background: 'var(--fill2)', borderRadius: 16, padding: '6px 16px', display: 'flex', flexDirection: 'column' }}>
               {warm.length > 0 && (
