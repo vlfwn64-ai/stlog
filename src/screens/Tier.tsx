@@ -229,9 +229,11 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
   if (!t || !b) return <NeedBody go={go} />
   const u = s.settings.unit
   const sum = total(s)
+  // 홈은 스크롤이 잠겨 있어서, 키가 작은 화면(아이폰 SE 등)에서는 카드를 줄여 한 화면에 맞춘다
+  const short = window.innerHeight < 760
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderRadius: 22, background: 'var(--fill2)' }}>
-      <button onClick={() => go({ name: 'tierview' })} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}`} style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: short ? 8 : 12, padding: short ? 14 : 16, borderRadius: 22, background: 'var(--fill2)' }}>
+      <button onClick={() => go({ name: 'tierview' })} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}`} style={{ display: 'flex', flexDirection: 'column', gap: short ? 8 : 12, textAlign: 'left' }}>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
           <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
@@ -240,15 +242,17 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
           </span>
         </span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          <Badge tier={t.tier} size={100} />
-          <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
+          <Badge tier={t.tier} size={short ? 64 : 100} />
+          <span style={{ fontSize: short ? 24 : 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
           <span className="num" style={{ fontSize: 14, fontWeight: 800, color: t.tier.text }}>
             {myTopText(t)}
           </span>
-          <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-            {L('3대', 'Total')} {fmt(sum)}
-            {u} · {ratioText(sum, b.weight, 1)}
-          </span>
+          {!short && (
+            <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
+              {L('3대', 'Total')} {fmt(sum)}
+              {u} · {ratioText(sum, b.weight, 1)}
+            </span>
+          )}
         </span>
         <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
@@ -264,8 +268,8 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
           // 엘리트 색(var(--ink))은 다크에서 밝아서 칸은 늘 짙은 색
           const bg = lt.tier.i === 6 ? '#2C2C35' : lt.tier.color
           return (
-            <button key={k} onClick={() => go({ name: 'tierview', lift: k })} aria-label={`${TH[k].name} ${L('티어', 'tier')} ${lt.tier.name()}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 6px 10px', borderRadius: 14, background: bg }}>
-              <LiftMark lift={k} size={34} line={bg} />
+            <button key={k} onClick={() => go({ name: 'tierview', lift: k })} aria-label={`${TH[k].name} ${L('티어', 'tier')} ${lt.tier.name()}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: short ? 2 : 4, padding: short ? '8px 6px' : '12px 6px 10px', borderRadius: 14, background: bg }}>
+              <LiftMark lift={k} size={short ? 26 : 34} line={bg} />
               <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>{lt.tier.name()}</span>
               <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF' }}>
                 {k} · {fmt(s.lifts[k].oneRM)}

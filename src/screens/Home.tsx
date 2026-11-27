@@ -266,7 +266,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
           if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
           shiftTab(dx < 0 ? 1 : -1)
         }}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px 20px', animation: slide ? `${slide} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px 20px', overflowY: tab === 'home' ? 'hidden' : undefined, animation: slide ? `${slide} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}
       >
         {tab === 'grow' && (
           <>
