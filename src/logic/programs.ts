@@ -25,6 +25,8 @@ export interface DoneSet {
   done: boolean
   rpe?: Rpe
   goal?: number
+  /** 실패한 세트에서 실제로 든 개수 */
+  got?: number
 }
 
 export interface Phase {
@@ -406,7 +408,10 @@ export function phaseTitle(prog: Program, lift: LiftKey, stage: number): string 
 /** 세션 추정 1RM: RPE 있는 탑세트, 없으면 암렙 세트 */
 export function sessionE1rm(sets: DoneSet[]): number | null {
   const top = [...sets].reverse().find((r) => r.done && r.type === 'T' && r.rpe !== undefined)
-  if (top && top.rpe !== undefined) return e1rm(top.weight, top.reps, top.rpe)
+  if (top && top.rpe === 'fail') {
+    // 실패: 실제로 든 개수가 있으면 그 개수를 한계(RPE 10)로 본다
+    if (top.got) return e1rm(top.weight, top.got, 10)
+  } else if (top && top.rpe !== undefined) return e1rm(top.weight, top.reps, top.rpe)
   const a = [...sets].reverse().find((r) => r.done && r.type === 'A' && r.reps > 0 && r.rpe !== 'fail')
   return a ? e1rm(a.weight, a.reps, 10) : null
 }

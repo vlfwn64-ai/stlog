@@ -283,26 +283,93 @@ const niceRange = (vals: number[]) => {
   return { lo, hi }
 }
 
-/** 종목 화면 1RM 추이 (목업 Lift 그래프와 같은 모양) */
-export function LiftChart({ lift, pts }: { lift: LiftKey; pts: Pt[] }) {
+export type Range = 'cycle' | '1m' | '3m' | '6m' | '1y' | 'all'
+const DAY = 86400000
+const RANGE_DAYS: Record<Exclude<Range, 'cycle' | 'all'>, number> = { '1m': 30, '3m': 91, '6m': 182, '1y': 365 }
+export const rangeName = (r: Range) =>
+  ({ cycle: L('사이클', 'Cycle'), '1m': L('1개월', '1M'), '3m': L('3개월', '3M'), '6m': L('6개월', '6M'), '1y': L('1년', '1Y'), all: L('전체', 'All') })[r]
+
+/** 그래프 기간 버튼 */
+export function RangeTabs({ value, options, onChange }: { value: Range; options: Range[]; onChange: (r: Range) => void }) {
+  return (
+    <div role="group" aria-label={L('그래프 기간', 'Chart range')} style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`, gap: 2, padding: 3, borderRadius: 10, background: 'var(--fill)' }}>
+      {options.map((r) => {
+        const on = r === value
+        return (
+          <button key={r} aria-pressed={on} onClick={() => onChange(r)} style={{ height: 30, borderRadius: 8, fontSize: 12, fontWeight: on ? 700 : 500, background: on ? 'var(--pill)' : 'transparent', color: on ? 'var(--ink)' : 'var(--mute)', boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
+            {rangeName(r)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** 기간 [시작, 끝]: 끝은 오늘, 시작은 기간만큼 전 (전체는 첫 기록, 사이클은 사이클 시작일) */
+function rangeOf(range: Range, all: { t: number }[], cycleStart?: string): [number, number] {
+  const end = ts(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))
+  const first = all.length ? Math.min(...all.map((p) => p.t)) : end - 30 * DAY
+  let t0 = range === 'all' ? first : range === 'cycle' ? (cycleStart ? ts(cycleStart) : first) : end - RANGE_DAYS[range] * DAY
+  const t1 = Math.max(end, ...all.map((p) => p.t))
+  if (t1 - t0 < 7 * DAY) t0 = t1 - 7 * DAY
+  return [t0, t1]
+}
+
+/** 하루에 하나(그날 마지막), 날짜순 */
+function perDay(pts: { t: number; y: number }[]) {
+  const sorted = [...pts].sort((a, b) => a.t - b.t)
+  return sorted.filter((p, i) => i === sorted.length - 1 || Math.floor(sorted[i + 1].t / DAY) !== Math.floor(p.t / DAY))
+}
+
+/**
+ * 기록이 없는 날은 전날 값을 그대로 (계단 모양).
+ * 기간 시작 전 마지막 값에서 시작해서 오늘까지 이어진다.
+ */
+function stepLine(pts: { t: number; y: number }[], t0: number, t1: number, X: (t: number) => number, Y: (v: number) => number) {
+  const before = pts.filter((p) => p.t < t0)
+  const inside = pts.filter((p) => p.t >= t0 && p.t <= t1)
+  const start = before.length ? { t: t0, y: before[before.length - 1].y } : inside[0]
+  if (!start) return null
+  const seq = before.length ? [start, ...inside] : inside
+  let d = `M${X(start.t)},${Y(start.y)}`
+  let y = start.y
+  for (const p of seq.slice(1)) {
+    d += ` H${X(p.t)} V${Y(p.y)}`
+    y = p.y
+  }
+  d += ` H${X(t1)}`
+  return { d, x0: X(start.t), last: { x: X(t1), y: Y(y), v: y }, inside, vals: [start.y, ...inside.map((p) => p.y)] }
+}
+
+/** x축 날짜 글자: 짧은 기간은 월/일, 긴 기간은 월 */
+function xLabels(t0: number, t1: number) {
+  const long = t1 - t0 > 120 * DAY
+  const f = (t: number) => {
+    const d = new Date(t)
+    return long ? L(`${d.getFullYear() % 100}.${d.getMonth() + 1}월`, `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${String(d.getFullYear() % 100).padStart(2, '0')}`) : `${d.getMonth() + 1}/${d.getDate()}`
+  }
+  const raw = Array.from({ length: 5 }, (_, i) => t0 + ((t1 - t0) * i) / 4)
+  return raw.map((t) => ({ t, s: f(t) })).filter((x, i, arr) => arr.findIndex((y) => y.s === x.s) === i)
+}
+
+/** 종목 화면 1RM 추이 */
+export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts: Pt[]; range: Range; cycleStart?: string }) {
   const gid = useId().replace(/:/g, '')
   const color = TH[lift].acc
-  // 같은 날 기록이 여러 개면 마지막 것만 (날짜 글자가 겹치지 않게)
-  const byDay = pts.filter((p, i) => pts.findIndex((q, j) => j > i && q.date === p.date) === -1)
-  const show = byDay.slice(-8)
   const x0 = 40
   const x1 = 334
-  const top = 14
+  const top = 18
   const bot = 112
-  if (!show.length) return <svg width="100%" viewBox="0 0 350 138" aria-hidden="true" style={{ display: 'block' }} />
-  const { lo, hi } = niceRange(show.map((p) => p.y))
-  const n = show.length
-  const yOf = (v: number) => +(bot - ((v - lo) / (hi - lo)) * (bot - top)).toFixed(1)
-  const xy = show.map((p, i) => ({ x: n === 1 ? x1 : +(x0 + ((x1 - x0) * i) / (n - 1)).toFixed(1), y: yOf(p.y) }))
-  const line = xy.map((p) => `${p.x},${p.y}`).join(' ')
-  const area = `${line} ${xy[n - 1].x},${bot} ${xy[0].x},${bot}`
+  const all = perDay(pts.map((p) => ({ t: p.x, y: p.y })))
+  if (!all.length) return <svg width="100%" viewBox="0 0 350 138" aria-hidden="true" style={{ display: 'block' }} />
+  const [t0, t1] = rangeOf(range, all, cycleStart)
+  const X = (t: number) => +(x0 + ((x1 - x0) * (t - t0)) / (t1 - t0)).toFixed(1)
+  const probe = stepLine(all, t0, t1, X, () => 0)
+  const { lo, hi } = niceRange(probe ? probe.vals : all.map((p) => p.y))
+  const Y = (v: number) => +(bot - ((v - lo) / (hi - lo)) * (bot - top)).toFixed(1)
+  const sl = stepLine(all, t0, t1, X, Y)
   const mid = Math.round((lo + hi) / 2)
-  const last = xy[n - 1]
+  const labels = xLabels(t0, t1)
   return (
     <svg width="100%" viewBox="0 0 350 138" aria-hidden="true" style={{ display: 'block' }}>
       <defs>
@@ -313,57 +380,55 @@ export function LiftChart({ lift, pts }: { lift: LiftKey; pts: Pt[] }) {
       </defs>
       {[hi, mid, lo].map((v) => (
         <g key={v}>
-          <line x1="34" x2="344" y1={yOf(v)} y2={yOf(v)} stroke="#F2F4F6" strokeWidth="1" />
-          <text x="28" y={yOf(v) + 3} fontSize="10" fill="#6B7684" textAnchor="end">
+          <line x1="34" x2="344" y1={Y(v)} y2={Y(v)} stroke="#F2F4F6" strokeWidth="1" />
+          <text x="28" y={Y(v) + 3} fontSize="10" fill="#6B7684" textAnchor="end">
             {v}
           </text>
         </g>
       ))}
-      {n > 1 && <polygon points={area} fill={`url(#${gid})`} />}
-      <polyline points={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-      {xy.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r={i === n - 1 ? 4 : 2.5} style={{ fill: i === n - 1 ? color : 'var(--bg)' }} stroke={color} strokeWidth="2" />
-          <text x={p.x} y="132" fontSize="10" fill="#6B7684" textAnchor={n === 1 || i === n - 1 ? 'end' : i === 0 ? 'start' : 'middle'}>
-            {show[i].date}
+      {sl && (
+        <>
+          <path d={`${sl.d} V${bot} H${sl.x0} Z`} fill={`url(#${gid})`} />
+          <path d={sl.d} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          {sl.inside.map((p, i) => (
+            <circle key={i} cx={X(p.t)} cy={Y(p.y)} r={2.5} style={{ fill: 'var(--bg)' }} stroke={color} strokeWidth="2" />
+          ))}
+          <circle cx={sl.last.x} cy={sl.last.y} r={4} fill={color} />
+          <text x={sl.last.x} y={Math.max(10, +(sl.last.y - 10).toFixed(1))} fontSize="12" fontWeight="700" fill="#191F28" textAnchor="end" style={{ stroke: 'var(--bg)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>
+            {sl.last.v}
           </text>
-        </g>
+        </>
+      )}
+      {labels.map((l, i) => (
+        <text key={i} x={X(l.t)} y="132" fontSize="10" fill="#6B7684" textAnchor={i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}>
+          {l.s}
+        </text>
       ))}
-      <text x={last.x} y={+(last.y - 10).toFixed(1)} fontSize="12" fontWeight="700" fill="#191F28" textAnchor="end">
-        {show[n - 1].y}
-      </text>
     </svg>
   )
 }
 
-/** 홈 3대 기록 그래프 (S·B·D 세 선) */
-export function HomeChart({ series }: { series: { lift: LiftKey; pts: { t: number; y: number }[] }[] }) {
+/** 홈(성장 탭) 3대 그래프: 종목 세 줄 */
+export function HomeChart({ series, range }: { series: { lift: LiftKey; pts: { t: number; y: number }[] }[]; range: Range }) {
   const gid = useId().replace(/:/g, '')
   const hx0 = 40
   const hx1 = 334
-  const htop = 12
+  const htop = 14
   const hbot = 98
-  const all = series.flatMap((s) => s.pts)
-  if (!all.length) return <svg width="100%" viewBox="0 0 350 120" aria-hidden="true" style={{ display: 'block' }} />
-  const { lo, hi } = niceRange(all.map((p) => p.y))
-  let t0 = Math.min(...all.map((p) => p.t))
-  let t1 = Math.max(...all.map((p) => p.t))
-  if (t0 === t1) {
-    t0 -= 86400000 * 14
-  }
-  if (t1 === t0) t1 += 86400000
+  const flat = series.flatMap((sr) => sr.pts)
+  if (!flat.length) return <svg width="100%" viewBox="0 0 350 120" aria-hidden="true" style={{ display: 'block' }} />
+  const [t0, t1] = rangeOf(range, flat)
   const X = (t: number) => +(hx0 + ((hx1 - hx0) * (t - t0)) / (t1 - t0)).toFixed(1)
+  const per = series.map((sr) => ({ lift: sr.lift, pts: perDay(sr.pts) }))
+  const vals = per.flatMap((sr) => stepLine(sr.pts, t0, t1, X, () => 0)?.vals ?? [])
+  const { lo, hi } = niceRange(vals.length ? vals : flat.map((p) => p.y))
   const Y = (v: number) => +(hbot - ((v - lo) / (hi - lo)) * (hbot - htop)).toFixed(1)
   const ticks = [hi, Math.round((lo + hi) / 2 / 5) * 5, lo]
-  // 같은 날 기록이 여러 개면 마지막 것만, 값 글자는 서로 겹치지 않게 띄운다
-  const lines = series
+  // 값 글자는 서로 겹치지 않게 띄운다
+  const lines = per
     .map((sr) => {
-      const sorted = [...sr.pts].sort((a, b) => a.t - b.t)
-      const pts = sorted.filter((p, i) => i === sorted.length - 1 || new Date(sorted[i + 1].t).toDateString() !== new Date(p.t).toDateString())
-      if (!pts.length) return null
-      const xy = pts.map((p) => [X(p.t), Y(p.y)] as const)
-      const last = xy[xy.length - 1]
-      return { lift: sr.lift, xy, last, line: xy.map(([x, y]) => `${x},${y}`).join(' '), val: pts[pts.length - 1].y, left: last[0] < hx0 + 60, ly: Math.max(10, +(last[1] - 7).toFixed(1)) }
+      const sl = stepLine(sr.pts, t0, t1, X, Y)
+      return sl ? { lift: sr.lift, ...sl, ly: Math.max(10, +(sl.last.y - 7).toFixed(1)) } : null
     })
     .filter((l): l is NonNullable<typeof l> => !!l)
   ;[...lines]
@@ -371,20 +436,14 @@ export function HomeChart({ series }: { series: { lift: LiftKey; pts: { t: numbe
     .forEach((l, i, arr) => {
       if (i > 0 && l.ly - arr[i - 1].ly < 12) l.ly = +(arr[i - 1].ly + 12).toFixed(1)
     })
-  const dl = (t: number) => {
-    const d = new Date(t)
-    return `${d.getMonth() + 1}/${d.getDate()}`
-  }
-  // 날짜 글자 5개, 같은 날짜가 두 번 나오지 않게 (기간이 짧으면 기록한 날만)
-  const even = Array.from({ length: 5 }, (_, i) => t0 + ((t1 - t0) * i) / 4)
-  const labels = (t1 - t0 < 86400000 * 5 ? [...new Set(all.map((p) => p.t))].sort((a, b) => a - b) : even).filter((t, i, arr) => arr.findIndex((u) => dl(u) === dl(t)) === i)
+  const labels = xLabels(t0, t1)
   return (
     <svg width="100%" viewBox="0 0 350 120" aria-hidden="true" style={{ display: 'block' }}>
       <defs>
-        {series.map((s) => (
-          <linearGradient key={s.lift} id={gid + s.lift} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={TH[s.lift].acc} stopOpacity="0.18" />
-            <stop offset="100%" stopColor={TH[s.lift].acc} stopOpacity="0" />
+        {series.map((sr) => (
+          <linearGradient key={sr.lift} id={gid + sr.lift} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={TH[sr.lift].acc} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={TH[sr.lift].acc} stopOpacity="0" />
           </linearGradient>
         ))}
       </defs>
@@ -398,17 +457,17 @@ export function HomeChart({ series }: { series: { lift: LiftKey; pts: { t: numbe
       ))}
       {lines.map((l) => (
         <g key={l.lift}>
-          {l.xy.length > 1 && <polygon points={`${l.line} ${l.last[0]},${hbot} ${l.xy[0][0]},${hbot}`} fill={`url(#${gid + l.lift})`} />}
-          <polyline points={l.line} fill="none" stroke={TH[l.lift].acc} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-          <circle cx={l.last[0]} cy={l.last[1]} r="4" fill={TH[l.lift].acc} />
-          <text x={l.left ? +(l.last[0] + 8).toFixed(1) : +(l.last[0] - 8).toFixed(1)} y={l.ly} fontSize="11" fontWeight="800" fill={TH[l.lift].label} textAnchor={l.left ? 'start' : 'end'}>
-            {l.lift} {l.val}
+          <path d={`${l.d} V${hbot} H${l.x0} Z`} fill={`url(#${gid + l.lift})`} />
+          <path d={l.d} fill="none" stroke={TH[l.lift].acc} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={l.last.x} cy={l.last.y} r="4" fill={TH[l.lift].acc} />
+          <text x={+(l.last.x - 8).toFixed(1)} y={l.ly} fontSize="11" fontWeight="800" fill={TH[l.lift].label} textAnchor="end" style={{ stroke: 'var(--bg)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>
+            {l.lift} {l.last.v}
           </text>
         </g>
       ))}
-      {labels.map((t, i) => (
-        <text key={i} x={X(t)} y="116" fontSize="10" fill="#6B7684" textAnchor={labels.length === 1 ? 'end' : i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}>
-          {dl(t)}
+      {labels.map((lb, i) => (
+        <text key={i} x={X(lb.t)} y="116" fontSize="10" fill="#6B7684" textAnchor={i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}>
+          {lb.s}
         </text>
       ))}
     </svg>

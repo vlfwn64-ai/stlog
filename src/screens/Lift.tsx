@@ -7,8 +7,9 @@ import { atTest, groupSets, levelName, mainSet, phaseTitle, programOf, repsText 
 import { cancelWorkout, goNextStage, previewNextStage, startWorkout } from '../actions'
 import type { AppState, SessionLog } from '../store'
 import { progOf, step as stepOf, useApp } from '../store'
-import { CARD_ORDER, TH, fmt, md } from '../theme'
-import { Confirm, LiftChart, PillToggle, Sheet, SummaryRows, ts } from '../ui'
+import { CARD_ORDER, TH, fmt, md, rpeText } from '../theme'
+import { Confirm, LiftChart, PillToggle, RangeTabs, Sheet, SummaryRows, ts } from '../ui'
+import type { Range } from '../ui'
 import type { Go } from '../App'
 import { latestEst, liftPoints } from './Home'
 import DaySheet from './DaySheet'
@@ -29,7 +30,7 @@ type Box = { w: string; d: string; id: string; deload?: boolean }
 /** 이번 사이클 줄별 기록 (디로드한 날도 그 줄에 날짜순으로) */
 function cycleRows(s: AppState, lift: LiftKey, prog: Program) {
   const p = s.lifts[lift]
-  const cyc = s.sessions.filter((x) => x.lift === lift && (x.cycle ?? 1) === (p.cycle ?? 1))
+  const cyc = s.sessions.filter((x) => x.lift === lift && (x.cycle ?? 1) === (p.cycle ?? 1)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return prog.phases(lift).map((ph) => ({
     ...ph,
     boxes: cyc
@@ -48,7 +49,7 @@ function prevCycles(s: AppState, lift: LiftKey) {
   const weeksOf = (a: string, b: string) => Math.max(1, Math.ceil((ts(b) - ts(a)) / (7 * 86400000)))
   for (let c = (p.cycle ?? 1) - 1; c >= 1; c--) {
     const t = s.tests.find((x) => x.lift === lift && x.endedCycle && x.cycleNo === c)
-    const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && (x.cycle ?? 1) === c && mainOf(x))
+    const ss = s.sessions.filter((x) => x.lift === lift && !x.deload && (x.cycle ?? 1) === c && mainOf(x)).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     if (!t && !ss.length) continue
     const prog = programOf(ss[0]?.program ?? t?.program)
     const start = t?.endedCycle ?? ss[0].date
@@ -87,6 +88,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
   const u = s.settings.unit
   const st = stepOf(s)
   const [mode, setMode] = useState<'est' | 'act'>('est')
+  const [range, setRange] = useState<Range>('cycle')
   const [pop, setPop] = useState<Pop>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const swipe = useRef<{ x: number; y: number } | null>(null)
@@ -207,8 +209,9 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
             <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a={L('추정', 'Est.')} b={L('실제', 'Actual')} label={L('그래프 기준 바꾸기', 'Switch chart')} />
           </div>
           <button type="button" onClick={toggle} aria-label={L('눌러서 추정과 실제 전환', 'Tap to switch estimated and actual')} style={{ display: 'block', width: '100%' }}>
-            <LiftChart lift={lift} pts={liftPoints(s, lift, mode)} />
+            <LiftChart lift={lift} pts={liftPoints(s, lift, mode)} range={range} cycleStart={s.lifts[lift].cycleStart} />
           </button>
+          <RangeTabs value={range} options={['cycle', '1m', '3m', '6m', '1y', 'all']} onChange={setRange} />
         </section>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, background: 'var(--fill2)', borderRadius: 14, padding: '12px 14px' }}>
@@ -353,7 +356,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
             <span className="num" style={{ fontSize: 13, color: 'var(--mute)' }}>
               {L('지난번', 'Last')} {md(lastSession.date)} · {fmt(lastTop.weight)}
               {u} × {lastTop.reps}
-              {lastTop.rpe !== undefined ? ` @RPE ${lastTop.rpe === 'fail' ? L('실패', 'fail') : lastTop.rpe}` : ''}
+              {lastTop.rpe !== undefined ? ` @${rpeText(lastTop)}` : ''}
             </span>
           )}
           {startButtons(false)}

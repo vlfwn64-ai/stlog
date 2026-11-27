@@ -49,12 +49,12 @@ export function cancelWorkout() {
 }
 
 /** 탑세트 RPE 10이면 그날 백오프 −S (아직 안 한 세트만, 한 번만) */
-export function applyTopRpe(rowId: string, rpe: Rpe) {
+export function applyTopRpe(rowId: string, rpe: Rpe, got?: number) {
   const st = step(getState())
   updateSets((sets) => {
     const prev = sets.find((r) => r.id === rowId)
     const wasTen = prev?.rpe === 10
-    let out = sets.map((r) => (r.id === rowId ? { ...r, rpe, done: true } : r))
+    let out = sets.map((r) => (r.id === rowId ? { ...r, rpe, got: rpe === 'fail' ? got : undefined, done: true } : r))
     if (prev?.type === 'T' && rpe === 10 && !wasTen) {
       out = out.map((r) => (r.type === 'B' && !r.done ? { ...r, weight: Math.max(st, +(r.weight - st).toFixed(2)) } : r))
     }

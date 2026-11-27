@@ -44,7 +44,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
   const [edit, setEdit] = useState<{ id: string; f: 'w' | 'r' } | null>(null)
   const [typeFor, setTypeFor] = useState<{ id: string; sel: string } | null>(null)
-  const [rpeFor, setRpeFor] = useState<{ id: string; sel?: Rpe } | null>(null)
+  const [rpeFor, setRpeFor] = useState<{ id: string; sel?: Rpe; got?: number } | null>(null)
   const [gearFor, setGearFor] = useState<{ id: string; sel: string[]; rest: boolean } | null>(null)
   const [warmOpen, setWarmOpen] = useState(false)
   const timer = useRestTimer(s.active?.rest ?? DEFAULT_REST, setRest, { sound: s.settings.sound !== false })
@@ -73,7 +73,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
 
   const tapDone = (r: SetRow) => {
     setEdit(null)
-    if (needsRpe(r)) return setRpeFor({ id: r.id, sel: r.rpe })
+    if (needsRpe(r)) return setRpeFor({ id: r.id, sel: r.rpe, got: r.got })
     patch(r.id, { done: !r.done })
     if (!r.done && !editing) timer.restart()
   }
@@ -133,8 +133,15 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           <button className="num" onClick={() => setEdit(fw ? null : { id: r.id, f: 'w' })} aria-label={`${L('무게', 'Weight')} ${r.weight}${u}`} style={cell(fw)}>
             {fmt(r.weight)}
           </button>
-          <button className="num" onClick={() => setEdit(fr ? null : { id: r.id, f: 'r' })} aria-label={`${L('횟수', 'Reps')} ${r.reps}`} style={cell(fr)}>
-            {r.reps}
+          <button className="num" onClick={() => setEdit(fr ? null : { id: r.id, f: 'r' })} aria-label={r.rpe === 'fail' && r.got !== undefined ? L(`횟수 ${r.reps}개 중 ${r.got}개`, `${r.got} of ${r.reps} reps`) : `${L('횟수', 'Reps')} ${r.reps}`} style={cell(fr)}>
+            {r.rpe === 'fail' && r.got !== undefined ? (
+              <>
+                {r.got}
+                <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.6 }}>/{r.reps}</span>
+              </>
+            ) : (
+              r.reps
+            )}
           </button>
           {done}
           {r.gear.length ? (
@@ -173,7 +180,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
               </button>
               <button
                 onClick={() => {
-                  const n: SetRow = { ...r, id: uid(), done: false, rpe: undefined }
+                  const n: SetRow = { ...r, id: uid(), done: false, rpe: undefined, got: undefined }
                   upd((sets) => {
                     const i = sets.findIndex((x) => x.id === r.id)
                     return [...sets.slice(0, i + 1), n, ...sets.slice(i + 1)]
@@ -366,7 +373,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
               return (
                 <button
                   key={lab}
-                  onClick={() => setRpeFor({ ...rpeFor, sel: v })}
+                  onClick={() => setRpeFor({ ...rpeFor, sel: v, got: v === 'fail' ? rpeFor.got : undefined })}
                   aria-pressed={on}
                   style={{ height: 48, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '0 16px' : '0 17px', textAlign: 'left' }}
                 >
@@ -378,25 +385,41 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
               )
             })}
           </div>
+          {rpeFor.sel === 'fail' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>{L(`${rpeRow.reps}개 중 몇 개 들었나요?`, `How many of ${rpeRow.reps} reps?`)}</span>
+              <div role="group" aria-label={L('든 개수', 'Reps done')} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 6 }}>
+                {Array.from({ length: Math.min(Math.max(rpeRow.reps, 1), 24) }, (_, n) => {
+                  const on = rpeFor.got === n
+                  return (
+                    <button key={n} className="num" aria-pressed={on} onClick={() => setRpeFor({ ...rpeFor, got: n })} style={{ height: 44, borderRadius: 10, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', fontSize: 16, fontWeight: on ? 800 : 600, color: on ? th.deep : 'var(--ink)' }}>
+                      {n}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <button
-              disabled={rpeFor.sel === undefined}
+              disabled={rpeFor.sel === undefined || (rpeFor.sel === 'fail' && rpeFor.got === undefined)}
               onClick={() => {
-                if (rpeFor.sel === undefined) return
-                if (editing) patch(rpeRow.id, { rpe: rpeFor.sel, done: true })
+                if (rpeFor.sel === undefined || (rpeFor.sel === 'fail' && rpeFor.got === undefined)) return
+                const got = rpeFor.sel === 'fail' ? rpeFor.got : undefined
+                if (editing) patch(rpeRow.id, { rpe: rpeFor.sel, got, done: true })
                 else {
-                  applyTopRpe(rpeRow.id, rpeFor.sel)
+                  applyTopRpe(rpeRow.id, rpeFor.sel, got)
                   if (!rpeRow.done) timer.restart()
                 }
                 setRpeFor(null)
               }}
-              style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700, opacity: rpeFor.sel === undefined ? 0.4 : 1 }}
+              style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700, opacity: rpeFor.sel === undefined || (rpeFor.sel === 'fail' && rpeFor.got === undefined) ? 0.4 : 1 }}
             >
               {L('저장', 'Save')}
             </button>
             <button
               onClick={() => {
-                if (rpeRow.done) patch(rpeRow.id, { done: false, rpe: undefined })
+                if (rpeRow.done) patch(rpeRow.id, { done: false, rpe: undefined, got: undefined })
                 setRpeFor(null)
               }}
               style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}

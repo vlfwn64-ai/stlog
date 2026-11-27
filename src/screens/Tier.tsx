@@ -408,7 +408,6 @@ export async function shareCard(s: AppState, lift?: LiftKey, gain?: Gain) {
   if (!c) return
   const font = (w: number, px: number) => `${w} ${px}px -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif`
   const g = gain && gain.d > 0 ? gain : undefined
-  const plusText = (k: LiftKey) => (g && g.lift === k ? ` (+${fmt(g.d)})` : '')
   c.fillStyle = '#12161C'
   c.fillRect(0, 0, W, H)
   c.textBaseline = 'top'
@@ -446,13 +445,13 @@ export async function shareCard(s: AppState, lift?: LiftKey, gain?: Gain) {
   c.font = font(700, 40)
   const head = lift ? `${TH[lift].tab.toUpperCase()} · ${t.tier.en.toUpperCase()}` : t.tier.en.toUpperCase().split('').join(' ')
   c.fillText(head, cx, 730)
-  // 큰 숫자 + 단위 + (+무게)
+  // 큰 숫자 + 단위 (+무게는 종목 카드에서만, 3대 카드는 종목 칸 딱지로)
   const big = fmt(lift ? s.lifts[lift].oneRM : total(s))
   c.font = font(900, 200)
   const bw = c.measureText(big).width
   c.font = font(700, 76)
   const uw = c.measureText(u).width
-  const gainBig = g && (!lift || g.lift === lift) ? ` +${fmt(g.d)}` : ''
+  const gainBig = g && lift && g.lift === lift ? ` +${fmt(g.d)}` : ''
   c.font = font(800, 64)
   const gw = gainBig ? c.measureText(gainBig).width : 0
   const x0 = cx - (bw + 16 + uw + gw) / 2
@@ -486,15 +485,29 @@ export async function shareCard(s: AppState, lift?: LiftKey, gain?: Gain) {
       c.fill()
       c.fillStyle = BRIGHT[k]
       c.font = font(800, 38)
-      c.fillText(k, x + bxw / 2, 1180)
+      c.fillText(k, x + bxw / 2, 1190)
       c.fillStyle = '#FFFFFF'
       c.font = font(800, 66)
-      c.fillText(fmt(s.lifts[k].oneRM), x + bxw / 2, 1236)
-      const p = plusText(k)
-      if (p) {
+      c.fillText(fmt(s.lifts[k].oneRM), x + bxw / 2, 1254)
+      // 오른 종목: 칸 오른쪽 위 모서리에 +무게 딱지
+      if (g && g.lift === k) {
+        const txt = `+${fmt(g.d)}`
+        c.font = font(900, 34)
+        const pw = c.measureText(txt).width + 40
+        const ph = 58
+        const px = x + bxw - pw + 14
+        const py = 1150 - ph / 2 + 4
         c.fillStyle = BRIGHT[k]
-        c.font = font(800, 36)
-        c.fillText(p.trim(), x + bxw / 2, 1318)
+        c.beginPath()
+        c.roundRect(px, py, pw, ph, ph / 2)
+        c.fill()
+        c.strokeStyle = '#12161C'
+        c.lineWidth = 6
+        c.stroke()
+        c.fillStyle = '#12161C'
+        c.textBaseline = 'middle'
+        c.fillText(txt, px + pw / 2, py + ph / 2 + 2)
+        c.textBaseline = 'top'
       }
     })
   } else {

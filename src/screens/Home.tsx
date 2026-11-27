@@ -5,8 +5,9 @@ import type { LiftKey } from '../logic/program'
 import { atTest, mainSet, phaseTitle, programOf, repsText } from '../logic/programs'
 import type { AppState } from '../store'
 import { progOf, step as stepOf, today, useApp } from '../store'
-import { CARD_ORDER, TH, fmt, md } from '../theme'
-import { HomeChart, PillToggle, ts } from '../ui'
+import { CARD_ORDER, TH, fmt, md, rpeText } from '../theme'
+import { HomeChart, PillToggle, RangeTabs, ts } from '../ui'
+import type { Range } from '../ui'
 import type { Pt } from '../ui'
 import type { Go, Tab } from '../App'
 import { GrowthTiers, TierCard, TierSheet } from './Tier'
@@ -15,15 +16,19 @@ import DaySheet from './DaySheet'
 /** 종목별 추정(세션 e1RM) / 실제(1RM 기록) 점 */
 export function liftPoints(s: AppState, lift: LiftKey, mode: 'est' | 'act'): Pt[] {
   if (mode === 'est') {
-    const e = s.sessions.filter((x) => x.lift === lift && x.e1rm).map((x) => ({ x: ts(x.date), y: x.e1rm as number, date: md(x.date) }))
+    const e = byDate(s.sessions.filter((x) => x.lift === lift && x.e1rm)).map((x) => ({ x: ts(x.date), y: x.e1rm as number, date: md(x.date) }))
     // 추정 기록이 아직 없으면 실제 1RM으로 보여준다
     if (e.length) return e
   }
-  return s.rmHistory.filter((x) => x.lift === lift).map((x) => ({ x: ts(x.date), y: x.rm, date: md(x.date) }))
+  return byDate(s.rmHistory.filter((x) => x.lift === lift)).map((x) => ({ x: ts(x.date), y: x.rm, date: md(x.date) }))
 }
 
+/** 날짜순 (같은 날은 들어온 순서). 지난 기록을 고치거나 추가해도 그날 자리에 들어간다 */
+const byDate = <T extends { date: string }>(l: T[]) => l.map((x, i) => ({ x, i })).sort((a, b) => (a.x.date < b.x.date ? -1 : a.x.date > b.x.date ? 1 : a.i - b.i)).map((a) => a.x)
+
+/** 가장 최근 날짜의 추정 1RM */
 export function latestEst(s: AppState, lift: LiftKey): number | null {
-  const l = s.sessions.filter((x) => x.lift === lift && x.e1rm)
+  const l = byDate(s.sessions.filter((x) => x.lift === lift && x.e1rm))
   return l.length ? (l[l.length - 1].e1rm as number) : null
 }
 
@@ -156,7 +161,7 @@ function sessionLine(x: AppState['sessions'][number], u: string): string {
   if (x.deload) return L('디로드', 'Deload')
   const m = x.sets.filter((r) => r.type !== 'W' && r.done).reduce<(typeof x.sets)[number] | undefined>((a, r) => (!a || r.weight > a.weight ? r : a), undefined)
   if (!m) return setsLabel(0)
-  return `${fmt(m.weight)}${u} × ${m.reps}${m.rpe !== undefined ? ` · RPE ${m.rpe === 'fail' ? L('실패', 'fail') : m.rpe}` : ''}`
+  return `${fmt(m.weight)}${u} × ${m.reps}${m.rpe !== undefined ? ` · ${rpeText(m)}` : ''}`
 }
 
 export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
@@ -178,6 +183,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
     if (i >= 0 && i < order.length) setTab(order[i])
   }
   const [mode, setMode] = useState<'est' | 'act'>('est')
+  const [range, setRange] = useState<Range>('3m')
   const [day, setDay] = useState<string | null>(null)
   const [anim, setAnim] = useState<null | { lift: LiftKey; from: Box[]; to: Box[]; phase: 0 | 1 }>(null)
   const root = useRef<HTMLDivElement>(null)
@@ -267,8 +273,9 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
             <PillToggle value={mode === 'est' ? 0 : 1} onToggle={toggle} a={L('추정', 'Est.')} b={L('실제', 'Actual')} label={L('그래프 기준 바꾸기', 'Switch chart')} />
           </div>
           <button type="button" onClick={toggle} aria-label={L('눌러서 추정과 실제 전환', 'Tap to switch estimated and actual')} style={{ display: 'block', width: '100%' }}>
-            <HomeChart series={series} />
+            <HomeChart series={series} range={range} />
           </button>
+          <RangeTabs value={range} options={['1m', '3m', '6m', '1y', 'all']} onChange={setRange} />
         </section>
             <GrowthTiers s={s} go={go} onOpen={(k) => setTierOpen(k ?? 'all')} />
           </>

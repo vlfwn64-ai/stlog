@@ -123,4 +123,8 @@ describe('추정 1RM', () => {
     expect(sessionE1rm([{ type: 'A', weight: 100, reps: 6, done: true }])).toBe(120)
     expect(sessionE1rm([{ type: 'T', weight: 100, reps: 5, done: true }])).toBeNull()
   })
+  it('실패한 탑세트는 실제로 든 개수로', () => {
+    expect(sessionE1rm([{ type: 'T', weight: 150, reps: 5, done: true, rpe: 'fail', got: 3 }])).toBe(165)
+    expect(sessionE1rm([{ type: 'T', weight: 150, reps: 5, done: true, rpe: 'fail' }])).toBeNull()
+  })
 })

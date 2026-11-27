@@ -46,6 +46,8 @@ export interface SetRow {
   noRpe?: boolean
   /** 처방 횟수 (기록한 횟수와 비교해 성공·실패 판정) */
   goal?: number
+  /** 실패한 세트에서 실제로 든 개수 */
+  got?: number
 }
 
 export interface ActiveWorkout {

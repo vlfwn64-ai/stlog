@@ -4,7 +4,7 @@ import { testResult } from '../logic/program'
 import { deleteSession, deleteTest, saveTest } from '../actions'
 import type { SessionLog, TestLog } from '../store'
 import { step as stepOf, today, useApp } from '../store'
-import { TH, chipColors, fmt } from '../theme'
+import { TH, chipColors, fmt, rpeText } from '../theme'
 import { L, attemptLabel, dayTitle, setsLabel } from '../i18n'
 import { Confirm, Sheet } from '../ui'
 import type { Go, Route } from '../App'
@@ -187,7 +187,7 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
                     </span>
                     {r.rpe !== undefined && (
                       <span className="num" style={{ fontSize: 13, fontWeight: 700, color: th.deep }}>
-                        {r.rpe === 'fail' ? L('실패', 'Fail') : `RPE ${r.rpe}`}
+                        {rpeText(r)}
                       </span>
                     )}
                   </div>

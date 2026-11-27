@@ -112,3 +112,7 @@ export const fmt = (n: number) => (Number.isInteger(n) ? String(n) : String(+n.t
 
 /** "11/25" 형식 */
 export const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`
+
+/** RPE 글자: 실패면 든 개수까지 (실패 3개) */
+export const rpeText = (r: { rpe?: number | 'fail'; got?: number }, pre = 'RPE ') =>
+  r.rpe === 'fail' ? (r.got !== undefined ? L(`실패 · ${r.got}개`, `Fail · ${r.got} reps`) : L('실패', 'Fail')) : `${pre}${r.rpe}`
