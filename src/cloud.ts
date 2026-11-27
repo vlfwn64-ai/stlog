@@ -97,6 +97,30 @@ export const linkedProviders = (s: Session | null): Provider[] => {
 /** 사용자가 누른 로그인 버튼 (서버 기록보다 정확해서 이걸로 표시) */
 const PICKED = 'stlog:provider'
 
+/** 관리자 계정인지 (서버 함수 is_admin, supabase/admin.sql) */
+export async function isAdmin(): Promise<boolean> {
+  if (!sb || !cs.session) return false
+  const { data, error } = await sb.rpc('is_admin')
+  return !error && data === true
+}
+
+export interface AdminRow {
+  user_id: string
+  email: string | null
+  provider: string | null
+  created_at: string
+  updated_at: string | null
+  data: AppState | null
+}
+
+/** 관리자만: 사용자 전체와 기록. 관리자가 아니면 서버가 거절한다 */
+export async function adminUsers(): Promise<AdminRow[]> {
+  if (!sb) throw new Error('cloud off')
+  const { data, error } = await sb.rpc('admin_users')
+  if (error) throw error
+  return (data ?? []) as AdminRow[]
+}
+
 export async function signIn(provider: Provider) {
   if (!sb) return
   try {

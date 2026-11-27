@@ -14,6 +14,7 @@ import Result from './screens/Result'
 import Test from './screens/Test'
 import Tutorial from './screens/Tutorial'
 import Workout from './screens/Workout'
+import Admin from './screens/Admin'
 
 export type Tab = 'grow' | 'home' | 'rec'
 
@@ -23,6 +24,7 @@ export type Route =
   | { name: 'tierview'; lift?: LiftKey }
   | { name: 'add'; date: string; lift: LiftKey; back: Route }
   | { name: 'menu' }
+  | { name: 'admin' }
   | { name: 'tutorial'; back?: 'menu' }
   | { name: 'lift'; lift: LiftKey; from?: 'home' | 'left' | 'right' }
   | { name: 'workout'; lift?: LiftKey }
@@ -109,6 +111,7 @@ export default function App() {
   else if (cloudReady && !cloud.session) view = <LoginScreen />
   else if (!s.onboarded) view = <Onboarding onDone={() => go({ name: 'tutorial' })} />
   else if (route.name === 'menu') view = <Menu go={go} />
+  else if (route.name === 'admin') view = <Admin go={go} />
   else if (route.name === 'tutorial') view = <Tutorial onDone={() => go({ name: route.back ?? 'home' })} />
   else if (route.name === 'lift') view = <Lift key={route.lift} lift={route.lift} go={go} enter={route.from === 'home'} slide={route.from === 'left' || route.from === 'right' ? route.from : undefined} />
   else if (route.name === 'workout') view = <Workout go={go} />

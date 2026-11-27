@@ -1,7 +1,7 @@
 import { AccountSheet } from './Account'
-import { cloudReady, providerOf, signOut, useCloud } from '../cloud'
+import { cloudReady, isAdmin, providerOf, signOut, useCloud } from '../cloud'
 import { L, getLang, isEn, timesLabel } from '../i18n'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiftKey, Unit } from '../logic/program'
 import { stepOf } from '../logic/program'
@@ -49,6 +49,11 @@ export default function Menu({ go }: { go: Go }) {
   const u = st.unit
   const [pop, setPop] = useState<Pop>(null)
   const cloud = useCloud()
+  // 관리자 계정일 때만 '관리자' 메뉴
+  const [admin, setAdmin] = useState(false)
+  useEffect(() => {
+    if (cloud.session) void isAdmin().then(setAdmin)
+  }, [cloud.session])
   const [rm, setRm] = useState<Record<LiftKey, number>>({ B: s.lifts.B.oneRM, D: s.lifts.D.oneRM, S: s.lifts.S.oneRM })
   const [goal, setGoal] = useState(st.goal)
   const [plate, setPlate] = useState(st.minPlate)
@@ -138,6 +143,7 @@ export default function Menu({ go }: { go: Go }) {
             <Row label={L('계정', 'Account')} value={`${providerOf(cloud.session) === 'kakao' ? L('카카오로 로그인됨', 'Signed in with Kakao') : L('Google로 로그인됨', 'Signed in with Google')} ›`} onClick={() => setPop('account')} />
           )}
           {cloudReady && cloud.session && <Row label={L('로그아웃', 'Sign out')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />}
+          {admin && <Row label={L('관리자', 'Admin')} value={`${L('사용자 기록', 'User data')} ›`} onClick={() => go({ name: 'admin' })} />}
         </Section>
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.4</div>
       </main>
