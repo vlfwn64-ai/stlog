@@ -130,7 +130,20 @@ export async function signOut() {
   } catch {
     /* 무시 */
   }
-  await sb.auth.signOut()
+  // 이 기기만 로그아웃. 서버에 못 닿아도 저장된 로그인은 확실히 지운다
+  // (안 지우면 다음에 앱을 열 때 예전 로그인으로 다시 들어가짐)
+  try {
+    await sb.auth.signOut({ scope: 'local' })
+  } catch {
+    /* 무시 */
+  }
+  try {
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('sb-') && k.includes('-auth-token'))
+      .forEach((k) => localStorage.removeItem(k))
+  } catch {
+    /* 무시 */
+  }
   handled = null
   setLinked(null)
   emit({ session: null, choice: undefined, lastSync: undefined, status: 'idle', ready: false })

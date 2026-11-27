@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { choose, linkedProviders, providerOf, push, retrySync, signIn, signOut, useCloud } from '../cloud'
 import type { Provider } from '../cloud'
 import { L, isEn, timesLabel } from '../i18n'
 import type { AppState } from '../store'
-import { useApp } from '../store'
+import { resetAll, useApp } from '../store'
 import { md } from '../theme'
-import { Sheet, SummaryRows } from '../ui'
+import { Confirm, Sheet, SummaryRows } from '../ui'
 
 const big: CSSProperties = { height: 56, borderRadius: 14, fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }
 
@@ -23,6 +23,17 @@ function Brand() {
 /** 로그인 화면: 시작 화면에 버튼만 나타난다 (카카오는 카카오 노란색) */
 export function LoginScreen() {
   const [busy, setBusy] = useState<Provider | null>(null)
+  // 카카오·구글 로그인 화면에서 뒤로 오면 (페이지가 그대로 복원돼도) 버튼을 다시 누를 수 있게
+  useEffect(() => {
+    const reset = () => setBusy(null)
+    const vis = () => document.visibilityState === 'visible' && reset()
+    window.addEventListener('pageshow', reset)
+    document.addEventListener('visibilitychange', vis)
+    return () => {
+      window.removeEventListener('pageshow', reset)
+      document.removeEventListener('visibilitychange', vis)
+    }
+  }, [])
   const go = (p: Provider) => {
     setBusy(p)
     void signIn(p).catch(() => setBusy(null))
@@ -99,9 +110,30 @@ const timeOf = (t?: number) => {
 /** 로그인한 뒤 계정 화면 */
 export function AccountSheet({ onClose }: { onClose: () => void }) {
   const c = useCloud()
+  const s = useApp()
+  const [wipe, setWipe] = useState(false)
   const p = providerOf(c.session)
   const who = (c.session?.user.user_metadata?.full_name as string | undefined) ?? (c.session?.user.user_metadata?.name as string | undefined) ?? c.session?.user.email ?? ''
   const status = c.status === 'syncing' ? L('맞추는 중…', 'Syncing…') : c.status === 'error' ? L('연결 안 됨', 'Offline') : timeOf(c.lastSync)
+  if (wipe)
+    return (
+      <Confirm
+        eyebrow={L('계정 · 초기화', 'Account · Reset')}
+        title={L('정말 초기화할까요?', 'Really reset everything?')}
+        rows={[
+          [L('훈련 기록', 'Workouts'), timesLabel(s.sessions.length)],
+          [L('1RM 테스트', '1RM tests'), timesLabel(s.tests.length)],
+          [L('지워지는 곳', 'Erased from'), L('이 기기와 계정 모두', 'This device and your account')],
+          [L('되돌리기', 'Undo'), <span key="undo" style={{ color: '#D92B3A', fontWeight: 800 }}>{L('불가', 'Not possible')}</span>],
+        ]}
+        cta={L('초기화', 'Reset')}
+        onCancel={() => setWipe(false)}
+        onOk={() => {
+          resetAll()
+          onClose()
+        }}
+      />
+    )
   return (
     <Sheet onClose={onClose} title={L('계정', 'Account')}>
       <SummaryRows
@@ -115,14 +147,8 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
         ]}
       />
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={async () => {
-            await signOut()
-            onClose()
-          }}
-          style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}
-        >
-          {L('로그아웃', 'Sign out')}
+        <button onClick={() => setWipe(true)} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: '#D92B3A' }}>
+          {L('초기화', 'Reset')}
         </button>
         <button onClick={() => void push()} style={{ ...big, flex: 1, background: 'var(--ink)', color: 'var(--onInk)' }}>
           {L('지금 동기화', 'Sync now')}
