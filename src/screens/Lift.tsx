@@ -232,7 +232,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           ))}
         </div>
 
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
               {L('이번 사이클', 'This cycle')}
@@ -264,7 +264,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
             const cur = r.n === p.stage
             const todayW = cur ? fmt(test ? fa : (main?.weight ?? p.top)) : null
             return (
-              <div key={r.n} style={cur ? { display: 'flex', alignItems: 'center', gap: 10, margin: '-6px -10px', padding: '6px 10px', borderRadius: 14, background: th.rowBg } : { display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div key={r.n} style={cur ? { display: 'flex', alignItems: 'center', gap: 14, margin: '-6px -10px', padding: '6px 10px', borderRadius: 14, background: th.rowBg } : { display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ width: prog.id === 'stlog' ? 34 : 44, flexShrink: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
                   <span style={{ fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
                   {r.sub && <span style={{ fontSize: 11, fontWeight: 600, color: cur ? th.deep : 'var(--mute)' }}>{r.sub}</span>}
@@ -275,14 +275,14 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                     if (el) el.scrollLeft = el.scrollWidth
                   }}
                   data-nodrag
-                  style={{ display: 'flex', gap: 6, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', margin: '-2px 0', padding: '2px 0' }}
+                  style={{ display: 'flex', gap: 8, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', margin: '-2px 0', padding: '2px 0' }}
                 >
                   {r.boxes.map((b, i) => (
                     <button
                       key={i}
                       onClick={() => setOpenId(b.id)}
                       aria-label={b.deload ? L(`${b.d} 디로드 기록 보기`, `View deload ${b.d}`) : L(`${b.d} 기록 보기`, `View ${b.d}`)}
-                      style={{ width: 44, height: 40, flexShrink: 0, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 46, height: 44, flexShrink: 0, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: b.deload ? 'var(--sub)' : 'var(--ink)' }}>
                         {b.w}
@@ -293,7 +293,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                     </button>
                   ))}
                   {todayW && (
-                    <div style={{ width: 44, height: 40, flexShrink: 0, borderRadius: 10, background: th.acc, boxShadow: th.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 46, height: 44, flexShrink: 0, borderRadius: 10, background: th.acc, boxShadow: th.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="num" style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2, color: th.on }}>
                         {todayW}
                       </span>
@@ -301,7 +301,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                     </div>
                   )}
                   {!r.boxes.length && !todayW && (
-                    <div style={{ height: 40, flexShrink: 0, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>{L('아직 기록 없음', 'No sets yet')}</div>
+                    <div style={{ height: 44, flexShrink: 0, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>{L('아직 기록 없음', 'No sets yet')}</div>
                   )}
                 </div>
               </div>
@@ -309,7 +309,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           })}
           {/* 사이클 마지막 테스트 날에는 아래 '테스트 시작' 하나만 */}
           {!test && (
-            <div style={{ display: 'grid', gridTemplateColumns: prog.canAdvance ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 8, marginTop: 2 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: prog.canAdvance ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 8, marginTop: 4 }}>
               <button onClick={() => setPop('test')} style={{ height: 40, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
                 {L('TEST하기', 'Test now')}
               </button>

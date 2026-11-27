@@ -304,7 +304,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
         </section>
             {lastS && (
               <section style={{ display: 'flex', flexDirection: 'column', gap: 8, ...fade }}>
-                <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('지난 훈련', 'Last workout')}</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('최근 훈련', 'Recent workout')}</h2>
                 <button onClick={() => setTab('rec')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'var(--fill2)', textAlign: 'left' }}>
                   <span style={{ width: 28, height: 28, borderRadius: 8, background: TH[lastS.lift].acc, color: TH[lastS.lift].on, fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{lastS.lift}</span>
                   <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
