@@ -304,9 +304,9 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
                   cards.current[i] = el
                 }}
                 onClick={() => open(k)}
-                style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 168, visibility: anim ? 'hidden' : undefined }}
+                style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 140, visibility: anim ? 'hidden' : undefined }}
               >
-                <CardFace k={k} p={s.lifts[k]} live={s.active?.lift === k} main={mainText(s, k)} />
+                <CardFace k={k} est={cardEst(s, k)} live={s.active?.lift === k} main={mainText(s, k)} />
               </button>
             ))}
           </div>
@@ -383,7 +383,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
               }}
             >
               <div style={{ position: 'absolute', inset: 0, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, opacity: moving ? 0 : 1, transition: 'opacity 180ms ease' }}>
-                <CardFace k={k} p={s.lifts[k]} live={false} main={mainText(s, k)} />
+                <CardFace k={k} est={cardEst(s, k)} live={false} main={mainText(s, k)} />
               </div>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 8, opacity: moving ? 1 : 0, transition: `opacity 260ms ease ${moving ? 200 : 0}ms` }}>
                 <span style={{ fontSize: 16, fontWeight: on ? 700 : 500, color: on ? TH[k].text : 'var(--sub)' }}>{TH[k].tab}</span>
@@ -408,13 +408,19 @@ function mainText(s: AppState, k: LiftKey): string | null {
   return m ? `${fmt(m.weight)} × ${repsText(m)}` : null
 }
 
-function CardFace({ k, p, live, main }: { k: LiftKey; p: AppState['lifts'][LiftKey]; live: boolean; main: string | null }) {
+/** 훈련 카드 무게: 훈련으로 나온 추정 1RM (없으면 1RM). 1RM은 티어 표에 있으니까 */
+const cardEst = (s: AppState, k: LiftKey) => {
+  const e = latestEst(s, k)
+  return e === null ? s.lifts[k].oneRM : Math.round(e * 10) / 10
+}
+
+function CardFace({ k, est, live, main }: { k: LiftKey; est: number; live: boolean; main: string | null }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <span style={{ fontSize: 28, fontWeight: 900 }}>{k}</span>
         <span className="num" style={{ fontSize: 15, fontWeight: 700 }}>
-          {fmt(p.oneRM)}
+          {fmt(est)}
         </span>
       </div>
       <span style={{ height: 1, background: 'currentColor', opacity: 0.35 }} />
