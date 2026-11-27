@@ -90,6 +90,7 @@ export function Dial({ lift, name, min = 0, value, step, unit, onChange }: { lif
         setOff(0)
       }}
       role="spinbutton"
+      data-nodrag=""
       aria-label={`${th.name} ${value}${unit}`}
       aria-valuenow={value}
       tabIndex={0}

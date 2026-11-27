@@ -133,3 +133,11 @@ h1, h2, h3, p { margin: 0; }
 @keyframes pulse { 50% { transform: scale(1.02) } }
 @keyframes fromRight { from { opacity: 0; transform: translateX(48px) } }
 @keyframes fromLeft { from { opacity: 0; transform: translateX(-48px) } }
+
+/* 티어 승급: 배지가 작아졌다가 새 색으로 커진다 */
+@keyframes tierPop {
+  0% { transform: scale(1) }
+  35% { transform: scale(0.78) }
+  70% { transform: scale(1.14) }
+  100% { transform: scale(1) }
+}

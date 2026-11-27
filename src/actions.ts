@@ -1,5 +1,5 @@
 import type { LiftKey, Rpe, Unit } from './logic/program'
-import { deloadSets, roundDown, stepOf, testResult, warmups } from './logic/program'
+import { deloadSets, e1rm, roundDown, stepOf, testResult, warmups } from './logic/program'
 import type { AfterResult, ProgramId } from './logic/programs'
 import { atTest, programOf, sessionE1rm, toPlate, withMain } from './logic/programs'
 import type { AppState, Body, LiftState, RestState, SessionLog, SetRow } from './store'
@@ -237,13 +237,19 @@ export function saveSession(id: string, sets: SetRow[]) {
   setState((x) => ({ ...x, sessions: x.sessions.map((ss) => (ss.id === id ? { ...ss, sets, e1rm: sessionE1rm(sets) } : ss)) }))
 }
 
+/** RPE가 없는 기록: 가장 무거운 세트를 끝까지 한 것으로 보고 추정 */
+function roughE1rm(sets: SetRow[]): number | null {
+  const m = sets.filter((r) => r.type !== 'W' && r.done && r.reps > 0).reduce<SetRow | undefined>((a, r) => (!a || r.weight > a.weight ? r : a), undefined)
+  return m ? e1rm(m.weight, m.reps, 10) : null
+}
+
 /** 지난 날짜에 기록 추가 (지금 처방은 그대로) */
 export function addSession(d: { lift: LiftKey; program?: ProgramId; date: string; stage: number; deload: boolean; sets: SetRow[] }) {
   const sets = d.sets.filter((r) => r.done)
   if (!sets.length) return
   setState((x) => ({
     ...x,
-    sessions: [...x.sessions, { id: uid(), date: d.date, lift: d.lift, stage: d.stage as SessionLog['stage'], deload: d.deload, sets, e1rm: sessionE1rm(sets), cycle: x.lifts[d.lift].cycle ?? 1, program: d.program }].sort((a, b) =>
+    sessions: [...x.sessions, { id: uid(), date: d.date, lift: d.lift, stage: d.stage as SessionLog['stage'], deload: d.deload, sets, e1rm: sessionE1rm(sets) ?? roughE1rm(sets), cycle: x.lifts[d.lift].cycle ?? 1, program: d.program }].sort((a, b) =>
       a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
     ),
   }))

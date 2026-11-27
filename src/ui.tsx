@@ -165,9 +165,11 @@ export function Sheet({
         setDy(0)
       }
     }
-    const ts = (e: TouchEvent) => begin(e.touches[0].clientY)
+    // 다이얼처럼 스스로 끄는 요소(data-nodrag) 위에서 시작한 끌기는 시트를 닫지 않는다
+    const free = (e: Event) => !(e.target instanceof Element && e.target.closest('[data-nodrag]'))
+    const ts = (e: TouchEvent) => free(e) && begin(e.touches[0].clientY)
     const tm = (e: TouchEvent) => move(e.touches[0].clientY, e)
-    const md = (e: MouseEvent) => begin(e.clientY)
+    const md = (e: MouseEvent) => free(e) && begin(e.clientY)
     const mm = (e: MouseEvent) => move(e.clientY, e)
     el.addEventListener('touchstart', ts, { passive: true })
     el.addEventListener('touchmove', tm, { passive: false })
@@ -285,7 +287,9 @@ const niceRange = (vals: number[]) => {
 export function LiftChart({ lift, pts }: { lift: LiftKey; pts: Pt[] }) {
   const gid = useId().replace(/:/g, '')
   const color = TH[lift].acc
-  const show = pts.slice(-8)
+  // 같은 날 기록이 여러 개면 마지막 것만 (날짜 글자가 겹치지 않게)
+  const byDay = pts.filter((p, i) => pts.findIndex((q, j) => j > i && q.date === p.date) === -1)
+  const show = byDay.slice(-8)
   const x0 = 40
   const x1 = 334
   const top = 14
@@ -351,11 +355,29 @@ export function HomeChart({ series }: { series: { lift: LiftKey; pts: { t: numbe
   const X = (t: number) => +(hx0 + ((hx1 - hx0) * (t - t0)) / (t1 - t0)).toFixed(1)
   const Y = (v: number) => +(hbot - ((v - lo) / (hi - lo)) * (hbot - htop)).toFixed(1)
   const ticks = [hi, Math.round((lo + hi) / 2 / 5) * 5, lo]
-  const labels = Array.from({ length: 5 }, (_, i) => t0 + ((t1 - t0) * i) / 4)
+  // 같은 날 기록이 여러 개면 마지막 것만, 값 글자는 서로 겹치지 않게 띄운다
+  const lines = series
+    .map((sr) => {
+      const sorted = [...sr.pts].sort((a, b) => a.t - b.t)
+      const pts = sorted.filter((p, i) => i === sorted.length - 1 || new Date(sorted[i + 1].t).toDateString() !== new Date(p.t).toDateString())
+      if (!pts.length) return null
+      const xy = pts.map((p) => [X(p.t), Y(p.y)] as const)
+      const last = xy[xy.length - 1]
+      return { lift: sr.lift, xy, last, line: xy.map(([x, y]) => `${x},${y}`).join(' '), val: pts[pts.length - 1].y, left: last[0] < hx0 + 60, ly: Math.max(10, +(last[1] - 7).toFixed(1)) }
+    })
+    .filter((l): l is NonNullable<typeof l> => !!l)
+  ;[...lines]
+    .sort((a, b) => a.ly - b.ly)
+    .forEach((l, i, arr) => {
+      if (i > 0 && l.ly - arr[i - 1].ly < 12) l.ly = +(arr[i - 1].ly + 12).toFixed(1)
+    })
   const dl = (t: number) => {
     const d = new Date(t)
     return `${d.getMonth() + 1}/${d.getDate()}`
   }
+  // 날짜 글자 5개, 같은 날짜가 두 번 나오지 않게 (기간이 짧으면 기록한 날만)
+  const even = Array.from({ length: 5 }, (_, i) => t0 + ((t1 - t0) * i) / 4)
+  const labels = (t1 - t0 < 86400000 * 5 ? [...new Set(all.map((p) => p.t))].sort((a, b) => a - b) : even).filter((t, i, arr) => arr.findIndex((u) => dl(u) === dl(t)) === i)
   return (
     <svg width="100%" viewBox="0 0 350 120" aria-hidden="true" style={{ display: 'block' }}>
       <defs>
@@ -374,25 +396,18 @@ export function HomeChart({ series }: { series: { lift: LiftKey; pts: { t: numbe
           </text>
         </g>
       ))}
-      {series.map((s) => {
-        const pts = [...s.pts].sort((a, b) => a.t - b.t)
-        if (!pts.length) return null
-        const xy = pts.map((p) => [X(p.t), Y(p.y)] as const)
-        const line = xy.map(([x, y]) => `${x},${y}`).join(' ')
-        const last = xy[xy.length - 1]
-        return (
-          <g key={s.lift}>
-            {xy.length > 1 && <polygon points={`${line} ${last[0]},${hbot} ${xy[0][0]},${hbot}`} fill={`url(#${gid + s.lift})`} />}
-            <polyline points={line} fill="none" stroke={TH[s.lift].acc} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
-            <circle cx={last[0]} cy={last[1]} r="4" fill={TH[s.lift].acc} />
-            <text x={+(last[0] - 8).toFixed(1)} y={+(last[1] - 7).toFixed(1)} fontSize="11" fontWeight="800" fill={TH[s.lift].label} textAnchor="end">
-              {s.lift} {pts[pts.length - 1].y}
-            </text>
-          </g>
-        )
-      })}
+      {lines.map((l) => (
+        <g key={l.lift}>
+          {l.xy.length > 1 && <polygon points={`${l.line} ${l.last[0]},${hbot} ${l.xy[0][0]},${hbot}`} fill={`url(#${gid + l.lift})`} />}
+          <polyline points={l.line} fill="none" stroke={TH[l.lift].acc} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={l.last[0]} cy={l.last[1]} r="4" fill={TH[l.lift].acc} />
+          <text x={l.left ? +(l.last[0] + 8).toFixed(1) : +(l.last[0] - 8).toFixed(1)} y={l.ly} fontSize="11" fontWeight="800" fill={TH[l.lift].label} textAnchor={l.left ? 'start' : 'end'}>
+            {l.lift} {l.val}
+          </text>
+        </g>
+      ))}
       {labels.map((t, i) => (
-        <text key={i} x={X(t)} y="116" fontSize="10" fill="#6B7684" textAnchor={i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}>
+        <text key={i} x={X(t)} y="116" fontSize="10" fill="#6B7684" textAnchor={labels.length === 1 ? 'end' : i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}>
           {dl(t)}
         </text>
       ))}
