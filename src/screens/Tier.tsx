@@ -9,6 +9,7 @@ import type { AppState } from '../store'
 import { step as stepOf, today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
 import { Sheet } from '../ui'
+import { mainText } from './Home'
 import type { Go } from '../App'
 
 const HEX = 'M24 3 L43 14 L43 34 L24 45 L5 34 L5 14 Z'
@@ -142,45 +143,47 @@ function LiftMark({ lift, size, line }: { lift: LiftKey; size: number; line: str
   )
 }
 
-/** 홈: 큰 티어 카드 (목업 D안). 3대 티어 크게 + 종목 칸은 각 티어 색. 누르면 성장 탭 */
-export function HomeTierBig({ s, go, onOpen }: { s: AppState; go: Go; onOpen: () => void }) {
+/** 홈: 큰 티어 카드 (목업 D안). 3대 티어 크게 + 종목 칸은 각 티어 색. 누르면 그 티어 화면 */
+export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
   const t = overallTier(s)
   const b = s.settings.body
   if (!t || !b) return <NeedBody go={go} />
   const u = s.settings.unit
   const sum = total(s)
   return (
-    <button onClick={onOpen} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}. ${L('성장 탭으로', 'Open Growth')}`} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderRadius: 22, background: 'var(--fill2)', textAlign: 'left' }}>
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
-        <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
-          DOTS {Math.round(t.score)}
-          {t.tier.i > 0 ? ` · ${topText(t.tier.i)}` : ''}
-          <Chevron />
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderRadius: 22, background: 'var(--fill2)' }}>
+      <button onClick={() => go({ name: 'tierview' })} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}`} style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left' }}>
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
+          <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
+            DOTS {Math.round(t.score)}
+            {t.tier.i > 0 ? ` · ${topText(t.tier.i)}` : ''}
+            <Chevron />
+          </span>
         </span>
-      </span>
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -2 }}>
-        <Badge tier={t.tier} size={100} />
-        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
-        <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-          {L('3대', 'Total')} {fmt(sum)}
-          {u} · {ratioText(sum, b.weight, 1)}
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -2 }}>
+          <Badge tier={t.tier} size={100} />
+          <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
+          <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
+            {L('3대', 'Total')} {fmt(sum)}
+            {u} · {ratioText(sum, b.weight, 1)}
+          </span>
         </span>
-      </span>
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
-          <span style={{ color: 'var(--mute)' }}>{t.tier.name()}</span>
-          <span style={{ color: t.next ? t.next.text : t.tier.text }}>{nextText(t, u)}</span>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
+            <span style={{ color: 'var(--mute)' }}>{t.tier.name()}</span>
+            <span style={{ color: t.next ? t.next.text : t.tier.text }}>{nextText(t, u)}</span>
+          </span>
+          <Bar t={t} h={8} />
         </span>
-        <Bar t={t} h={8} />
-      </span>
+      </button>
       <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
         {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
           const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
           // 엘리트 색(var(--ink))은 다크에서 밝아서 칸은 늘 짙은 색
           const bg = lt.tier.i === 6 ? '#2C2C35' : lt.tier.color
           return (
-            <span key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 6px 10px', borderRadius: 14, background: bg }}>
+            <button key={k} onClick={() => go({ name: 'tierview', lift: k })} aria-label={`${TH[k].name} ${L('티어', 'tier')} ${lt.tier.name()}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 6px 10px', borderRadius: 14, background: bg }}>
               <LiftMark lift={k} size={34} line={bg} />
               <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>{lt.tier.name()}</span>
               <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF' }}>
@@ -190,11 +193,11 @@ export function HomeTierBig({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
               <span style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.35)', overflow: 'hidden', display: 'block', marginTop: 2 }}>
                 <span style={{ display: 'block', width: `${Math.round(lt.progress * 100)}%`, height: '100%', borderRadius: 2, background: '#FFFFFF' }} />
               </span>
-            </span>
+            </button>
           )
         })}
       </span>
-    </button>
+    </div>
   )
 }
 
@@ -437,6 +440,110 @@ function TierUpView({ step, lift, prevRM, newRM, from, more, onNext, go }: { ste
     </div>
   )
 }
+
+/**
+ * 내 티어 보기 (홈 티어 카드를 누르면). 승급 화면과 같은 모양, 애니메이션 없이.
+ * 버튼: 공유 / ○○ 훈련하기 (3대는 무슨 훈련을 할지 고른다)
+ */
+export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
+  const s = useApp()
+  const [busy, setBusy] = useState(false)
+  const [pick, setPick] = useState(false)
+  const b = s.settings.body
+  const t = lift ? liftTier(s, lift) : overallTier(s)
+  if (!t || !b) return null
+  const u = s.settings.unit
+  const sum = total(s)
+  const [out, inn] = SHAPES[lift ?? 'all']
+  const fill = t.tier.i === 6 ? '#2C2C35' : t.tier.color
+  const rows: [string, React.ReactNode][] = lift
+    ? [
+        [`${TH[lift].name} 1RM`, `${fmt(s.lifts[lift].oneRM)}${u}`],
+        [L('체중 대비', 'vs bodyweight'), ratioText(s.lifts[lift].oneRM, b.weight)],
+        [L('다음 티어', 'Next tier'), nextText(t, u)],
+      ]
+    : [
+        ...(['B', 'D', 'S'] as LiftKey[]).map((k): [string, React.ReactNode] => {
+          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
+          return [
+            `${TH[k].name} 1RM`,
+            <>
+              {`${fmt(s.lifts[k].oneRM)}${u}`}
+              <span style={{ fontWeight: 700, opacity: 0.8 }}> · {lt.tier.name()}</span>
+            </>,
+          ]
+        }),
+        [L('3대 합계', 'Big 3 total'), `${fmt(sum)}${u} · ${ratioText(sum, b.weight, 1)}`],
+        ['DOTS', String(Math.round(t.score))],
+        [L('다음 티어', 'Next tier'), nextText(t, u)],
+      ]
+  const share = async () => {
+    setBusy(true)
+    await shareCard(s, lift)
+    setBusy(false)
+  }
+  const train = (k: LiftKey) => go({ name: 'lift', lift: k, from: 'home' })
+  return (
+    <div className="screen" style={{ background: t.tier.deep, color: '#FFFFFF' }}>
+      <header style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 8px', flexShrink: 0 }}>
+        <button onClick={() => go({ name: 'home' })} aria-label={L('닫기', 'Close')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px', textAlign: 'center' }}>
+        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>{lift ? `${TH[lift].tab.toUpperCase()} TIER` : 'BIG 3 TIER'}</span>
+        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both' }}>
+          <path d={out} fill={fill} stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d={inn} fill="none" stroke="white" strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
+        </svg>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>{t.tier.name()}</h1>
+          <span className="num" style={{ fontSize: 16, fontWeight: 600, opacity: 0.92 }}>
+            {lift ? `1RM ${fmt(s.lifts[lift].oneRM)}${u}` : `DOTS ${Math.round(t.score)}`}
+            {t.tier.i > 0 ? ` · ${topText(t.tier.i)}` : ''}
+          </span>
+        </div>
+        <div style={{ width: '100%', marginTop: 8, padding: '16px 18px', borderRadius: 16, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {rows.map(([a, v]) => (
+            <div key={a} className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+              <span style={{ opacity: 0.88 }}>{a}</span>
+              <span style={{ fontWeight: 800 }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </main>
+      <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', gap: 8 }}>
+        <button disabled={busy} onClick={share} style={{ flex: 1, height: 56, borderRadius: 14, background: 'rgba(255,255,255,0.16)', color: '#FFFFFF', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <ShareIcon color="#FFFFFF" />
+          {busy ? L('만드는 중…', 'Making…') : L('공유', 'Share')}
+        </button>
+        <button onClick={() => (lift ? train(lift) : setPick(true))} style={{ flex: 1.6, height: 56, borderRadius: 14, background: '#FFFFFF', color: t.tier.deep, fontSize: 17, fontWeight: 800 }}>
+          {lift ? L(`${TH[lift].name} 훈련하기`, `Train ${TH[lift].tab}`) : L('훈련하기', 'Train')}
+        </button>
+      </div>
+      {pick && (
+        <Sheet onClose={() => setPick(false)} title={L('무슨 훈련을 할까요?', 'What will you train?')}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {CARD_ORDER.map((k) => (
+              <button key={k} onClick={() => train(k)} style={{ height: 56, borderRadius: 14, background: TH[k].acc, color: TH[k].on, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', fontSize: 17, fontWeight: 800 }}>
+                <span style={{ fontSize: 22, fontWeight: 900, width: 22 }}>{k}</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{TH[k].name}</span>
+                <span className="num" style={{ fontSize: 14, fontWeight: 700, opacity: 0.9 }}>
+                  {mainLine(s, k)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
+    </div>
+  )
+}
+
+/** 고르기 창 오른쪽: 이번 훈련 (테스트 날이면 1RM 테스트) */
+const mainLine = (s: AppState, k: LiftKey) => mainText(s, k) ?? L('1RM 테스트', '1RM test')
 
 /** 어두운 배경에서 잘 보이는 티어 색 (다크 모드 글자 색과 같음) */
 const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6']

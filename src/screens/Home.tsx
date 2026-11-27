@@ -292,7 +292,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
         {tab === 'home' && (
           <>
             <div style={fade}>
-              <HomeTierBig s={s} go={go} onOpen={() => setTab('grow')} />
+              <HomeTierBig s={s} go={go} />
             </div>
         <section style={fade}>
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{L('훈련 기록하기', 'Log a workout')}</h2>
@@ -400,7 +400,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
 }
 
 /** 카드에 보일 이번 훈련 (테스트 날이면 null) */
-function mainText(s: AppState, k: LiftKey): string | null {
+export function mainText(s: AppState, k: LiftKey): string | null {
   const prog = progOf(s)
   const p = s.lifts[k]
   if (atTest(prog, p)) return null

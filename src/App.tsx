@@ -6,7 +6,7 @@ import type { LiftKey } from './logic/program'
 import { useApp } from './store'
 import { TH, setDark } from './theme'
 import Home from './screens/Home'
-import { TierUp, liftTier, overallTier } from './screens/Tier'
+import { TierUp, TierView, liftTier, overallTier } from './screens/Tier'
 import Lift from './screens/Lift'
 import Menu from './screens/Menu'
 import Onboarding from './screens/Onboarding'
@@ -20,6 +20,7 @@ export type Tab = 'grow' | 'home' | 'rec'
 export type Route =
   | { name: 'home'; tab?: Tab }
   | { name: 'tierup'; lift: LiftKey; prevRM: number; newRM: number; fromLift?: number; fromAll?: number }
+  | { name: 'tierview'; lift?: LiftKey }
   | { name: 'add'; date: string; lift: LiftKey; back: Route }
   | { name: 'menu' }
   | { name: 'tutorial'; back?: 'menu' }
@@ -91,12 +92,13 @@ export default function App() {
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
   }, [dark])
 
-  const tierUpColor = route.name === 'tierup' ? (route.fromLift !== undefined ? liftTier(s, route.lift) : overallTier(s))?.tier.deep : undefined
+  const tierUpColor =
+    route.name === 'tierup' ? (route.fromLift !== undefined ? liftTier(s, route.lift) : overallTier(s))?.tier.deep : route.name === 'tierview' ? (route.lift ? liftTier(s, route.lift) : overallTier(s))?.tier.deep : undefined
   useEffect(() => {
     const base = dark ? '#17171C' : '#FFFFFF'
     if (s.onboarded && route.name === 'test') setStatusColor(TH[route.lift].testBg)
     else if (s.onboarded && route.name === 'menu') setStatusColor(dark ? '#202027' : '#FFFFFF')
-    else if (s.onboarded && route.name === 'tierup') setStatusColor(tierUpColor ?? base)
+    else if (s.onboarded && (route.name === 'tierup' || route.name === 'tierview')) setStatusColor(tierUpColor ?? base)
     else setStatusColor(base)
   }, [route, dark, s.onboarded, tierUpColor])
 
@@ -114,6 +116,7 @@ export default function App() {
   else if (route.name === 'add') view = <Workout key={`add-${route.date}-${route.lift}`} go={go} add={{ date: route.date, lift: route.lift }} back={route.back} />
   else if (route.name === 'result') view = <Result id={route.id} go={go} />
   else if (route.name === 'test') view = <Test lift={route.lift} go={go} />
+  else if (route.name === 'tierview') view = <TierView key={route.lift ?? 'all'} lift={route.lift} go={go} />
   else if (route.name === 'tierup') view = <TierUp lift={route.lift} prevRM={route.prevRM} newRM={route.newRM} fromLift={route.fromLift} fromAll={route.fromAll} go={go} />
   else view = <Home go={go} tab={route.name === 'home' ? route.tab : undefined} />
 
