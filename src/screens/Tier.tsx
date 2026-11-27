@@ -4,7 +4,8 @@ import type React from 'react'
 import { L, isEn } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import type { Tier, TierInfo } from '../logic/tiers'
-import { TIERS, dots, tierInfo, tierTable } from '../logic/tiers'
+import { MIRACLE, RAINBOW, TIERS, asMiracle, dots, tierInfo, tierTable } from '../logic/tiers'
+import { cloudMiracle } from '../cloud'
 import type { AppState } from '../store'
 import { today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
@@ -25,14 +26,30 @@ const SHAPES: Record<'all' | LiftKey, [string, string]> = {
 /** 티어 배지 (안쪽 선은 'white'라 다크 모드 색 바꾸기에 안 걸림) */
 export function Badge({ tier, size, inner = true, lift }: { tier: Tier; size: number; inner?: boolean; lift?: LiftKey }) {
   const [out, inn] = SHAPES[lift ?? 'all']
+  const id = useId().replace(/:/g, '')
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path d={out} fill={tier.color} stroke={tier.i === 8 ? GOLD : 'none'} strokeWidth={tier.i === 8 ? 2 : 0} strokeLinejoin="round" />
+      {tier.i === 9 && <Rainbow id={`${id}rb`} />}
+      <path d={out} fill={tier.i === 9 ? `url(#${id}rb)` : tier.color} stroke={tier.i === 8 ? GOLD : 'none'} strokeWidth={tier.i === 8 ? 2 : 0} strokeLinejoin="round" />
       {/* 엘리트는 바탕이 var(--ink)라 다크에서 밝다: 안쪽 띠를 바탕색(다크면 검정)으로 */}
       {inner && <path d={inn} fill="none" stroke={tier.i === 6 ? 'var(--bg)' : tier.i === 8 ? GOLD : 'white'} strokeWidth="2.5" strokeOpacity={tier.i === 6 ? 1 : 0.75} strokeLinejoin="round" />}
     </svg>
   )
 }
+
+/** 미라클 배지 무지개 그라데이션 */
+function Rainbow({ id }: { id: string }) {
+  return (
+    <defs>
+      <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+        {RAINBOW.map((c, k) => (
+          <stop key={c} offset={`${(k / (RAINBOW.length - 1)) * 100}%`} stopColor={c} />
+        ))}
+      </linearGradient>
+    </defs>
+  )
+}
+const RAINBOW_CSS = `linear-gradient(90deg, ${RAINBOW.join(', ')})`
 
 /** 종목 티어 */
 export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): TierInfo | null {
@@ -67,7 +84,8 @@ function BigBadge({ i, out, inn, fill, style, shine = true }: { i: number; out: 
           <path d={out} />
         </clipPath>
       </defs>
-      <path d={out} fill={i === 8 ? `url(#${id}lg)` : fill} stroke={line} strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
+      {i === 9 && <Rainbow id={`${id}rb`} />}
+      <path d={out} fill={i === 9 ? `url(#${id}rb)` : i === 8 ? `url(#${id}lg)` : fill} stroke={line} strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
       <path d={inn} fill="none" stroke={line} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
       {shine && i >= 6 && (
         <g clipPath={`url(#${id}cl)`}>
@@ -94,7 +112,7 @@ export function myTop(t: TierInfo) {
   const v = Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * Math.min(1, Math.max(0, p)))
   return v >= 10 ? Math.round(v) : v >= 1 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100
 }
-const myTopText = (t: TierInfo) => L(`상위 ${myTop(t)}%`, `Top ${myTop(t)}%`)
+const myTopText = (t: TierInfo) => (t.tier.i === 9 ? L('관리자가 준 특별 티어', 'Special tier') : L(`상위 ${myTop(t)}%`, `Top ${myTop(t)}%`))
 
 /** 체중 대비 몇 배 */
 const ratioText = (w: number, bw: number, d = 2) => L(`체중의 ${(w / bw).toFixed(d)}배`, `${(w / bw).toFixed(d)}× BW`)
@@ -116,7 +134,9 @@ const total = (s: AppState) => CARD_ORDER.reduce((a, k) => a + s.lifts[k].oneRM,
 export function overallTier(s: AppState): TierInfo | null {
   const b = s.settings.body
   if (!b) return null
-  return tierInfo(total(s), b.weight, b.sex, s.settings.unit)
+  const t = tierInfo(total(s), b.weight, b.sex, s.settings.unit)
+  // 관리자가 준 미라클이면 3대 티어는 미라클
+  return cloudMiracle() ? asMiracle(t) : t
 }
 
 /** 1RM이 바뀌었을 때 3대 티어 (승급 확인용) */
@@ -124,15 +144,16 @@ export function tierWith(s: AppState, lift: LiftKey, rm: number): TierInfo | nul
   const b = s.settings.body
   if (!b) return null
   const t = total(s) - s.lifts[lift].oneRM + rm
-  return tierInfo(t, b.weight, b.sex, s.settings.unit)
+  const info = tierInfo(t, b.weight, b.sex, s.settings.unit)
+  return cloudMiracle() ? asMiracle(info) : info
 }
 
-const nextText = (t: TierInfo, u: string) => (t.next ? L(`${t.next.name()}까지 +${fmt(t.need)}${u}`, `+${fmt(t.need)}${u} to ${t.next.name()}`) : L('최고 티어', 'Top tier'))
+const nextText = (t: TierInfo, u: string) => (t.tier.i === 9 ? L('특별 티어', 'Special tier') : t.next ? L(`${t.next.name()}까지 +${fmt(t.need)}${u}`, `+${fmt(t.need)}${u} to ${t.next.name()}`) : L('최고 티어', 'Top tier'))
 
 function Bar({ t, h = 6 }: { t: TierInfo; h?: number }) {
   return (
     <span style={{ height: h, borderRadius: h / 2, background: 'var(--line)', overflow: 'hidden', display: 'block' }}>
-      <span style={{ display: 'block', width: `${Math.round(t.progress * 100)}%`, height: '100%', borderRadius: h / 2, background: t.tier.color }} />
+      <span style={{ display: 'block', width: `${Math.round(t.progress * 100)}%`, height: '100%', borderRadius: h / 2, background: t.tier.i === 9 ? RAINBOW_CSS : t.tier.color }} />
     </span>
   )
 }
@@ -330,6 +351,17 @@ export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftK
         </div>
       )}
       <ol aria-label={L('티어 표', 'Tier table')} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* 미라클: 무게가 아니라 관리자가 정한다 */}
+        {!lift && (
+          <li style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, padding: '0 8px', borderRadius: 12, background: t.tier.i === 9 ? 'var(--fill)' : 'transparent' }}>
+            <Badge tier={MIRACLE} size={22} inner={false} />
+            <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: t.tier.i === 9 ? 800 : 500, color: t.tier.i === 9 ? MIRACLE.text : 'var(--ink2)', whiteSpace: 'nowrap' }}>
+              {MIRACLE.name()}
+              {t.tier.i === 9 && <span style={{ height: 20, padding: '0 7px', borderRadius: 6, background: 'var(--surface)', color: 'var(--ink2)', fontSize: 11, fontWeight: 700, lineHeight: '20px' }}>{L('지금', 'You')}</span>}
+            </span>
+            <span style={{ fontSize: 13, color: 'var(--sub)', whiteSpace: 'nowrap' }}>{L('관리자가 정해요', 'Granted by admin')}</span>
+          </li>
+        )}
         {table.map(({ tier, from }, i) => {
           const me = tier.i === t.tier.i
           return (
@@ -602,7 +634,7 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
 
 
 /** 어두운 배경에서 잘 보이는 티어 색 (다크 모드 글자 색과 같음) */
-const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6', '#C4B5FD', '#FDA4AF']
+const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6', '#C4B5FD', '#FDA4AF', '#F0ABFC']
 
 /**
  * 인스타 스토리 공유 카드 (1080×1920) 그려서 공유 시트로, 안 되면 내려받기.

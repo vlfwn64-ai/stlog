@@ -34,6 +34,15 @@ export const TIERS: Tier[] = [
   T(8, 500, '레전드', 'Legend', '#E11D48'),
 ]
 
+/**
+ * 미라클: 무게가 아니라 관리자가 정하는 특별 티어 (3대 티어 자리에 나온다).
+ * 배지는 무지개(홀로그램) 그라데이션.
+ */
+export const MIRACLE: Tier = { i: 9, min: Infinity, name: () => L('미라클', 'Miracle'), color: '#C026D3', text: 'var(--tier9)', deep: '#1E1B4B', en: 'Miracle' }
+export const RAINBOW = ['#F472B6', '#A78BFA', '#60A5FA', '#34D399', '#FBBF24']
+/** 무게로 나온 티어를 미라클로 바꾼다 (점수는 그대로) */
+export const asMiracle = (t: TierInfo): TierInfo => ({ ...t, tier: MIRACLE, next: null, need: 0, progress: 1 })
+
 export const SHARE: Record<LiftKey, number> = { S: 0.36, B: 0.24, D: 0.4 }
 
 const LB = 2.20462

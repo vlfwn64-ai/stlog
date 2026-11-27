@@ -2,11 +2,11 @@
 import { useEffect, useState } from 'react'
 import type { Go } from '../App'
 import type { AdminRow } from '../cloud'
-import { adminUsers } from '../cloud'
+import { adminSetMiracle, adminUsers } from '../cloud'
 import { L } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import { programOf } from '../logic/programs'
-import { TIERS, tierInfo } from '../logic/tiers'
+import { MIRACLE, TIERS, asMiracle, tierInfo } from '../logic/tiers'
 import type { AppState } from '../store'
 import { today } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
@@ -14,10 +14,11 @@ import { Badge } from './Tier'
 
 const DAY = 86400000
 const total = (d: AppState) => CARD_ORDER.reduce((a, k) => a + (d.lifts[k]?.oneRM ?? 0), 0)
-const tierOfUser = (d: AppState) => {
+const tierOfUser = (d: AppState, miracle = false) => {
   const b = d.settings?.body
   if (!b || !d.onboarded) return null
-  return tierInfo(total(d), b.weight, b.sex, d.settings.unit)
+  const t = tierInfo(total(d), b.weight, b.sex, d.settings.unit)
+  return miracle ? asMiracle(t) : t
 }
 const lastSession = (d: AppState) => d.sessions?.reduce<string | null>((a, x) => (!a || x.date > a ? x.date : a), null) ?? null
 const daysAgo = (date: string) => Math.round((new Date(today()).getTime() - new Date(date).getTime()) / DAY)
@@ -31,12 +32,26 @@ export default function Admin({ go }: { go: Go }) {
   const [rows, setRows] = useState<AdminRow[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
 
-  useEffect(() => {
+  const load = () =>
     adminUsers()
       .then(setRows)
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)))
+  useEffect(() => {
+    void load()
   }, [])
+  /** 미라클 주기·빼기 */
+  const toggleMiracle = async (r: AdminRow) => {
+    setBusy(r.user_id)
+    try {
+      await adminSetMiracle(r.user_id, !r.miracle)
+      await load()
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    }
+    setBusy(null)
+  }
 
   const users = rows ?? []
   const withData = users.filter((r) => r.data?.onboarded)
@@ -46,7 +61,8 @@ export default function Admin({ go }: { go: Go }) {
   })
   const totals = withData.map((r) => total(r.data as AppState)).filter((t) => t > 0)
   const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : 0
-  const tierCount = TIERS.map((t) => withData.filter((r) => tierOfUser(r.data as AppState)?.tier.i === t.i).length)
+  const ALL = [...TIERS, MIRACLE]
+  const tierCount = ALL.map((t) => withData.filter((r) => tierOfUser(r.data as AppState, r.miracle)?.tier.i === t.i).length)
   const maxCount = Math.max(1, ...tierCount)
 
   const card = (label: string, value: string) => (
@@ -89,14 +105,14 @@ export default function Admin({ go }: { go: Go }) {
             <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('티어 분포', 'Tiers')}</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '14px 16px', borderRadius: 16, background: 'var(--fill2)' }}>
-                {[...TIERS].reverse().map((t) => {
+                {[...ALL].reverse().map((t) => {
                   const n = tierCount[t.i]
                   return (
                     <div key={t.i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <Badge tier={t} size={20} inner={false} />
                       <span style={{ width: 56, fontSize: 13, fontWeight: 600 }}>{t.name()}</span>
                       <span style={{ flex: 1, height: 10, borderRadius: 5, background: 'var(--line)', overflow: 'hidden' }}>
-                        <span style={{ display: 'block', width: `${(n / maxCount) * 100}%`, height: '100%', borderRadius: 5, background: t.i === 6 ? 'var(--ink)' : t.color }} />
+                        <span style={{ display: 'block', width: `${(n / maxCount) * 100}%`, height: '100%', borderRadius: 5, background: t.i === 9 ? 'linear-gradient(90deg, #F472B6, #A78BFA, #60A5FA, #34D399, #FBBF24)' : t.i === 6 ? 'var(--ink)' : t.color }} />
                       </span>
                       <span className="num" style={{ width: 28, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>
                         {n}
@@ -113,7 +129,7 @@ export default function Admin({ go }: { go: Go }) {
                 {users.map((r) => {
                   const d = r.data
                   const b = d?.settings?.body
-                  const t = d ? tierOfUser(d) : null
+                  const t = d ? tierOfUser(d, r.miracle) : null
                   const u = d?.settings?.unit ?? 'kg'
                   const isOpen = open === r.user_id
                   const name = r.email || `${r.provider ?? ''} · ${r.user_id.slice(0, 8)}`
@@ -157,6 +173,15 @@ export default function Admin({ go }: { go: Go }) {
                           </span>
                         )}
                       </button>
+                      {isOpen && (
+                        <button
+                          disabled={busy === r.user_id}
+                          onClick={() => void toggleMiracle(r)}
+                          style={{ marginTop: 6, width: '100%', height: 44, borderRadius: 12, background: r.miracle ? 'var(--fill2)' : 'linear-gradient(90deg, #F472B6, #A78BFA, #60A5FA, #34D399, #FBBF24)', color: r.miracle ? 'var(--ink)' : '#FFFFFF', fontSize: 15, fontWeight: 800, opacity: busy === r.user_id ? 0.5 : 1 }}
+                        >
+                          {r.miracle ? L('미라클 빼기', 'Remove Miracle') : L('미라클 티어 주기', 'Grant Miracle tier')}
+                        </button>
+                      )}
                     </li>
                   )
                 })}

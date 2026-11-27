@@ -27,9 +27,19 @@ export interface CloudState {
   ready: boolean
   /** 처음 로그인했는데 양쪽 다 기록이 있을 때 */
   choice?: { remote: AppState; remoteAt: number }
+  /** 관리자가 준 미라클 티어 */
+  miracle?: boolean
 }
 
-let cs: CloudState = { session: null, status: cloudReady ? 'idle' : 'off', checked: !cloudReady, ready: false }
+const MIRACLE_KEY = 'stlog:miracle'
+const readMiracle = () => {
+  try {
+    return localStorage.getItem(MIRACLE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+let cs: CloudState = { session: null, status: cloudReady ? 'idle' : 'off', checked: !cloudReady, ready: false, miracle: cloudReady && readMiracle() }
 const subs = new Set<() => void>()
 const emit = (p: Partial<CloudState>) => {
   cs = { ...cs, ...p }
@@ -97,6 +107,29 @@ export const linkedProviders = (s: Session | null): Provider[] => {
 /** 사용자가 누른 로그인 버튼 (서버 기록보다 정확해서 이걸로 표시) */
 const PICKED = 'stlog:provider'
 
+/** 미라클 티어인지 (오프라인 대비로 이 기기에도 기억) */
+export const cloudMiracle = () => !!cs.miracle
+async function loadMiracle(userId: string) {
+  if (!sb) return
+  const { data, error } = await sb.from('miracle').select('user_id').eq('user_id', userId).maybeSingle()
+  if (error) return
+  const on = !!data
+  try {
+    localStorage.setItem(MIRACLE_KEY, on ? '1' : '0')
+  } catch {
+    /* 저장 못 해도 이번 실행에는 쓴다 */
+  }
+  emit({ miracle: on })
+}
+
+/** 관리자만: 미라클 주기·빼기 */
+export async function adminSetMiracle(userId: string, on: boolean) {
+  if (!sb) throw new Error('cloud off')
+  const { error } = await sb.rpc('admin_set_miracle', { target: userId, on_: on })
+  if (error) throw error
+  if (cs.session?.user.id === userId) void loadMiracle(userId)
+}
+
 /** 관리자 계정인지 (서버 함수 is_admin, supabase/admin.sql) */
 export async function isAdmin(): Promise<boolean> {
   if (!sb || !cs.session) return false
@@ -111,6 +144,7 @@ export interface AdminRow {
   created_at: string
   updated_at: string | null
   data: AppState | null
+  miracle: boolean
 }
 
 /** 관리자만: 사용자 전체와 기록. 관리자가 아니면 서버가 거절한다 */
@@ -259,6 +293,7 @@ export function startCloud() {
   started = true
   const handle = (session: Session | null) => {
     emit({ session, checked: true })
+    if (session) void loadMiracle(session.user.id)
     if (!session || handled === session.user.id) return
     handled = session.user.id
     if (linkedTo() === session.user.id) {
@@ -274,7 +309,12 @@ export function startCloud() {
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
       handled = null
-      return emit({ session: null, ready: false })
+      try {
+        localStorage.removeItem(MIRACLE_KEY)
+      } catch {
+        /* 무시 */
+      }
+      return emit({ session: null, ready: false, miracle: false })
     }
     handle(session)
   })
