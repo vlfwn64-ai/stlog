@@ -107,17 +107,18 @@ export function TierCard({ s, go, onOpen }: { s: AppState; go: Go; onOpen: () =>
   if (!t) return <NeedBody go={go} />
   const u = s.settings.unit
   return (
-    <button onClick={onOpen} aria-label={`${L('내 티어', 'My tier')} ${t.tier.name()}, ${nextText(t, u)}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 16, background: 'var(--fill2)', textAlign: 'left' }}>
-      <Badge tier={t.tier} size={36} />
+    <button onClick={onOpen} aria-label={`${L('내 티어', 'My tier')} ${t.tier.name()}, ${nextText(t, u)}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '16px 14px 16px 16px', borderRadius: 18, background: 'var(--fill2)', textAlign: 'left' }}>
+      <Badge tier={t.tier} size={56} />
       <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
         <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontSize: 16, fontWeight: 800 }}>
-            {t.tier.name()}{' '}
-            <span className="num" style={{ fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
-              DOTS {Math.round(t.score)}
-            </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
+          <span className="num" style={{ fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
+            DOTS {Math.round(t.score)}
           </span>
-          <span className="num" style={{ fontSize: 13, fontWeight: 700, color: t.tier.text }}>
+        </span>
+        <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.4, whiteSpace: 'nowrap' }}>{t.tier.name()}</span>
+          <span className="num" style={{ fontSize: 14, fontWeight: 700, color: t.tier.text, whiteSpace: 'nowrap' }}>
             {nextText(t, u)}
           </span>
         </span>

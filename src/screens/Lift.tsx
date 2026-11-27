@@ -181,8 +181,8 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
         </nav>
       </header>
 
-      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '14px 20px 0', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) both' : slide ? `${slide === 'right' ? 'fromRight' : 'fromLeft'} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}>
-        <h1 className="num" style={{ fontSize: 22, fontWeight: 800 }}>
+      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 20px 0', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) both' : slide ? `${slide === 'right' ? 'fromRight' : 'fromLeft'} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}>
+        <h1 className="num" style={{ fontSize: 21, fontWeight: 800 }}>
           {test || !main ? (
             <>
               1RM <span style={{ color: th.text }}>TEST</span>
@@ -198,9 +198,9 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           )}
         </h1>
 
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
               {L('1RM 추이', '1RM trend')}
               <span className="num" style={{ fontSize: 13, fontWeight: 500, color: 'var(--mute)' }}>
                 {goal > p.oneRM ? L(`목표까지 ${fmt(goal - p.oneRM)}${u}`, `${fmt(goal - p.oneRM)}${u} to goal`) : L('목표 달성', 'Goal reached')}
@@ -211,10 +211,10 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           <button type="button" onClick={toggle} aria-label={L('눌러서 추정과 실제 전환', 'Tap to switch estimated and actual')} style={{ display: 'block', width: '100%' }}>
             <LiftChart lift={lift} pts={liftPoints(s, lift, mode)} range={range} cycleStart={s.lifts[lift].cycleStart} />
           </button>
-          <RangeTabs value={range} options={['cycle', '1m', '3m', '6m', '1y', 'all']} onChange={setRange} />
+          <RangeTabs value={range} options={['cycle', '1m', '3m', '6m', '1y', 'all']} onChange={setRange} compact />
         </section>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, background: 'var(--fill2)', borderRadius: 14, padding: '12px 14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, background: 'var(--fill2)', borderRadius: 14, padding: '6px 14px' }}>
           {(
             [
               [L('추정 1RM', 'Est. 1RM'), est],
@@ -222,9 +222,9 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
               [L('목표', 'Goal'), goal],
             ] as [string, number | null][]
           ).map(([k, v]) => (
-            <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               <span style={{ fontSize: 12, color: 'var(--mute)' }}>{k}</span>
-              <span className="num" style={{ fontSize: 18, fontWeight: 700 }}>
+              <span className="num" style={{ fontSize: 17, fontWeight: 700 }}>
                 {v === null ? '–' : fmt(v)}
                 {v !== null && <span style={{ fontSize: 13, fontWeight: 500 }}> {u}</span>}
               </span>
@@ -232,15 +232,15 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           ))}
         </div>
 
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
               {L('이번 사이클', 'This cycle')}
               <span className="num" style={{ fontSize: 12, fontWeight: 500, color: 'var(--mute)' }}>
                 {md(p.cycleStart)}~
               </span>
             </h2>
-            <button onClick={() => setPop('prev')} style={{ height: 32, padding: '0 12px', borderRadius: 999, background: 'var(--fill2)', display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>
+            <button onClick={() => setPop('prev')} style={{ height: 30, padding: '0 12px', borderRadius: 999, background: 'var(--fill2)', display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, fontWeight: 600, color: 'var(--sub)' }}>
               {L('이전 사이클', 'Past cycles')}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E5968" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M9 6l6 6-6 6" />
@@ -269,13 +269,20 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                   <span style={{ fontSize: 14, fontWeight: cur ? 800 : 700, color: cur ? th.deep : 'var(--sub)' }}>{r.label}</span>
                   {r.sub && <span style={{ fontSize: 11, fontWeight: 600, color: cur ? th.deep : 'var(--mute)' }}>{r.sub}</span>}
                 </span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                <div
+                  ref={(el) => {
+                    // 한 줄로, 오늘 칸이 보이게 끝으로
+                    if (el) el.scrollLeft = el.scrollWidth
+                  }}
+                  data-nodrag
+                  style={{ display: 'flex', gap: 6, flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', margin: '-2px 0', padding: '2px 0' }}
+                >
                   {r.boxes.map((b, i) => (
                     <button
                       key={i}
                       onClick={() => setOpenId(b.id)}
                       aria-label={b.deload ? L(`${b.d} 디로드 기록 보기`, `View deload ${b.d}`) : L(`${b.d} 기록 보기`, `View ${b.d}`)}
-                      style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 44, height: 40, flexShrink: 0, borderRadius: 10, border: `1.5px ${b.deload ? 'dashed' : 'solid'} ${th.boxLine}`, background: b.deload ? 'var(--fill2)' : 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <span className="num" style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2, color: b.deload ? 'var(--sub)' : 'var(--ink)' }}>
                         {b.w}
@@ -286,7 +293,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                     </button>
                   ))}
                   {todayW && (
-                    <div style={{ width: 44, height: 44, borderRadius: 10, background: th.acc, boxShadow: th.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ width: 44, height: 40, flexShrink: 0, borderRadius: 10, background: th.acc, boxShadow: th.shadow, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                       <span className="num" style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2, color: th.on }}>
                         {todayW}
                       </span>
@@ -294,7 +301,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
                     </div>
                   )}
                   {!r.boxes.length && !todayW && (
-                    <div style={{ height: 44, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>{L('아직 기록 없음', 'No sets yet')}</div>
+                    <div style={{ height: 40, flexShrink: 0, borderRadius: 10, border: '1.5px dashed var(--line2)', padding: '0 14px', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--mute)' }}>{L('아직 기록 없음', 'No sets yet')}</div>
                   )}
                 </div>
               </div>
@@ -303,11 +310,11 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
           {/* 사이클 마지막 테스트 날에는 아래 '테스트 시작' 하나만 */}
           {!test && (
             <div style={{ display: 'grid', gridTemplateColumns: prog.canAdvance ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 8, marginTop: 2 }}>
-              <button onClick={() => setPop('test')} style={{ height: 44, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
+              <button onClick={() => setPop('test')} style={{ height: 40, borderRadius: 12, border: `1.5px solid ${th.line}`, background: 'var(--surface)', fontSize: 14, fontWeight: 800, color: th.deep }}>
                 {L('TEST하기', 'Test now')}
               </button>
               {prog.canAdvance && (
-                <button onClick={() => setPop('next')} style={{ height: 44, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
+                <button onClick={() => setPop('next')} style={{ height: 40, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 600, color: 'var(--ink2)' }}>
                   {prog.advanceLabel()}
                 </button>
               )}
@@ -316,7 +323,7 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
         </section>
       </main>
 
-      <div style={{ display: 'flex', gap: 8, padding: '14px 20px var(--safe-bot)', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) 60ms both' : undefined }}>
+      <div style={{ display: 'flex', gap: 8, padding: '10px 20px var(--safe-bot)', animation: enter ? 'liftIn 420ms cubic-bezier(0.2,0.8,0.2,1) 60ms both' : undefined }}>
         {(live || !test) && (
         <button
           onClick={() => setPop(live ? 'discard' : 'deload')}

@@ -21,7 +21,7 @@ const rpes = (): [Rpe, string, string][] => [
   [7, '7', L('3개 더 가능', '3 reps left')],
   [6, '6', L('4개 더 가능', '4+ reps left')],
   ['fail', L('실패', 'Fail'), L('목표 횟수를 못 채움', 'Missed the target reps')],
-  ['skip', L('잘 모르겠음', 'Not sure'), L('다음 무게는 그대로 둬요', 'Keep the next weight the same')],
+  ['skip', L('모름', 'Not sure'), L('다음 무게는 그대로 둬요', 'Keep the next weight the same')],
 ]
 
 type Edit = { id: string; f: 'w' | 'r'; d?: number }

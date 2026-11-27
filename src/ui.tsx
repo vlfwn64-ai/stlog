@@ -290,13 +290,13 @@ export const rangeName = (r: Range) =>
   ({ cycle: L('사이클', 'Cycle'), '1m': L('1개월', '1M'), '3m': L('3개월', '3M'), '6m': L('6개월', '6M'), '1y': L('1년', '1Y'), all: L('전체', 'All') })[r]
 
 /** 그래프 기간 버튼 */
-export function RangeTabs({ value, options, onChange }: { value: Range; options: Range[]; onChange: (r: Range) => void }) {
+export function RangeTabs({ value, options, onChange, compact }: { value: Range; options: Range[]; onChange: (r: Range) => void; compact?: boolean }) {
   return (
     <div role="group" aria-label={L('그래프 기간', 'Chart range')} style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`, gap: 2, padding: 3, borderRadius: 10, background: 'var(--fill)' }}>
       {options.map((r) => {
         const on = r === value
         return (
-          <button key={r} aria-pressed={on} onClick={() => onChange(r)} style={{ height: 30, borderRadius: 8, fontSize: 12, fontWeight: on ? 700 : 500, background: on ? 'var(--pill)' : 'transparent', color: on ? 'var(--ink)' : 'var(--mute)', boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
+          <button key={r} aria-pressed={on} onClick={() => onChange(r)} style={{ height: compact ? 26 : 30, borderRadius: 8, fontSize: 12, fontWeight: on ? 700 : 500, background: on ? 'var(--pill)' : 'transparent', color: on ? 'var(--ink)' : 'var(--mute)', boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08)' : 'none' }}>
             {rangeName(r)}
           </button>
         )
@@ -396,10 +396,10 @@ export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts
   const color = TH[lift].acc
   const x0 = 40
   const x1 = 334
-  const top = 18
-  const bot = 112
+  const top = 16
+  const bot = 86
   const all = perDay(pts.map((p) => ({ t: p.x, y: p.y })))
-  if (!all.length) return <svg width="100%" viewBox="0 0 350 138" aria-hidden="true" style={{ display: 'block' }} />
+  if (!all.length) return <svg width="100%" viewBox="0 0 350 108" aria-hidden="true" style={{ display: 'block' }} />
   const [t0, t1] = rangeOf(range, all, cycleStart)
   const X = (t: number) => +(x0 + ((x1 - x0) * (t - t0)) / (t1 - t0)).toFixed(1)
   const probe = smoothLine(all, t0, t1, X, () => 0)
@@ -409,7 +409,7 @@ export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts
   const mid = Math.round((lo + hi) / 2)
   const labels = xLabels(t0, t1)
   return (
-    <svg width="100%" viewBox="0 0 350 138" aria-hidden="true" style={{ display: 'block' }}>
+    <svg width="100%" viewBox="0 0 350 108" aria-hidden="true" style={{ display: 'block' }}>
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
@@ -443,7 +443,7 @@ export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts
         </>
       )}
       {labels.map((l, i) => (
-        <text key={i} x={X(l.t)} y="132" fontSize="10" fill="#6B7684" textAnchor={i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}>
+        <text key={i} x={X(l.t)} y="104" fontSize="10" fill="#6B7684" textAnchor={i === 0 ? 'start' : i === labels.length - 1 ? 'end' : 'middle'}>
           {l.s}
         </text>
       ))}
