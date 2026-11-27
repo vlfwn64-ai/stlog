@@ -3,7 +3,7 @@ import { phaseTitle, programOf } from '../logic/programs'
 import { testResult } from '../logic/program'
 import { deleteSession, deleteTest, saveTest } from '../actions'
 import type { SessionLog, TestLog } from '../store'
-import { step as stepOf, useApp } from '../store'
+import { step as stepOf, today, useApp } from '../store'
 import { TH, chipColors, fmt } from '../theme'
 import { L, attemptLabel, dayTitle, setsLabel } from '../i18n'
 import { Confirm, Sheet } from '../ui'
@@ -147,7 +147,11 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
 
   return (
     <Sheet onClose={onClose} title={day ? dayTitle(day) : L('기록', 'Log')}>
-      {total === 0 && <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 14, color: 'var(--mute)' }}>{L('이날은 기록이 없어요', 'Nothing logged this day')}</div>}
+      {total === 0 && (
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 14, color: 'var(--mute)' }}>
+          {day && day > today() ? L('아직 오지 않은 날이에요', 'This day hasn’t come yet') : L('이날은 기록이 없어요', 'Nothing logged this day')}
+        </div>
+      )}
       {sessions.map((x) => {
         const th = TH[x.lift]
         const done = x.sets.filter((r) => r.done)
@@ -240,6 +244,30 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
           </article>
         )
       })}
+      {!sessionId && day && (
+        <>
+          {day <= today() && (
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ padding: '0 4px', fontSize: 13, fontWeight: 700, color: 'var(--sub)' }}>{L('운동 기록 추가', 'Add a workout')}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+                {(['B', 'D', 'S'] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => {
+                      onClose()
+                      go({ name: 'add', date: day, lift: k, back })
+                    }}
+                    aria-label={L(`${TH[k].name} 기록 추가`, `Add ${TH[k].name}`)}
+                    style={{ height: 52, borderRadius: 12, background: TH[k].acc, color: TH[k].on, fontSize: 15, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                  >
+                    <span style={{ fontSize: 18, fontWeight: 900 }}>+</span> {TH[k].tab}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </Sheet>
   )
 }

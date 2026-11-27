@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
 import { phaseTitle, programOf } from '../logic/programs'
-import { applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
+import { addSession, applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
 import { REST_STEP, useRestTimer } from '../rest'
 import type { SetRow } from '../store'
-import { allGear, uid, useApp } from '../store'
+import type { LiftKey } from '../logic/program'
+import { allGear, progOf, step as stepOf, uid, useApp } from '../store'
 import { gearName, setTypes, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
 import { BeltIcon, Sheet } from '../ui'
 import type { Go, Route } from '../App'
@@ -24,11 +25,18 @@ const rpes = (): [Rpe, string, string][] => [
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
 const DEFAULT_REST = { base: 90, endAt: null, left: 90 }
 
-export default function Workout({ go, editId, back }: { go: Go; editId?: string; back?: Route }) {
+export default function Workout({ go, editId, add, back }: { go: Go; editId?: string; add?: { date: string; lift: LiftKey }; back?: Route }) {
   const s = useApp()
-  const editing = !!editId
-  // 지난 기록 수정: 고친 내용은 저장 누르기 전까지 여기에만
+  const editing = !!editId || !!add
+  // 지난 기록 수정·추가: 고친 내용은 저장 누르기 전까지 여기에만
   const [draft, setDraft] = useState(() => {
+    if (add) {
+      // 지난 날짜에 기록 추가: 지금 처방으로 채워 두고(한 것으로) 고쳐서 저장
+      const p = s.lifts[add.lift]
+      const prog = progOf(s)
+      const sets: SetRow[] = prog.sets(add.lift, p, stepOf(s)).map((w) => ({ id: uid(), type: w.type, weight: w.weight, reps: w.reps, done: true, gear: [] }))
+      return { lift: add.lift, program: prog.id, date: add.date, stage: p.stage, deload: false, sets }
+    }
     const x = editId ? s.sessions.find((ss) => ss.id === editId) : undefined
     return x ? { lift: x.lift, program: x.program, date: x.date, stage: x.stage, deload: x.deload, sets: x.sets.map((r) => ({ ...r })) } : null
   })
@@ -199,7 +207,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: th.text }}>{th.title}</h1>
           <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-            {editing ? `${L('기록 수정', 'Edit')} · ${sub}` : sub}
+            {add ? `${L('기록 추가', 'Add')} · ${sub}` : editing ? `${L('기록 수정', 'Edit')} · ${sub}` : sub}
           </span>
         </div>
       </header>
@@ -257,6 +265,7 @@ export default function Workout({ go, editId, back }: { go: Go; editId?: string;
           <button
             onClick={() => {
               if (editId && draft) saveSession(editId, draft.sets)
+              if (add && draft) addSession(draft)
               go(back ?? { name: 'home' })
             }}
             style={{ width: '100%', height: 56, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 17, fontWeight: 700 }}

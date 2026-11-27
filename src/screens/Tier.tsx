@@ -1,5 +1,6 @@
 // 티어 화면 조각: 배지, 홈·성장 탭 카드, 종목별 티어, 내 티어 시트, 승급 화면, 공유 이미지
 import { useState } from 'react'
+import type React from 'react'
 import { L, isEn } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import type { Tier, TierInfo } from '../logic/tiers'
@@ -12,16 +13,34 @@ import type { Go } from '../App'
 
 const HEX = 'M24 3 L43 14 L43 34 L24 45 L5 34 L5 14 Z'
 const HEX_IN = 'M24 12 L35 18.5 L35 29.5 L24 36 L13 29.5 L13 18.5 Z'
+/** 배지 모양: 3대는 육각형, 벤치 역삼각형, 데드 오각형(뒤집힌), 스쿼트 마름모(45도 돌린 정사각형) */
+const SHAPES: Record<'all' | LiftKey, [string, string]> = {
+  all: [HEX, HEX_IN],
+  B: ['M4 7 L44 7 L24 43 Z', 'M14 13 L34 13 L24 31 Z'],
+  D: ['M24 46 L4.03 31.49 L11.66 8.01 L36.34 8.01 L43.97 31.49 Z', 'M24 36.55 L13.02 28.57 L17.21 15.66 L30.79 15.66 L34.98 28.57 Z'],
+  S: ['M24 3 L45 24 L24 45 L3 24 Z', 'M24 13.08 L34.92 24 L24 34.92 L13.08 24 Z'],
+}
 
-/** 육각형 배지 (안쪽 선은 'white'라 다크 모드 색 바꾸기에 안 걸림) */
-export function Badge({ tier, size, inner = true }: { tier: Tier; size: number; inner?: boolean }) {
+/** 티어 배지 (안쪽 선은 'white'라 다크 모드 색 바꾸기에 안 걸림) */
+export function Badge({ tier, size, inner = true, lift }: { tier: Tier; size: number; inner?: boolean; lift?: LiftKey }) {
+  const [out, inn] = SHAPES[lift ?? 'all']
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path d={HEX} fill={tier.color} />
-      {inner && <path d={HEX_IN} fill="none" stroke="white" strokeWidth="2.5" strokeOpacity="0.75" />}
+      <path d={out} fill={tier.color} />
+      {inner && <path d={inn} fill="none" stroke="white" strokeWidth="2.5" strokeOpacity="0.75" strokeLinejoin="round" />}
     </svg>
   )
 }
+
+/** 종목 티어 */
+export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): TierInfo | null {
+  const b = s.settings.body
+  if (!b) return null
+  return tierInfo(rm, b.weight, b.sex, s.settings.unit, stepOf(s), lift)
+}
+
+/** 티어가 오를 때 쓰는 밝은 종목 색 (짙은 배경 위) */
+const BRIGHT: Record<LiftKey, string> = { S: '#5BE39E', B: '#FF8A94', D: '#FFD45C' }
 
 const total = (s: AppState) => CARD_ORDER.reduce((a, k) => a + s.lifts[k].oneRM, 0)
 
@@ -95,14 +114,14 @@ export function TierCard({ s, go, onOpen }: { s: AppState; go: Go; onOpen: () =>
 }
 
 /** 성장 탭: 3대 티어 (크게) + 종목별 티어 */
-export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: () => void }) {
+export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: (lift?: LiftKey) => void }) {
   const t = overallTier(s)
   const b = s.settings.body
   if (!t || !b) return <NeedBody go={go} />
   const u = s.settings.unit
   return (
     <>
-      <button onClick={onOpen} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 18, background: 'var(--fill2)', textAlign: 'left' }}>
+      <button onClick={() => onOpen()} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 18, background: 'var(--fill2)', textAlign: 'left' }}>
         <Badge tier={t.tier} size={56} />
         <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
@@ -128,12 +147,12 @@ export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
         {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
           const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
           return (
-            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--fill)' }}>
+            <button key={k} onClick={() => onOpen(k)} aria-label={`${TH[k].name} ${lt.tier.name()}, ${nextText(lt, u)}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--fill)', textAlign: 'left' }}>
               <span style={{ width: 36, height: 36, borderRadius: 10, background: TH[k].acc, color: TH[k].on, fontSize: 18, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{k}</span>
               <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
                 <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 800 }}>
-                    <Badge tier={lt.tier} size={18} inner={false} />
+                    <Badge tier={lt.tier} size={18} inner={false} lift={k} />
                     {lt.tier.name()}
                     <span className="num" style={{ fontSize: 12, fontWeight: 500, color: 'var(--mute)' }}>
                       1RM {fmt(s.lifts[k].oneRM)}
@@ -146,7 +165,8 @@ export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
                 </span>
                 <Bar t={lt} h={5} />
               </span>
-            </div>
+              <Chevron />
+            </button>
           )
         })}
       </section>
@@ -154,25 +174,25 @@ export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
   )
 }
 
-/** 내 티어 시트: 지금 티어, 다음까지, 티어 표 */
-export function TierSheet({ onClose }: { onClose: () => void }) {
+/** 내 티어 시트: 지금 티어, 다음까지, 티어 표 (lift가 있으면 그 종목 티어) */
+export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftKey }) {
   const s = useApp()
-  const t = overallTier(s)
+  const t = lift ? liftTier(s, lift) : overallTier(s)
   const b = s.settings.body
   const [busy, setBusy] = useState(false)
   if (!t || !b) return null
   const u = s.settings.unit
-  const table = tierTable(b.weight, b.sex, u, stepOf(s)).reverse()
+  const cur = lift ? s.lifts[lift].oneRM : total(s)
+  const table = tierTable(b.weight, b.sex, u, stepOf(s), lift).reverse()
   return (
     <Sheet onClose={onClose}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '0 4px' }}>
-        <Badge tier={t.tier} size={64} />
+        <Badge tier={t.tier} size={64} lift={lift} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: t.tier.text }}>{L('내 티어', 'My tier')}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: lift ? TH[lift].text : t.tier.text }}>{lift ? L(`${TH[lift].name} 티어`, `${TH[lift].name} tier`) : L('내 티어', 'My tier')}</span>
           <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5 }}>{t.tier.name()}</span>
           <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-            DOTS {Math.round(t.score)} · {L('3대', 'Total')} {fmt(total(s))}
-            {u} · {L('체중', 'BW')} {fmt(b.weight)}
+            {lift ? `1RM ${fmt(cur)}${u}` : `DOTS ${Math.round(t.score)} · ${L('3대', 'Total')} ${fmt(cur)}${u}`} · {L('체중', 'BW')} {fmt(b.weight)}
             {u}
           </span>
         </div>
@@ -181,7 +201,9 @@ export function TierSheet({ onClose }: { onClose: () => void }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px', borderRadius: 14, background: 'var(--fill2)' }}>
           <div className="num" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontSize: 15, fontWeight: 800 }}>{nextText(t, u)}</span>
-            <span style={{ fontSize: 12, color: 'var(--mute)' }}>{L(`3대 ${fmt(total(s) + t.need)}${u}이면 승급`, `Tier up at ${fmt(total(s) + t.need)}${u}`)}</span>
+            <span style={{ fontSize: 12, color: 'var(--mute)' }}>
+              {lift ? L(`1RM ${fmt(cur + t.need)}${u}이면 승급`, `Tier up at ${fmt(cur + t.need)}${u}`) : L(`3대 ${fmt(cur + t.need)}${u}이면 승급`, `Tier up at ${fmt(cur + t.need)}${u}`)}
+            </span>
           </div>
           <Bar t={t} h={8} />
         </div>
@@ -191,15 +213,17 @@ export function TierSheet({ onClose }: { onClose: () => void }) {
           const me = tier.i === t.tier.i
           return (
             <li key={tier.i} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 40, padding: '0 10px', borderRadius: 12, background: me ? 'var(--fill)' : 'transparent' }}>
-              <Badge tier={tier} size={22} inner={false} />
+              <Badge tier={tier} size={22} inner={false} lift={lift} />
               <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: me ? 800 : 500, color: me ? tier.text : 'var(--ink2)', whiteSpace: 'nowrap' }}>
                 {tier.name()}
                 {me && <span style={{ height: 20, padding: '0 7px', borderRadius: 6, background: 'var(--surface)', color: 'var(--ink2)', fontSize: 11, fontWeight: 700, lineHeight: '20px' }}>{L('지금', 'You')}</span>}
               </span>
-              <span className="num" style={{ width: 76, textAlign: 'right', fontSize: 13, color: 'var(--sub)', whiteSpace: 'nowrap' }}>
-                DOTS {tier.min}
-                {i === 0 ? '+' : ''}
-              </span>
+              {!lift && (
+                <span className="num" style={{ width: 76, textAlign: 'right', fontSize: 13, color: 'var(--sub)', whiteSpace: 'nowrap' }}>
+                  DOTS {tier.min}
+                  {i === 0 ? '+' : ''}
+                </span>
+              )}
               <span className="num" style={{ width: 72, textAlign: 'right', fontSize: 14, fontWeight: me ? 800 : 500, whiteSpace: 'nowrap' }}>
                 {from === 0 ? `~${fmt(table[i - 1]?.from ? table[i - 1].from - stepOf(s) : 0)}${u}` : `${fmt(from)}${u}~`}
               </span>
@@ -208,20 +232,27 @@ export function TierSheet({ onClose }: { onClose: () => void }) {
         })}
       </ol>
       <p style={{ marginTop: -4, padding: '0 4px', fontSize: 12, lineHeight: 1.6, color: 'var(--mute)' }}>
-        {L('DOTS는 체중과 성별을 보정한 파워리프팅 점수예요. 티어는 지금 1RM으로 계산해요.', 'DOTS is a powerlifting score adjusted for bodyweight and sex. Your tier uses your current 1RMs.')}
+        {lift
+          ? L(
+              `종목별 티어는 3대 티어 기준을 종목 비율(스쿼트 36%, 벤치 24%, 데드 40%)로 나눠서 정해요.`,
+              'Lift tiers split the Big 3 tier totals by typical share (squat 36%, bench 24%, deadlift 40%).',
+            )
+          : L('DOTS는 체중과 성별을 보정한 파워리프팅 점수예요. 티어는 지금 1RM으로 계산해요.', 'DOTS is a powerlifting score adjusted for bodyweight and sex. Your tier uses your current 1RMs.')}
       </p>
-      <button
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true)
-          await shareCard(s)
-          setBusy(false)
-        }}
-        style={{ height: 52, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-      >
-        <ShareIcon color="currentColor" />
-        {busy ? L('만드는 중…', 'Making…') : L('인스타 스토리에 공유', 'Share to Instagram story')}
-      </button>
+      {!lift && (
+        <button
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            await shareCard(s)
+            setBusy(false)
+          }}
+          style={{ height: 52, borderRadius: 14, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <ShareIcon color="currentColor" />
+          {busy ? L('만드는 중…', 'Making…') : L('인스타 스토리에 공유', 'Share to Instagram story')}
+        </button>
+      )}
     </Sheet>
   )
 }
@@ -232,33 +263,72 @@ const ShareIcon = ({ color }: { color: string }) => (
   </svg>
 )
 
-/** 1RM 테스트 뒤 티어가 오르면 보이는 화면 */
-export function TierUp({ lift, prevRM, newRM, from, go }: { lift: LiftKey; prevRM: number; newRM: number; from: number; go: Go }) {
+/**
+ * 1RM 테스트 뒤 티어가 오르면 보이는 화면.
+ * 종목 티어가 올랐으면 그것 먼저, 3대 티어도 올랐으면 이어서.
+ */
+export function TierUp({ lift, prevRM, newRM, fromLift, fromAll, go }: { lift: LiftKey; prevRM: number; newRM: number; fromLift?: number; fromAll?: number; go: Go }) {
   const s = useApp()
+  const [step, setStep] = useState<'lift' | 'all'>(fromLift !== undefined ? 'lift' : 'all')
   const [busy, setBusy] = useState(false)
-  const t = overallTier(s)
   const b = s.settings.body
-  if (!t || !b) return null
+  const all = overallTier(s)
+  const lt = liftTier(s, lift)
+  const t = step === 'lift' ? lt : all
+  const from = step === 'lift' ? fromLift : fromAll
+  if (!t || !b || from === undefined) return null
   const u = s.settings.unit
+  const d = +(newRM - prevRM).toFixed(2)
+  const plus = (k: LiftKey) =>
+    k === lift && d > 0 ? (
+      <span style={{ color: BRIGHT[k], fontWeight: 800 }}>
+        {' '}
+        (+{fmt(d)})
+      </span>
+    ) : null
   const prevTotal = total(s) - newRM + prevRM
-  const prevScore = dots(prevTotal, b.weight, b.sex, u)
-  const rows: [string, string][] = [
-    [`${TH[lift].name} 1RM`, `${fmt(prevRM)} → ${fmt(newRM)}${u}`],
-    [L('3대 합계', 'Big 3 total'), `${fmt(prevTotal)} → ${fmt(total(s))}${u}`],
-    ['DOTS', `${Math.round(prevScore)} → ${Math.round(t.score)}`],
-    [L('다음 티어', 'Next tier'), nextText(t, u)],
-  ]
+  const rows: [string, React.ReactNode][] =
+    step === 'lift'
+      ? [
+          [`${TH[lift].name} 1RM`, <>{`${fmt(prevRM)} → ${fmt(newRM)}${u}`}{plus(lift)}</>],
+          [L('다음 티어', 'Next tier'), nextText(t, u)],
+        ]
+      : [
+          ...(['B', 'D', 'S'] as LiftKey[]).map((k): [string, React.ReactNode] => [
+            `${TH[k].name} 1RM`,
+            <>
+              {`${fmt(s.lifts[k].oneRM)}${u}`}
+              {plus(k)}
+            </>,
+          ]),
+          [
+            L('3대 합계', 'Big 3 total'),
+            <>
+              {`${fmt(prevTotal)} → ${fmt(total(s))}${u}`}
+              {plus(lift)}
+            </>,
+          ],
+          ['DOTS', `${Math.round(dots(prevTotal, b.weight, b.sex, u))} → ${Math.round(t.score)}`],
+          [L('다음 티어', 'Next tier'), nextText(t, u)],
+        ]
+  const shape = step === 'lift' ? lift : undefined
+  const [out, inn] = SHAPES[shape ?? 'all']
+  const more = step === 'lift' && fromAll !== undefined
   return (
-    <div className="screen" style={{ background: t.tier.deep, color: '#FFFFFF' }}>
+    <div key={step} className="screen" style={{ background: t.tier.deep, color: '#FFFFFF' }}>
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px', textAlign: 'center', animation: 'fadeIn 400ms ease both' }}>
-        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>TIER UP</span>
+        <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>{step === 'lift' ? `${TH[lift].tab.toUpperCase()} TIER UP` : 'BIG 3 TIER UP'}</span>
         <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both' }}>
-          <path d={HEX} fill={t.tier.i === 6 ? '#2C2C35' : t.tier.color} stroke="white" strokeWidth="1.6" />
-          <path d={HEX_IN} fill="none" stroke="white" strokeWidth="2.2" strokeOpacity="0.85" />
+          <path d={out} fill={t.tier.i === 6 ? '#2C2C35' : t.tier.color} stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d={inn} fill="none" stroke="white" strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>{t.tier.name()}</h1>
-          <span style={{ fontSize: 16, fontWeight: 600, opacity: 0.92 }}>{L(`${TIERS[from].name()}에서 ${t.tier.i - from}단계 올랐어요`, `Up ${t.tier.i - from} from ${TIERS[from].name()}`)}</span>
+          <span style={{ fontSize: 16, fontWeight: 600, opacity: 0.92 }}>
+            {step === 'lift'
+              ? L(`${TH[lift].name} ${TIERS[from].name()}에서 ${t.tier.i - from}단계 올랐어요`, `${TH[lift].name}: up ${t.tier.i - from} from ${TIERS[from].name()}`)
+              : L(`3대 ${TIERS[from].name()}에서 ${t.tier.i - from}단계 올랐어요`, `Big 3: up ${t.tier.i - from} from ${TIERS[from].name()}`)}
+          </span>
         </div>
         <div style={{ width: '100%', marginTop: 8, padding: '16px 18px', borderRadius: 16, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rows.map(([a, v]) => (
@@ -270,20 +340,25 @@ export function TierUp({ lift, prevRM, newRM, from, go }: { lift: LiftKey; prevR
         </div>
       </main>
       <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {step === 'all' && (
+          <button
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true)
+              await shareCard(s)
+              setBusy(false)
+            }}
+            style={{ height: 56, borderRadius: 14, background: '#FFFFFF', color: t.tier.deep, fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            <ShareIcon color={t.tier.deep} />
+            {busy ? L('만드는 중…', 'Making…') : L('인스타 스토리에 공유', 'Share to Instagram story')}
+          </button>
+        )}
         <button
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            await shareCard(s)
-            setBusy(false)
-          }}
-          style={{ height: 56, borderRadius: 14, background: '#FFFFFF', color: t.tier.deep, fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          onClick={() => (more ? setStep('all') : go({ name: 'lift', lift }))}
+          style={more ? { height: 56, borderRadius: 14, background: '#FFFFFF', color: t.tier.deep, fontSize: 17, fontWeight: 800 } : { height: 52, borderRadius: 14, color: '#FFFFFF', fontSize: 16, fontWeight: 700 }}
         >
-          <ShareIcon color={t.tier.deep} />
-          {busy ? L('만드는 중…', 'Making…') : L('인스타 스토리에 공유', 'Share to Instagram story')}
-        </button>
-        <button onClick={() => go({ name: 'lift', lift })} style={{ height: 52, borderRadius: 14, color: '#FFFFFF', fontSize: 16, fontWeight: 700 }}>
-          {L('확인', 'Done')}
+          {more ? L('3대 티어도 올랐어요 ›', 'Your Big 3 tier went up too ›') : L('확인', 'Done')}
         </button>
       </div>
     </div>

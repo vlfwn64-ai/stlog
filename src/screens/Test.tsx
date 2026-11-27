@@ -6,7 +6,7 @@ import type { RestState } from '../store'
 import type { LiftKey } from '../logic/program'
 import { firstAttempt, testResult, warmups } from '../logic/program'
 import { atTest, phaseTitle } from '../logic/programs'
-import { overallTier, tierWith } from './Tier'
+import { liftTier, overallTier, tierWith } from './Tier'
 import { finishTest } from '../actions'
 import { progOf, step as stepOf, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
@@ -66,12 +66,17 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
   const midCycle = !atTest(prog, p)
 
   const commit = (mode: 'new' | 'keep') => {
-    const before = overallTier(s)
     const prevRM = s.lifts[lift].oneRM
+    const newRM = testResult(prevRM, attempts)
+    const allBefore = overallTier(s)
+    const allAfter = tierWith(s, lift, newRM)
+    const liftBefore = liftTier(s, lift)
+    const liftAfter = liftTier(s, lift, newRM)
     finishTest(lift, attempts, mode)
-    // 3대 티어가 오르면 승급 화면
-    const after = tierWith(s, lift, testResult(prevRM, attempts))
-    if (before && after && after.tier.i > before.tier.i) go({ name: 'tierup', lift, prevRM, newRM: testResult(prevRM, attempts), from: before.tier.i })
+    // 종목 티어·3대 티어가 오르면 승급 화면 (종목 먼저, 3대 이어서)
+    const upLift = liftBefore && liftAfter && liftAfter.tier.i > liftBefore.tier.i ? liftBefore.tier.i : undefined
+    const upAll = allBefore && allAfter && allAfter.tier.i > allBefore.tier.i ? allBefore.tier.i : undefined
+    if (upLift !== undefined || upAll !== undefined) go({ name: 'tierup', lift, prevRM, newRM, fromLift: upLift, fromAll: upAll })
     else go({ name: 'lift', lift })
   }
 

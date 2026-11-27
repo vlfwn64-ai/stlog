@@ -110,11 +110,11 @@ function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }
             <span
               key={k}
               className="num"
-              role={lifts.length ? 'button' : undefined}
-              aria-label={lifts.length ? L(`${m + 1}월 ${i + 1}일 기록 보기`, `View ${k}`) : undefined}
-              onClick={lifts.length ? () => onPick(k) : undefined}
+              role="button"
+              aria-label={lifts.length ? L(`${m + 1}월 ${i + 1}일 기록 보기`, `View ${k}`) : L(`${m + 1}월 ${i + 1}일`, k)}
+              onClick={() => onPick(k)}
               style={{
-                cursor: lifts.length ? 'pointer' : undefined,
+                cursor: 'pointer',
                 height: 36,
                 borderRadius: 10,
                 display: 'flex',
@@ -163,7 +163,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
   const s = useApp()
   const [tab, setTabRaw] = useState<Tab>(tab0 ?? 'home')
   const [slide, setSlide] = useState<'fromRight' | 'fromLeft' | null>(null)
-  const [tierOpen, setTierOpen] = useState(false)
+  const [tierOpen, setTierOpen] = useState<false | 'all' | LiftKey>(false)
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const setTab = (t: Tab) => {
     if (t === tab) return
@@ -270,13 +270,13 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
             <HomeChart series={series} />
           </button>
         </section>
-            <GrowthTiers s={s} go={go} onOpen={() => setTierOpen(true)} />
+            <GrowthTiers s={s} go={go} onOpen={(k) => setTierOpen(k ?? 'all')} />
           </>
         )}
         {tab === 'home' && (
           <>
             <div style={fade}>
-              <TierCard s={s} go={go} onOpen={() => setTierOpen(true)} />
+              <TierCard s={s} go={go} onOpen={() => setTierOpen('all')} />
             </div>
         <section style={fade}>
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{L('훈련 기록하기', 'Log a workout')}</h2>
@@ -394,7 +394,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
           )
         })}
       {day && <DaySheet date={day} go={go} back={{ name: 'home', tab }} onClose={() => setDay(null)} />}
-      {tierOpen && <TierSheet onClose={() => setTierOpen(false)} />}
+      {tierOpen && <TierSheet lift={tierOpen === 'all' ? undefined : tierOpen} onClose={() => setTierOpen(false)} />}
       {anim && <div style={{ position: 'absolute', left: 0, right: 0, top: anim.to[0].y + 44, height: 1, background: 'var(--fill)', opacity: moving ? 1 : 0, transition: 'opacity 250ms ease' }} />}
     </div>
   )
