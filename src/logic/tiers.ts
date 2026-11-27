@@ -1,4 +1,4 @@
-// 티어: DOTS 점수(체중·성별을 보정한 파워리프팅 점수)로 7단계.
+// 티어: DOTS 점수(체중·성별을 보정한 파워리프팅 점수)로 9단계 (엘리트 위에 마스터·레전드).
 // 종목별 티어는 3대 티어 기준 합계를 스쿼트 36% · 벤치 24% · 데드 40%로 나눈 값.
 import { L } from '../i18n'
 import type { LiftKey, Unit } from './program'
@@ -19,7 +19,7 @@ export interface Tier {
   en: string
 }
 
-const DEEP = ['#4E5968', '#8A4F28', '#5B6678', '#8A6500', '#1F7F7D', '#1D5FD1', '#191F28']
+const DEEP = ['#4E5968', '#8A4F28', '#5B6678', '#8A6500', '#1F7F7D', '#1D5FD1', '#191F28', '#5B21B6', '#9F1239']
 const T = (i: number, min: number, ko: string, en: string, color: string): Tier => ({ i, min, name: () => L(ko, en), color, text: `var(--tier${i})`, deep: DEEP[i], en })
 
 export const TIERS: Tier[] = [
@@ -30,6 +30,8 @@ export const TIERS: Tier[] = [
   T(4, 300, '플래티넘', 'Platinum', '#2BA6A4'),
   T(5, 350, '다이아', 'Diamond', '#3B82F6'),
   T(6, 400, '엘리트', 'Elite', 'var(--ink)'),
+  T(7, 450, '마스터', 'Master', '#8B5CF6'),
+  T(8, 500, '레전드', 'Legend', '#E11D48'),
 ]
 
 export const SHARE: Record<LiftKey, number> = { S: 0.36, B: 0.24, D: 0.4 }

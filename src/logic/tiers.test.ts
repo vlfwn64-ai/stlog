@@ -19,7 +19,7 @@ describe('티어', () => {
     expect(tierInfo(200, 80, 'm', 'kg', 5, 'D').need).toBe(5)
   })
   it('티어 표 (80kg 남성)', () => {
-    expect(tierTable(80, 'm', 'kg', 5).map((x) => x.from)).toEqual([0, 220, 295, 365, 440, 510, 585])
+    expect(tierTable(80, 'm', 'kg', 5).map((x) => x.from)).toEqual([0, 220, 295, 365, 440, 510, 585, 655, 730])
   })
   it('lb도 kg과 같은 점수', () => {
     expect(Math.round(dots(505 * 2.20462, 80 * 2.20462, 'm', 'lb'))).toBe(348)

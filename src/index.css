@@ -26,6 +26,8 @@
   --tier4: #1F7F7D;
   --tier5: #1D5FD1;
   --tier6: #191F28;
+  --tier7: #6D28D9;
+  --tier8: #BE123C;
 
   font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
   color: var(--ink);
@@ -59,6 +61,8 @@
   --tier4: #4FD1CE;
   --tier5: #7FB0FF;
   --tier6: #F2F4F6;
+  --tier7: #C4B5FD;
+  --tier8: #FDA4AF;
 }
 
 /* SVG 속성에 적힌 색도 다크에서 바꾼다 */

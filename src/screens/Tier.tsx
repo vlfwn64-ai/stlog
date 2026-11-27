@@ -27,9 +27,9 @@ export function Badge({ tier, size, inner = true, lift }: { tier: Tier; size: nu
   const [out, inn] = SHAPES[lift ?? 'all']
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path d={out} fill={tier.color} />
+      <path d={out} fill={tier.color} stroke={tier.i === 8 ? GOLD : 'none'} strokeWidth={tier.i === 8 ? 2 : 0} strokeLinejoin="round" />
       {/* 엘리트는 바탕이 var(--ink)라 다크에서 밝다: 안쪽 띠를 바탕색(다크면 검정)으로 */}
-      {inner && <path d={inn} fill="none" stroke={tier.i === 6 ? 'var(--bg)' : 'white'} strokeWidth="2.5" strokeOpacity={tier.i === 6 ? 1 : 0.75} strokeLinejoin="round" />}
+      {inner && <path d={inn} fill="none" stroke={tier.i === 6 ? 'var(--bg)' : tier.i === 8 ? GOLD : 'white'} strokeWidth="2.5" strokeOpacity={tier.i === 6 ? 1 : 0.75} strokeLinejoin="round" />}
     </svg>
   )
 }
@@ -41,21 +41,26 @@ export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): 
   return tierInfo(rm, b.weight, b.sex, s.settings.unit, stepOf(s), lift)
 }
 
+/** 레전드 금테 */
+const GOLD = '#FFD45C'
+/** 큰 배지 은은한 빛: 엘리트 흰빛, 마스터 보랏빛, 레전드 금빛 */
+const glow = (i: number) => (i === 8 ? 'drop-shadow(0 0 14px rgba(255,212,92,0.75))' : i === 7 ? 'drop-shadow(0 0 12px rgba(196,181,253,0.6))' : i === 6 ? 'drop-shadow(0 0 12px rgba(255,255,255,0.35))' : undefined)
+
 /** 티어별 대략 상위 % (추정치, 티어가 시작하는 무게 기준) */
-const TOP = [100, 75, 50, 30, 15, 5, 1]
+const TOP = [100, 75, 50, 30, 15, 5, 1, 0.3, 0.1]
 const topText = (i: number) => (i === 0 ? '' : L(`상위 ${TOP[i]}%`, `Top ${TOP[i]}%`))
 
 /**
  * 내 상위 %: 티어 안에서도 다음 티어에 가까울수록 작아진다.
- * 티어 시작 %와 다음 티어 %를 로그 눈금으로 잇는다. 엘리트는 DOTS 400→500에서 1%→0.1%.
+ * 티어 시작 %와 다음 티어 %를 로그 눈금으로 잇는다. 레전드는 DOTS 500→600에서 0.1%→0.05%.
  */
 export function myTop(t: TierInfo) {
   const i = t.tier.i
   const a = TOP[i]
-  const b = i < TOP.length - 1 ? TOP[i + 1] : 0.1
+  const b = i < TOP.length - 1 ? TOP[i + 1] : 0.05
   const p = i < TOP.length - 1 ? t.progress : Math.min(1, Math.max(0, (t.score - t.tier.min) / 100))
   const v = Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * Math.min(1, Math.max(0, p)))
-  return v >= 10 ? Math.round(v) : Math.round(v * 10) / 10
+  return v >= 10 ? Math.round(v) : v >= 1 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100
 }
 const myTopText = (t: TierInfo) => L(`상위 ${myTop(t)}%`, `Top ${myTop(t)}%`)
 
@@ -421,9 +426,9 @@ function TierUpView({ step, lift, prevRM, newRM, from, more, onNext, go }: { ste
     <div className="screen" style={{ background: shown.deep, color: '#FFFFFF', transition: 'background-color 700ms ease' }}>
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px', textAlign: 'center' }}>
         <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>{step === 'lift' ? `${TH[lift].tab.toUpperCase()} TIER UP` : 'BIG 3 TIER UP'}</span>
-        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: ph ? 'tierPop 700ms cubic-bezier(0.2,0.8,0.2,1) both' : 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both' }}>
-          <path d={out} fill={fill} stroke="white" strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
-          <path d={inn} fill="none" stroke="white" strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
+        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: ph ? 'tierPop 700ms cubic-bezier(0.2,0.8,0.2,1) both' : 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both', filter: glow(shown.i), transition: 'filter 500ms ease 150ms' }}>
+          <path d={out} fill={fill} stroke={shown.i === 8 ? GOLD : 'white'} strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
+          <path d={inn} fill="none" stroke={shown.i === 8 ? GOLD : 'white'} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minHeight: 84 }}>
           <h1 key={shown.i} aria-live="polite" style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1, animation: ph ? 'up 420ms cubic-bezier(0.2,0.8,0.2,1) both' : undefined, opacity: ph ? 1 : 0.75 }}>
@@ -500,9 +505,9 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
       </header>
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px', textAlign: 'center' }}>
         <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>{lift ? `${TH[lift].tab.toUpperCase()} TIER` : 'BIG 3 TIER'}</span>
-        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both' }}>
-          <path d={out} fill={fill} stroke="white" strokeWidth="1.6" strokeLinejoin="round" />
-          <path d={inn} fill="none" stroke="white" strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
+        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both', filter: glow(t.tier.i) }}>
+          <path d={out} fill={fill} stroke={t.tier.i === 8 ? GOLD : 'white'} strokeWidth="1.6" strokeLinejoin="round" />
+          <path d={inn} fill="none" stroke={t.tier.i === 8 ? GOLD : 'white'} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>{t.tier.name()}</h1>
@@ -569,7 +574,7 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
 
 
 /** 어두운 배경에서 잘 보이는 티어 색 (다크 모드 글자 색과 같음) */
-const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6']
+const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6', '#C4B5FD', '#FDA4AF']
 
 /**
  * 인스타 스토리 공유 카드 (1080×1920) 그려서 공유 시트로, 안 되면 내려받기.
