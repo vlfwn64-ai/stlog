@@ -409,12 +409,12 @@ export function mainText(s: AppState, k: LiftKey): string | null {
 }
 
 /** 훈련 카드 무게: 훈련으로 나온 추정 1RM (없으면 1RM). 1RM은 티어 표에 있으니까 */
-const cardEst = (s: AppState, k: LiftKey) => {
+export const cardEst = (s: AppState, k: LiftKey) => {
   const e = latestEst(s, k)
   return e === null ? s.lifts[k].oneRM : Math.round(e * 10) / 10
 }
 
-function CardFace({ k, est, live, main }: { k: LiftKey; est: number; live: boolean; main: string | null }) {
+export function CardFace({ k, est, live, main }: { k: LiftKey; est: number; live: boolean; main: string | null }) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>

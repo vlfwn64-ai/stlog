@@ -9,7 +9,7 @@ import type { AppState } from '../store'
 import { step as stepOf, today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
 import { Sheet } from '../ui'
-import { mainText } from './Home'
+import { CardFace, cardEst, mainText } from './Home'
 import type { Go } from '../App'
 
 const HEX = 'M24 3 L43 14 L43 34 L24 45 L5 34 L5 14 Z'
@@ -525,14 +525,11 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
       </div>
       {pick && (
         <Sheet onClose={() => setPick(false)} title={L('무슨 훈련을 할까요?', 'What will you train?')}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* 홈 훈련 기록하기 카드와 같은 모양 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {CARD_ORDER.map((k) => (
-              <button key={k} onClick={() => train(k)} style={{ height: 56, borderRadius: 14, background: TH[k].acc, color: TH[k].on, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', fontSize: 17, fontWeight: 800 }}>
-                <span style={{ fontSize: 22, fontWeight: 900, width: 22 }}>{k}</span>
-                <span style={{ flex: 1, textAlign: 'left' }}>{TH[k].name}</span>
-                <span className="num" style={{ fontSize: 14, fontWeight: 700, opacity: 0.9 }}>
-                  {mainLine(s, k)}
-                </span>
+              <button key={k} onClick={() => train(k)} aria-label={L(`${TH[k].name} 훈련하기`, `Train ${TH[k].tab}`)} style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 140 }}>
+                <CardFace k={k} est={cardEst(s, k)} live={s.active?.lift === k} main={mainText(s, k)} />
               </button>
             ))}
           </div>
@@ -542,8 +539,6 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
   )
 }
 
-/** 고르기 창 오른쪽: 이번 훈련 (테스트 날이면 1RM 테스트) */
-const mainLine = (s: AppState, k: LiftKey) => mainText(s, k) ?? L('1RM 테스트', '1RM test')
 
 /** 어두운 배경에서 잘 보이는 티어 색 (다크 모드 글자 색과 같음) */
 const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6']
