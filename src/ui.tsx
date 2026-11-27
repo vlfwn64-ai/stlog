@@ -321,24 +321,60 @@ function perDay(pts: { t: number; y: number }[]) {
   return sorted.filter((p, i) => i === sorted.length - 1 || Math.floor(sorted[i + 1].t / DAY) !== Math.floor(p.t / DAY))
 }
 
-/**
- * 기록이 없는 날은 전날 값을 그대로 (계단 모양).
- * 기간 시작 전 마지막 값에서 시작해서 오늘까지 이어진다.
- */
-function stepLine(pts: { t: number; y: number }[], t0: number, t1: number, X: (t: number) => number, Y: (v: number) => number) {
-  const before = pts.filter((p) => p.t < t0)
-  const inside = pts.filter((p) => p.t >= t0 && p.t <= t1)
-  const start = before.length ? { t: t0, y: before[before.length - 1].y } : inside[0]
-  if (!start) return null
-  const seq = before.length ? [start, ...inside] : inside
-  let d = `M${X(start.t)},${Y(start.y)}`
-  let y = start.y
-  for (const p of seq.slice(1)) {
-    d += ` H${X(p.t)} V${Y(p.y)}`
-    y = p.y
+/** 단조 3차 곡선 경로 (Fritsch–Carlson): 점 사이를 부드럽게, 넘치지 않게 */
+function monotonePath(p: { x: number; y: number }[]) {
+  const n = p.length
+  if (n === 1) return `M${p[0].x},${p[0].y}`
+  const dx: number[] = []
+  const m: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(p[i + 1].x - p[i].x)
+    m.push((p[i + 1].y - p[i].y) / (p[i + 1].x - p[i].x))
   }
-  d += ` H${X(t1)}`
-  return { d, x0: X(start.t), last: { x: X(t1), y: Y(y), v: y }, inside, vals: [start.y, ...inside.map((p) => p.y)] }
+  const tg = p.map((_, i) => (i === 0 ? m[0] : i === n - 1 ? m[n - 2] : m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2))
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) {
+      tg[i] = 0
+      tg[i + 1] = 0
+      continue
+    }
+    const a = tg[i] / m[i]
+    const b = tg[i + 1] / m[i]
+    const h = a * a + b * b
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h)
+      tg[i] = t * a * m[i]
+      tg[i + 1] = t * b * m[i]
+    }
+  }
+  const f = (v: number) => +v.toFixed(1)
+  let d = `M${f(p[0].x)},${f(p[0].y)}`
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3
+    d += ` C${f(p[i].x + h)},${f(p[i].y + tg[i] * h)} ${f(p[i + 1].x - h)},${f(p[i + 1].y - tg[i + 1] * h)} ${f(p[i + 1].x)},${f(p[i + 1].y)}`
+  }
+  return d
+}
+
+/**
+ * 기록 사이는 부드러운 곡선, 마지막 기록 뒤로는 오늘까지 그대로,
+ * 첫 기록 앞으로는 첫 기록 값을 왼쪽 끝까지 쭉.
+ * 기간 밖 점도 곡선에 넣고 그래프 칸으로 잘라 보인다(clipPath).
+ */
+function smoothLine(pts: { t: number; y: number }[], t0: number, t1: number, X: (t: number) => number, Y: (v: number) => number) {
+  const upto = pts.filter((p) => p.t <= t1)
+  if (!upto.length) return null
+  const before = upto.filter((p) => p.t < t0)
+  const inside = upto.filter((p) => p.t >= t0)
+  // 기간 바로 앞 기록 하나만 곡선에 넣는다 (그보다 앞은 안 보이니까)
+  const seq = [...before.slice(-1), ...inside]
+  const first = seq[0]
+  const last = seq[seq.length - 1]
+  if (first.t > t0) seq.unshift({ t: t0, y: first.y })
+  if (last.t < t1) seq.push({ t: t1, y: last.y })
+  const px = seq.map((p) => ({ x: X(p.t), y: Y(p.y) })).filter((p, i, arr) => i === 0 || p.x > arr[i - 1].x)
+  const d = monotonePath(px)
+  return { d, x0: px[0].x, x1: px[px.length - 1].x, last: { x: X(t1), y: Y(last.y), v: last.y }, inside, vals: seq.map((p) => p.y) }
 }
 
 /** x축 날짜 글자: 짧은 기간은 월/일, 긴 기간은 월 */
@@ -364,10 +400,10 @@ export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts
   if (!all.length) return <svg width="100%" viewBox="0 0 350 138" aria-hidden="true" style={{ display: 'block' }} />
   const [t0, t1] = rangeOf(range, all, cycleStart)
   const X = (t: number) => +(x0 + ((x1 - x0) * (t - t0)) / (t1 - t0)).toFixed(1)
-  const probe = stepLine(all, t0, t1, X, () => 0)
+  const probe = smoothLine(all, t0, t1, X, () => 0)
   const { lo, hi } = niceRange(probe ? probe.vals : all.map((p) => p.y))
   const Y = (v: number) => +(bot - ((v - lo) / (hi - lo)) * (bot - top)).toFixed(1)
-  const sl = stepLine(all, t0, t1, X, Y)
+  const sl = smoothLine(all, t0, t1, X, Y)
   const mid = Math.round((lo + hi) / 2)
   const labels = xLabels(t0, t1)
   return (
@@ -377,6 +413,9 @@ export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
+        <clipPath id={`${gid}c`}>
+          <rect x={x0} y="0" width={x1 - x0 + 6} height={bot + 1} />
+        </clipPath>
       </defs>
       {[hi, mid, lo].map((v) => (
         <g key={v}>
@@ -388,8 +427,10 @@ export function LiftChart({ lift, pts, range, cycleStart }: { lift: LiftKey; pts
       ))}
       {sl && (
         <>
-          <path d={`${sl.d} V${bot} H${sl.x0} Z`} fill={`url(#${gid})`} />
-          <path d={sl.d} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          <g clipPath={`url(#${gid}c)`}>
+            <path d={`${sl.d} L${sl.x1},${bot} L${sl.x0},${bot} Z`} fill={`url(#${gid})`} />
+            <path d={sl.d} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          </g>
           {sl.inside.map((p, i) => (
             <circle key={i} cx={X(p.t)} cy={Y(p.y)} r={2.5} style={{ fill: 'var(--bg)' }} stroke={color} strokeWidth="2" />
           ))}
@@ -420,14 +461,14 @@ export function HomeChart({ series, range }: { series: { lift: LiftKey; pts: { t
   const [t0, t1] = rangeOf(range, flat)
   const X = (t: number) => +(hx0 + ((hx1 - hx0) * (t - t0)) / (t1 - t0)).toFixed(1)
   const per = series.map((sr) => ({ lift: sr.lift, pts: perDay(sr.pts) }))
-  const vals = per.flatMap((sr) => stepLine(sr.pts, t0, t1, X, () => 0)?.vals ?? [])
+  const vals = per.flatMap((sr) => smoothLine(sr.pts, t0, t1, X, () => 0)?.vals ?? [])
   const { lo, hi } = niceRange(vals.length ? vals : flat.map((p) => p.y))
   const Y = (v: number) => +(hbot - ((v - lo) / (hi - lo)) * (hbot - htop)).toFixed(1)
   const ticks = [hi, Math.round((lo + hi) / 2 / 5) * 5, lo]
   // 값 글자는 서로 겹치지 않게 띄운다
   const lines = per
     .map((sr) => {
-      const sl = stepLine(sr.pts, t0, t1, X, Y)
+      const sl = smoothLine(sr.pts, t0, t1, X, Y)
       return sl ? { lift: sr.lift, ...sl, ly: Math.max(10, +(sl.last.y - 7).toFixed(1)) } : null
     })
     .filter((l): l is NonNullable<typeof l> => !!l)
@@ -446,6 +487,9 @@ export function HomeChart({ series, range }: { series: { lift: LiftKey; pts: { t
             <stop offset="100%" stopColor={TH[sr.lift].acc} stopOpacity="0" />
           </linearGradient>
         ))}
+        <clipPath id={`${gid}c`}>
+          <rect x={hx0} y="0" width={hx1 - hx0 + 6} height={hbot + 1} />
+        </clipPath>
       </defs>
       {ticks.map((v) => (
         <g key={v}>
@@ -457,8 +501,10 @@ export function HomeChart({ series, range }: { series: { lift: LiftKey; pts: { t
       ))}
       {lines.map((l) => (
         <g key={l.lift}>
-          <path d={`${l.d} V${hbot} H${l.x0} Z`} fill={`url(#${gid + l.lift})`} />
-          <path d={l.d} fill="none" stroke={TH[l.lift].acc} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          <g clipPath={`url(#${gid}c)`}>
+            <path d={`${l.d} L${l.x1},${hbot} L${l.x0},${hbot} Z`} fill={`url(#${gid + l.lift})`} />
+            <path d={l.d} fill="none" stroke={TH[l.lift].acc} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          </g>
           <circle cx={l.last.x} cy={l.last.y} r="4" fill={TH[l.lift].acc} />
           <text x={+(l.last.x - 8).toFixed(1)} y={l.ly} fontSize="11" fontWeight="800" fill={TH[l.lift].label} textAnchor="end" style={{ stroke: 'var(--bg)', strokeWidth: 3, paintOrder: 'stroke', strokeLinejoin: 'round' }}>
             {l.lift} {l.last.v}
