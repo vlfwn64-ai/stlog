@@ -4,7 +4,7 @@ import type React from 'react'
 import { L, isEn } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import type { Tier, TierInfo } from '../logic/tiers'
-import { MIRACLE, RAINBOW, TIERS, asMiracle, dots, tierInfo, tierTable } from '../logic/tiers'
+import { MIRACLE, PEARL, PEARL_LINE, TIERS, asMiracle, dots, tierInfo, tierTable } from '../logic/tiers'
 import { cloudMiracle } from '../cloud'
 import type { AppState } from '../store'
 import { today, useApp } from '../store'
@@ -29,27 +29,27 @@ export function Badge({ tier, size, inner = true, lift }: { tier: Tier; size: nu
   const id = useId().replace(/:/g, '')
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" style={{ flexShrink: 0 }}>
-      {tier.i === 9 && <Rainbow id={`${id}rb`} />}
-      <path d={out} fill={tier.i === 9 ? `url(#${id}rb)` : tier.color} stroke={tier.i === 8 ? GOLD : 'none'} strokeWidth={tier.i === 8 ? 2 : 0} strokeLinejoin="round" />
-      {/* 엘리트는 바탕이 var(--ink)라 다크에서 밝다: 안쪽 띠를 바탕색(다크면 검정)으로 */}
-      {inner && <path d={inn} fill="none" stroke={tier.i === 6 ? 'var(--bg)' : tier.i === 8 ? GOLD : 'white'} strokeWidth="2.5" strokeOpacity={tier.i === 6 ? 1 : 0.75} strokeLinejoin="round" />}
+      {tier.i === 9 && <Pearl id={`${id}rb`} />}
+      <path d={out} fill={tier.i === 9 ? `url(#${id}rb)` : tier.color} stroke={tier.i === 8 ? GOLD : tier.i === 9 ? PEARL_LINE : 'none'} strokeWidth={tier.i === 8 ? 2 : tier.i === 9 ? 1.4 : 0} strokeLinejoin="round" />
+      {/* 엘리트는 바탕이 var(--ink)라 다크에서 밝다: 안쪽 띠를 바탕색(다크면 검정)으로. 미라클은 흰 배지라 진주색 띠 */}
+      {inner && <path d={inn} fill="none" stroke={tier.i === 6 ? 'var(--bg)' : tier.i === 8 ? GOLD : tier.i === 9 ? PEARL_LINE : 'white'} strokeWidth="2.5" strokeOpacity={tier.i === 6 || tier.i === 9 ? 1 : 0.75} strokeLinejoin="round" />}
     </svg>
   )
 }
 
-/** 미라클 배지 무지개 그라데이션 */
-function Rainbow({ id }: { id: string }) {
+/** 미라클 배지 우윳빛 그라데이션 */
+function Pearl({ id }: { id: string }) {
   return (
     <defs>
       <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-        {RAINBOW.map((c, k) => (
-          <stop key={c} offset={`${(k / (RAINBOW.length - 1)) * 100}%`} stopColor={c} />
+        {PEARL.map((c, k) => (
+          <stop key={c} offset={`${(k / (PEARL.length - 1)) * 100}%`} stopColor={c} />
         ))}
       </linearGradient>
     </defs>
   )
 }
-const RAINBOW_CSS = `linear-gradient(90deg, ${RAINBOW.join(', ')})`
+const PEARL_CSS = `linear-gradient(90deg, ${PEARL.join(', ')})`
 
 /** 종목 티어 */
 export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): TierInfo | null {
@@ -67,7 +67,7 @@ const GOLD = '#FFD45C'
  */
 function BigBadge({ i, out, inn, fill, style, shine = true }: { i: number; out: string; inn: string; fill: string; style?: React.CSSProperties; shine?: boolean }) {
   const id = useId().replace(/:/g, '')
-  const line = i === 8 ? GOLD : 'white'
+  const line = i === 8 ? GOLD : i === 9 ? PEARL_LINE : 'white'
   return (
     <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ overflow: 'visible', ...style }}>
       <defs>
@@ -84,7 +84,7 @@ function BigBadge({ i, out, inn, fill, style, shine = true }: { i: number; out: 
           <path d={out} />
         </clipPath>
       </defs>
-      {i === 9 && <Rainbow id={`${id}rb`} />}
+      {i === 9 && <Pearl id={`${id}rb`} />}
       <path d={out} fill={i === 9 ? `url(#${id}rb)` : i === 8 ? `url(#${id}lg)` : fill} stroke={line} strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
       <path d={inn} fill="none" stroke={line} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
       {shine && i >= 6 && (
@@ -128,6 +128,9 @@ export function recentGain(s: AppState, lift?: LiftKey): Gain | undefined {
 /** 티어가 오를 때 쓰는 밝은 종목 색 (짙은 배경 위) */
 const BRIGHT: Record<LiftKey, string> = { S: '#5BE39E', B: '#FF8A94', D: '#FFD45C' }
 
+/** 미라클을 받았고 설정에서 켜 둔 상태 */
+export const miracleOn = (s: AppState) => cloudMiracle() && s.settings.miracle !== false
+
 const total = (s: AppState) => CARD_ORDER.reduce((a, k) => a + s.lifts[k].oneRM, 0)
 
 /** 3대 티어 (내 정보가 없으면 null) */
@@ -135,8 +138,8 @@ export function overallTier(s: AppState): TierInfo | null {
   const b = s.settings.body
   if (!b) return null
   const t = tierInfo(total(s), b.weight, b.sex, s.settings.unit)
-  // 관리자가 준 미라클이면 3대 티어는 미라클
-  return cloudMiracle() ? asMiracle(t) : t
+  // 관리자가 준 미라클이면 3대 티어만 미라클 (설정에서 끄면 원래 티어)
+  return miracleOn(s) ? asMiracle(t) : t
 }
 
 /** 1RM이 바뀌었을 때 3대 티어 (승급 확인용) */
@@ -145,7 +148,7 @@ export function tierWith(s: AppState, lift: LiftKey, rm: number): TierInfo | nul
   if (!b) return null
   const t = total(s) - s.lifts[lift].oneRM + rm
   const info = tierInfo(t, b.weight, b.sex, s.settings.unit)
-  return cloudMiracle() ? asMiracle(info) : info
+  return miracleOn(s) ? asMiracle(info) : info
 }
 
 const nextText = (t: TierInfo, u: string) => (t.tier.i === 9 ? L('특별 티어', 'Special tier') : t.next ? L(`${t.next.name()}까지 +${fmt(t.need)}${u}`, `+${fmt(t.need)}${u} to ${t.next.name()}`) : L('최고 티어', 'Top tier'))
@@ -153,7 +156,7 @@ const nextText = (t: TierInfo, u: string) => (t.tier.i === 9 ? L('특별 티어'
 function Bar({ t, h = 6 }: { t: TierInfo; h?: number }) {
   return (
     <span style={{ height: h, borderRadius: h / 2, background: 'var(--line)', overflow: 'hidden', display: 'block' }}>
-      <span style={{ display: 'block', width: `${Math.round(t.progress * 100)}%`, height: '100%', borderRadius: h / 2, background: t.tier.i === 9 ? RAINBOW_CSS : t.tier.color }} />
+      <span style={{ display: 'block', width: `${Math.round(t.progress * 100)}%`, height: '100%', borderRadius: h / 2, background: t.tier.i === 9 ? PEARL_CSS : t.tier.color, boxShadow: t.tier.i === 9 ? `inset 0 0 0 1px ${PEARL_LINE}` : undefined }} />
     </span>
   )
 }
@@ -634,7 +637,7 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
 
 
 /** 어두운 배경에서 잘 보이는 티어 색 (다크 모드 글자 색과 같음) */
-const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6', '#C4B5FD', '#FDA4AF', '#F0ABFC']
+const ON_DARK = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6', '#C4B5FD', '#FDA4AF', '#F4EFF8']
 
 /**
  * 인스타 스토리 공유 카드 (1080×1920) 그려서 공유 시트로, 안 되면 내려받기.
@@ -674,14 +677,19 @@ export async function shareCard(s: AppState, lift?: LiftKey, gain?: Gain) {
   c.save()
   c.translate(cx - 24 * sc, 520 - 24 * sc)
   c.scale(sc, sc)
-  c.fillStyle = t.tier.i === 6 ? '#2C2C35' : t.tier.color
+  if (t.tier.i === 9) {
+    // 미라클: 우윳빛 그라데이션
+    const gr = c.createLinearGradient(0, 0, 48, 48)
+    PEARL.forEach((col, k) => gr.addColorStop(k / (PEARL.length - 1), col))
+    c.fillStyle = gr
+  } else c.fillStyle = t.tier.i === 6 ? '#2C2C35' : t.tier.color
   c.fill(new Path2D(out))
   if (t.tier.i === 6) {
     c.strokeStyle = '#FFFFFF'
     c.lineWidth = 0.8
     c.stroke(new Path2D(out))
   }
-  c.strokeStyle = 'rgba(255,255,255,0.8)'
+  c.strokeStyle = t.tier.i === 9 ? PEARL_LINE : 'rgba(255,255,255,0.8)'
   c.lineWidth = 2.2
   c.lineJoin = 'round'
   c.stroke(new Path2D(inn))

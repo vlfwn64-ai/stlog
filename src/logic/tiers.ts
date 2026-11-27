@@ -38,8 +38,11 @@ export const TIERS: Tier[] = [
  * 미라클: 무게가 아니라 관리자가 정하는 특별 티어 (3대 티어 자리에 나온다).
  * 배지는 무지개(홀로그램) 그라데이션.
  */
-export const MIRACLE: Tier = { i: 9, min: Infinity, name: () => L('미라클', 'Miracle'), color: '#C026D3', text: 'var(--tier9)', deep: '#1E1B4B', en: 'Miracle' }
-export const RAINBOW = ['#F472B6', '#A78BFA', '#60A5FA', '#34D399', '#FBBF24']
+export const MIRACLE: Tier = { i: 9, min: Infinity, name: () => L('미라클', 'Miracle'), color: '#EEE8F1', text: 'var(--tier9)', deep: '#2A2730', en: 'Miracle' }
+/** 미라클 우윳빛 (진주처럼 살짝 분홍·하늘·크림이 도는 흰색) */
+export const PEARL = ['#FFFFFF', '#F6EEF5', '#ECF1FA', '#FBF6EC']
+/** 우윳빛 배지 테두리·안쪽 띠 */
+export const PEARL_LINE = '#C9C0D6'
 /** 무게로 나온 티어를 미라클로 바꾼다 (점수는 그대로) */
 export const asMiracle = (t: TierInfo): TierInfo => ({ ...t, tier: MIRACLE, next: null, need: 0, progress: 1 })
 

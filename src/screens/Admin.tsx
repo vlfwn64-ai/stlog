@@ -6,7 +6,9 @@ import { adminSetMiracle, adminUsers } from '../cloud'
 import { L } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import { programOf } from '../logic/programs'
-import { MIRACLE, TIERS, asMiracle, tierInfo } from '../logic/tiers'
+import { MIRACLE, PEARL, PEARL_LINE, TIERS, asMiracle, tierInfo } from '../logic/tiers'
+
+const PEARL_BG = `linear-gradient(90deg, ${PEARL.join(', ')})`
 import type { AppState } from '../store'
 import { today } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
@@ -112,7 +114,7 @@ export default function Admin({ go }: { go: Go }) {
                       <Badge tier={t} size={20} inner={false} />
                       <span style={{ width: 56, fontSize: 13, fontWeight: 600 }}>{t.name()}</span>
                       <span style={{ flex: 1, height: 10, borderRadius: 5, background: 'var(--line)', overflow: 'hidden' }}>
-                        <span style={{ display: 'block', width: `${(n / maxCount) * 100}%`, height: '100%', borderRadius: 5, background: t.i === 9 ? 'linear-gradient(90deg, #F472B6, #A78BFA, #60A5FA, #34D399, #FBBF24)' : t.i === 6 ? 'var(--ink)' : t.color }} />
+                        <span style={{ display: 'block', width: `${(n / maxCount) * 100}%`, height: '100%', borderRadius: 5, background: t.i === 9 ? PEARL_BG : t.i === 6 ? 'var(--ink)' : t.color }} />
                       </span>
                       <span className="num" style={{ width: 28, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>
                         {n}
@@ -177,7 +179,7 @@ export default function Admin({ go }: { go: Go }) {
                         <button
                           disabled={busy === r.user_id}
                           onClick={() => void toggleMiracle(r)}
-                          style={{ marginTop: 6, width: '100%', height: 44, borderRadius: 12, background: r.miracle ? 'var(--fill2)' : 'linear-gradient(90deg, #F472B6, #A78BFA, #60A5FA, #34D399, #FBBF24)', color: r.miracle ? 'var(--ink)' : '#FFFFFF', fontSize: 15, fontWeight: 800, opacity: busy === r.user_id ? 0.5 : 1 }}
+                          style={{ marginTop: 6, width: '100%', height: 44, borderRadius: 12, background: r.miracle ? 'var(--fill2)' : PEARL_BG, boxShadow: r.miracle ? undefined : `inset 0 0 0 1.5px ${PEARL_LINE}`, color: r.miracle ? 'var(--ink)' : '#5E5672', fontSize: 15, fontWeight: 800, opacity: busy === r.user_id ? 0.5 : 1 }}
                         >
                           {r.miracle ? L('미라클 빼기', 'Remove Miracle') : L('미라클 티어 주기', 'Grant Miracle tier')}
                         </button>

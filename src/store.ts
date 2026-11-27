@@ -20,6 +20,8 @@ export interface Settings {
   themeChosen?: boolean
   /** 쉬는 시간 끝 알림음 (기본 켬) */
   sound?: boolean
+  /** 관리자가 준 미라클 티어 보이기 (끄면 원래 3대 티어) */
+  miracle?: boolean
   /** 언어 (없으면 기기 언어) */
   lang?: 'ko' | 'en'
   /** 훈련 프로그램 (없으면 ST LOG 기본) */
