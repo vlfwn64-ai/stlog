@@ -69,10 +69,18 @@ const isProvider = (p: unknown): p is Provider => p === 'google' || p === 'kakao
 
 /**
  * 이번에 로그인한 방법.
- * 카카오·구글 이메일이 같으면 서버가 한 계정으로 합쳐서 app_metadata.provider는 처음 가입한 쪽으로 남는다.
- * 그래서 가장 최근에 로그인한 연결(identity)을 본다.
+ * 카카오·구글 이메일이 같으면 서버가 한 계정으로 합쳐서 app_metadata.provider는 처음 가입한 쪽으로 남고,
+ * 연결별 마지막 로그인 시각도 믿을 수 없어서, 이 기기에서 누른 버튼을 먼저 본다.
  */
 export const providerOf = (s: Session | null): Provider | null => {
+  if (!s) return null
+  let picked: string | null = null
+  try {
+    picked = localStorage.getItem(PICKED)
+  } catch {
+    /* 무시 */
+  }
+  if (isProvider(picked) && linkedProviders(s).includes(picked)) return picked
   const ids = (s?.user?.identities ?? []).filter((i) => isProvider(i.provider))
   const latest = [...ids].sort((a, b) => (b.last_sign_in_at ?? '').localeCompare(a.last_sign_in_at ?? ''))[0]
   if (latest) return latest.provider as Provider
@@ -86,8 +94,16 @@ export const linkedProviders = (s: Session | null): Provider[] => {
   return [...new Set(list)].filter(isProvider)
 }
 
+/** 사용자가 누른 로그인 버튼 (서버 기록보다 정확해서 이걸로 표시) */
+const PICKED = 'stlog:provider'
+
 export async function signIn(provider: Provider) {
   if (!sb) return
+  try {
+    localStorage.setItem(PICKED, provider)
+  } catch {
+    /* 무시 */
+  }
   await sb.auth.signInWithOAuth({
     provider,
     options: {
@@ -106,6 +122,11 @@ export async function signOut() {
   // 못 올렸으면 이 기기 기록은 남겨 둔다 (다음 로그인 때 어느 쪽을 쓸지 묻는다)
   const saved = !linked || cs.status !== 'error'
   clearTimeout(timer)
+  try {
+    localStorage.removeItem(PICKED)
+  } catch {
+    /* 무시 */
+  }
   await sb.auth.signOut()
   handled = null
   setLinked(null)
