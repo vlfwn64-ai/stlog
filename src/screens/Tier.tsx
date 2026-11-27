@@ -526,10 +526,11 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
   const train = (k: LiftKey) => go({ name: 'lift', lift: k, from: 'home' })
   return (
     <div className="screen" style={{ background: t.tier.deep, color: '#FFFFFF' }}>
-      <header style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 8px', flexShrink: 0 }}>
-        <button onClick={() => go({ name: 'home' })} aria-label={L('닫기', 'Close')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-            <path d="M6 6l12 12M18 6L6 18" />
+      {/* 뒤로: 종목 화면 헤더와 같은 자리·모양 ('white'로 써야 다크 모드 색 바꾸기에 안 걸림) */}
+      <header style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 0 8px', flexShrink: 0 }}>
+        <button onClick={() => go({ name: 'home' })} aria-label={L('홈으로', 'Home')} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6" />
           </svg>
         </button>
       </header>
