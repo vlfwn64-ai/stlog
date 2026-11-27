@@ -128,9 +128,10 @@ export function DialSet({ vals, unit, step, onChange }: { vals: Record<LiftKey, 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
         {CARD_ORDER.map((k) => (
           <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ height: 76, borderRadius: 14, background: TH[k].tint, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-              <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1, color: TH[k].text }}>{k}</span>
-              <span style={{ fontSize: 12, color: 'var(--sub)' }}>{TH[k].name}</span>
+            {/* 종목 칸: 종목 원색 + 흰 글씨 */}
+            <div style={{ height: 76, borderRadius: 14, background: TH[k].acc, color: TH[k].on, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              <span style={{ fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>{k}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, opacity: 0.9 }}>{TH[k].name}</span>
             </div>
             <Dial lift={k} value={vals[k]} step={step} unit={unit} onChange={(v) => onChange({ ...vals, [k]: v })} />
           </div>
