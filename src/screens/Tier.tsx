@@ -479,16 +479,6 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
         [L('다음 티어', 'Next tier'), nextText(t, u)],
       ]
     : [
-        ...(['B', 'D', 'S'] as LiftKey[]).map((k): [string, React.ReactNode] => {
-          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
-          return [
-            `${TH[k].name} 1RM`,
-            <>
-              {`${fmt(s.lifts[k].oneRM)}${u}`}
-              <span style={{ fontWeight: 700, opacity: 0.8 }}> · {lt.tier.name()}</span>
-            </>,
-          ]
-        }),
         [L('3대 합계', 'Big 3 total'), `${fmt(sum)}${u} · ${ratioText(sum, b.weight, 1)}`],
         ['DOTS', String(Math.round(t.score))],
         [L('다음 티어', 'Next tier'), nextText(t, u)],
@@ -524,7 +514,26 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
             {myTopText(t)}
           </span>
         </div>
-        <div style={{ width: '100%', marginTop: 8, padding: '16px 18px', borderRadius: 16, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {!lift && (
+          // 종목 1RM: 세 칸 나란히
+          <div style={{ width: '100%', marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+            {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
+              const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
+              return (
+                <div key={k} className="num" aria-label={`${TH[k].name} 1RM ${fmt(s.lifts[k].oneRM)}${u}, ${lt.tier.name()}`} style={{ padding: '12px 6px', borderRadius: 14, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <LiftMark lift={k} size={26} line={t.tier.deep} />
+                  <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>{TH[k].name}</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.15 }}>
+                    {fmt(s.lifts[k].oneRM)}
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{u}</span>
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>{lt.tier.name()}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        <div style={{ width: '100%', marginTop: lift ? 8 : -12, padding: '16px 18px', borderRadius: 16, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rows.map(([a, v]) => (
             <div key={a} className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
               <span style={{ opacity: 0.88 }}>{a}</span>
