@@ -4,7 +4,7 @@ import { testResult } from '../logic/program'
 import { deleteSession, deleteTest, saveTest } from '../actions'
 import type { SessionLog, TestLog } from '../store'
 import { step as stepOf, today, useApp } from '../store'
-import { TH, chipColors, fmt, rpeText } from '../theme'
+import { TH, chipText, chipColors, fmt, rpeText } from '../theme'
 import { L, attemptLabel, dayTitle, setsLabel } from '../i18n'
 import { Confirm, Sheet } from '../ui'
 import type { Go, Route } from '../App'
@@ -180,7 +180,7 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
                 const c = chipColors(r.type, x.lift)
                 return (
                   <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36, borderTop: warm.length || i ? '1px solid var(--line)' : undefined }}>
-                    <span style={{ width: 28, height: 28, borderRadius: 7, background: c.bg, color: c.fg, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
+                    <span style={{ width: 28, height: 28, borderRadius: 7, background: c.bg, color: c.fg, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{chipText(r, work)}</span>
                     <span className="num" style={{ flex: 1, fontSize: 16, fontWeight: 700 }}>
                       {fmt(r.weight)}
                       <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sub)' }}>{u}</span> × {r.reps}

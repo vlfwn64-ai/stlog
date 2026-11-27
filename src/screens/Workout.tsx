@@ -8,7 +8,7 @@ import { REST_STEP, useRestTimer } from '../rest'
 import type { SetRow } from '../store'
 import type { LiftKey } from '../logic/program'
 import { allGear, progOf, step as stepOf, uid, useApp } from '../store'
-import { gearName, setTypes, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
+import { chipText, gearName, setTypes, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
 import { BeltIcon, Sheet } from '../ui'
 import type { Go, Route } from '../App'
 
@@ -180,7 +180,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
       <div key={r.id} data-row={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -6px', padding: open ? '6px 4px 10px' : '0 4px', borderRadius: 16, border: `2px solid ${open ? th.acc : 'transparent'}`, background: open ? th.acc : 'transparent' }}>
         <div className="grid5" style={{ height: 48 }}>
           <button onClick={() => (setEdit(null), setTypeFor({ id: r.id, sel: r.type }))} aria-label={`${L('세트 종류', 'Set type')} ${typeName(r.type)}`} style={{ justifySelf: 'center', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ width: 32, height: 32, borderRadius: 8, background: lit ? '#fff' : chip.bg, color: lit ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
+            <span style={{ width: 32, height: 32, borderRadius: 8, background: lit ? '#fff' : chip.bg, color: lit ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{chipText(r, a.sets)}</span>
           </button>
           <button className="num" onClick={() => setEdit({ id: r.id, f: 'w' })} aria-label={`${L('무게', 'Weight')} ${r.weight}${u}`} style={cell(fw)}>
             {typed(fw, fmt(r.weight))}
@@ -432,7 +432,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
                   aria-pressed={on}
                   style={{ minHeight: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '4px 16px' : '4px 17px', textAlign: 'left' }}
                 >
-                  <span style={{ width: 28, flexShrink: 0, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>{k}</span>
+                  <span style={{ width: 28, flexShrink: 0, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>{k === 'N' ? '1' : k}</span>
                   <span style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: 14, fontWeight: on ? 700 : 600, color: on ? th.deep : 'var(--ink)' }}>{name}</span>
                     <span style={{ fontSize: 12, color: on ? th.deep : 'var(--sub)' }}>{desc}</span>

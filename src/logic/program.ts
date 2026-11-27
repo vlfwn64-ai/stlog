@@ -3,7 +3,8 @@
 export type LiftKey = 'S' | 'B' | 'D'
 export type Unit = 'kg' | 'lb'
 export type Stage = 1 | 2 | 3 | 4
-export type SetType = 'W' | 'T' | 'B' | 'A' | 'D' | 'S' | 'F'
+/** N: 일반 세트 (칸에 1, 2, 3 번호) */
+export type SetType = 'N' | 'W' | 'T' | 'B' | 'A' | 'D' | 'S' | 'F'
 /** RPE 값. 'fail'은 실패 */
 export type Rpe = 6 | 7 | 8 | 9 | 9.5 | 10 | 'fail'
 

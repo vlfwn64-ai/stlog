@@ -1,7 +1,7 @@
 import { L, setsLabel } from '../i18n'
 import { atTest, groupSets, phaseChip, phaseTitle, programOf } from '../logic/programs'
 import { progOf, step as stepOf, useApp } from '../store'
-import { TH, chipColors, fmt, md, rpeText } from '../theme'
+import { TH, chipText, chipColors, fmt, md, rpeText } from '../theme'
 import type { Go } from '../App'
 
 const chip = (n: number, u: string) => (n > 0 ? `+${fmt(n)}${u}` : n < 0 ? `−${fmt(-n)}${u}` : L('유지', 'Same'))
@@ -78,7 +78,7 @@ export default function Result({ id, go }: { id: string; go: Go }) {
               const c = chipColors(r.type, lift)
               return (
                 <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 36, borderTop: warm.length || i ? '1px solid var(--line)' : undefined }}>
-                  <span style={{ width: 28, height: 28, borderRadius: 7, background: c.bg, color: c.fg, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
+                  <span style={{ width: 28, height: 28, borderRadius: 7, background: c.bg, color: c.fg, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{chipText(r, work)}</span>
                   <span className="num" style={{ flex: 1, fontSize: 16, fontWeight: 700 }}>
                     {fmt(r.weight)}
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sub)' }}>{u}</span> × {r.reps}

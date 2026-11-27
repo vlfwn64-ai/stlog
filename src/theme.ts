@@ -84,6 +84,7 @@ export function setDark(dark: boolean) {
 export const CARD_ORDER: LiftKey[] = ['B', 'D', 'S']
 
 export const setTypes = (): [string, string, string][] => [
+  ['N', L('일반', 'Normal'), L('종류 없이 1, 2, 3 번호로 세요', 'Just numbered 1, 2, 3')],
   ['W', L('워밍업', 'Warm-up'), L('무게 계산에 들어가지 않아요', "Doesn't count toward the next weight")],
   ['T', L('탑세트', 'Top set'), L('RPE로 다음 무게를 정해요', 'Its RPE sets the next weight')],
   ['B', L('백오프', 'Back-off'), L('탑세트 뒤에 하는 볼륨 세트', 'Volume sets after the top set')],
@@ -95,6 +96,10 @@ export const setTypes = (): [string, string, string][] => [
 
 export const typeName = (k: string) => setTypes().find(([t]) => t === k)?.[1] ?? k
 
+/** 세트 칸 글자: 일반 세트는 일반 세트끼리 1, 2, 3 번호, 나머지는 종류 글자 */
+export const chipText = (r: { id?: string; type: string }, sets: { id?: string; type: string }[]) =>
+  r.type === 'N' ? String(sets.filter((x) => x.type === 'N').indexOf(r) + 1) : r.type
+
 const GEAR_EN: Record<string, string> = { 벨트: 'Belt', 스트랩: 'Straps', 니슬리브: 'Knee sleeves', 니랩: 'Knee wraps', 리스트랩: 'Wrist wraps', 엘보슬리브: 'Elbow sleeves', 역도화: 'Lifting shoes' }
 /** 장비 이름 (기본 장비는 영어로도) */
 export const gearName = (g: string) => (isEn() ? (GEAR_EN[g] ?? g) : g)
@@ -105,6 +110,7 @@ export function chipColors(k: string, lift: LiftKey): { bg: string; fg: string }
   if (k === 'W') return { bg: 'var(--fill)', fg: 'var(--sub)' }
   if (k === 'T') return { bg: th.acc, fg: th.on }
   if (k === 'B') return { bg: th.tint, fg: th.deep }
+  if (k === 'N') return { bg: 'var(--fill)', fg: 'var(--ink)' }
   return { bg: 'var(--line)', fg: 'var(--ink2)' }
 }
 
