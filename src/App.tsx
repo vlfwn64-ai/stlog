@@ -6,6 +6,7 @@ import type { LiftKey } from './logic/program'
 import { useApp } from './store'
 import { TH, setDark } from './theme'
 import Home from './screens/Home'
+import { TierUp, overallTier } from './screens/Tier'
 import Lift from './screens/Lift'
 import Menu from './screens/Menu'
 import Onboarding from './screens/Onboarding'
@@ -14,8 +15,11 @@ import Test from './screens/Test'
 import Tutorial from './screens/Tutorial'
 import Workout from './screens/Workout'
 
+export type Tab = 'grow' | 'home' | 'rec'
+
 export type Route =
-  | { name: 'home' }
+  | { name: 'home'; tab?: Tab }
+  | { name: 'tierup'; lift: LiftKey; prevRM: number; newRM: number; from: number }
   | { name: 'menu' }
   | { name: 'tutorial'; back?: 'menu' }
   | { name: 'lift'; lift: LiftKey; from?: 'home' | 'left' | 'right' }
@@ -86,12 +90,14 @@ export default function App() {
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
   }, [dark])
 
+  const tierUpColor = route.name === 'tierup' ? overallTier(s)?.tier.deep : undefined
   useEffect(() => {
     const base = dark ? '#17171C' : '#FFFFFF'
     if (s.onboarded && route.name === 'test') setStatusColor(TH[route.lift].testBg)
     else if (s.onboarded && route.name === 'menu') setStatusColor(dark ? '#202027' : '#FFFFFF')
+    else if (s.onboarded && route.name === 'tierup') setStatusColor(tierUpColor ?? base)
     else setStatusColor(base)
-  }, [route, dark, s.onboarded])
+  }, [route, dark, s.onboarded, tierUpColor])
 
   let view
   // 로그인부터: 저장된 로그인 확인 → 로그인 화면 → 기록 불러오기 → 온보딩(새 사용자) → 홈
@@ -106,7 +112,8 @@ export default function App() {
   else if (route.name === 'edit') view = <Workout key={route.id} go={go} editId={route.id} back={route.back} />
   else if (route.name === 'result') view = <Result id={route.id} go={go} />
   else if (route.name === 'test') view = <Test lift={route.lift} go={go} />
-  else view = <Home go={go} />
+  else if (route.name === 'tierup') view = <TierUp lift={route.lift} prevRM={route.prevRM} newRM={route.newRM} from={route.from} go={go} />
+  else view = <Home go={go} tab={route.name === 'home' ? route.tab : undefined} />
 
   return (
     <div className="app">

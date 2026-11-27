@@ -139,7 +139,7 @@ export default function Menu({ go }: { go: Go }) {
           )}
           {cloudReady && cloud.session && <Row label={L('로그아웃', 'Sign out')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />}
         </Section>
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.3</div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.4</div>
       </main>
 
       {pop === 'rm' && (

@@ -1,14 +1,15 @@
-import { L, monthTitle, weekHead } from '../i18n'
+import { L, dayTitle, monthTitle, setsLabel, weekHead } from '../i18n'
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LiftKey } from '../logic/program'
-import { atTest, mainSet, repsText } from '../logic/programs'
+import { atTest, mainSet, phaseTitle, programOf, repsText } from '../logic/programs'
 import type { AppState } from '../store'
-import { progOf, step as stepOf, useApp } from '../store'
+import { progOf, step as stepOf, today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
 import { HomeChart, PillToggle, ts } from '../ui'
 import type { Pt } from '../ui'
-import type { Go } from '../App'
+import type { Go, Tab } from '../App'
+import { GrowthTiers, TierCard, TierSheet } from './Tier'
 import DaySheet from './DaySheet'
 
 /** 종목별 추정(세션 e1RM) / 실제(1RM 기록) 점 */
@@ -64,6 +65,8 @@ function Calendar({ s, onPick }: { s: AppState; onPick: (date: string) => void }
         const dy = t.clientY - st0.y
         // 옆으로 확실히 민 경우만 (세로 스크롤과 구분). 왼쪽으로 밀면 다음 달
         if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+        // 달력을 민 건 달 넘기기 (탭은 안 바뀌게)
+        e.stopPropagation()
         move(dx < 0 ? 1 : -1)
       }}
     >
@@ -142,8 +145,38 @@ interface Box {
 
 const EASE = 'cubic-bezier(0.2,0.8,0.2,1)'
 
-export default function Home({ go }: { go: Go }) {
+const TABS: { k: Tab; ko: string; en: string; icon: string }[] = [
+  { k: 'grow', ko: '성장', en: 'Progress', icon: 'M4 19h16M6 15l4-4 3 3 5-6M15 8h3v3' },
+  { k: 'home', ko: '홈', en: 'Home', icon: 'M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z' },
+  { k: 'rec', ko: '기록', en: 'Log', icon: 'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M9 3v4M15 3v4' },
+]
+
+/** 기록 탭 목록 한 줄: 세션 대표 세트 */
+function sessionLine(x: AppState['sessions'][number], u: string): string {
+  if (x.deload) return L('디로드', 'Deload')
+  const m = x.sets.filter((r) => r.type !== 'W' && r.done).reduce<(typeof x.sets)[number] | undefined>((a, r) => (!a || r.weight > a.weight ? r : a), undefined)
+  if (!m) return setsLabel(0)
+  return `${fmt(m.weight)}${u} × ${m.reps}${m.rpe !== undefined ? ` · RPE ${m.rpe === 'fail' ? L('실패', 'fail') : m.rpe}` : ''}`
+}
+
+export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
   const s = useApp()
+  const [tab, setTabRaw] = useState<Tab>(tab0 ?? 'home')
+  const [slide, setSlide] = useState<'fromRight' | 'fromLeft' | null>(null)
+  const [tierOpen, setTierOpen] = useState(false)
+  const swipe = useRef<{ x: number; y: number } | null>(null)
+  const setTab = (t: Tab) => {
+    if (t === tab) return
+    const order = TABS.map((x) => x.k)
+    setSlide(order.indexOf(t) > order.indexOf(tab) ? 'fromRight' : 'fromLeft')
+    setTabRaw(t)
+  }
+  /** 왼쪽으로 밀면 오른쪽 탭, 오른쪽으로 밀면 왼쪽 탭 */
+  const shiftTab = (n: number) => {
+    const order = TABS.map((x) => x.k)
+    const i = order.indexOf(tab) + n
+    if (i >= 0 && i < order.length) setTab(order[i])
+  }
   const [mode, setMode] = useState<'est' | 'act'>('est')
   const [day, setDay] = useState<string | null>(null)
   const [anim, setAnim] = useState<null | { lift: LiftKey; from: Box[]; to: Box[]; phase: 0 | 1 }>(null)
@@ -154,6 +187,14 @@ export default function Home({ go }: { go: Go }) {
   const series = (['S', 'B', 'D'] as LiftKey[]).map((k) => ({ lift: k, pts: liftPoints(s, k, mode).map((p) => ({ t: p.x, y: p.y })) }))
   const val = (k: LiftKey) => (mode === 'est' ? (latestEst(s, k) ?? s.lifts[k].oneRM) : s.lifts[k].oneRM)
   const sum = CARD_ORDER.reduce((a, k) => a + val(k), 0)
+  const lastS = [...s.sessions].sort((x, y) => (x.date < y.date ? 1 : -1))[0]
+  /** 기록 탭 목록: 세션과 1RM 테스트, 최근 것부터 */
+  const history = [
+    ...s.sessions.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: x.deload ? L('디로드', 'Deload') : phaseTitle(programOf(x.program), x.lift, x.stage), text: sessionLine(x, u) })),
+    ...s.tests.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: L('1RM 테스트', '1RM test'), text: `${x.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ')}` })),
+  ]
+    .sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))
+    .slice(0, 30)
 
   /** 카드를 누르면 세 카드가 작아지며 위로 올라가 종목 탭이 된다 (목업 HomeFlow) */
   const open = (k: LiftKey) => {
@@ -183,19 +224,38 @@ export default function Home({ go }: { go: Go }) {
   return (
     <div className="screen" ref={root}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 12px 4px 20px', opacity: moving ? 0 : 1, transition: 'opacity 220ms ease' }}>
-        <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>ST LOG</span>
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>ST LOG</span>
+          {tab === 'home' && <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--mute)' }}>{dayTitle(today())}</span>}
+        </span>
         <button aria-label={L('메뉴 열기', 'Open menu')} onClick={() => go({ name: 'menu' })} style={arrowBtn}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
       </header>
-      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px var(--safe-bot)' }}>
-        <div style={fade}>
-          <Calendar s={s} onPick={setDay} />
-        </div>
-
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 6, ...fade }}>
+      <main
+        key={tab}
+        className="scroll"
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          swipe.current = { x: t.clientX, y: t.clientY }
+        }}
+        onTouchEnd={(e) => {
+          const st0 = swipe.current
+          swipe.current = null
+          if (!st0 || anim) return
+          const t = e.changedTouches[0]
+          const dx = t.clientX - st0.x
+          const dy = t.clientY - st0.y
+          if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+          shiftTab(dx < 0 ? 1 : -1)
+        }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px 20px', animation: slide ? `${slide} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}
+      >
+        {tab === 'grow' && (
+          <>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'baseline', gap: 8 }}>
               {L('3대 기록', 'Big 3')}
@@ -210,7 +270,14 @@ export default function Home({ go }: { go: Go }) {
             <HomeChart series={series} />
           </button>
         </section>
-
+            <GrowthTiers s={s} go={go} onOpen={() => setTierOpen(true)} />
+          </>
+        )}
+        {tab === 'home' && (
+          <>
+            <div style={fade}>
+              <TierCard s={s} go={go} onOpen={() => setTierOpen(true)} />
+            </div>
         <section style={fade}>
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{L('훈련 기록하기', 'Log a workout')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
@@ -221,14 +288,77 @@ export default function Home({ go }: { go: Go }) {
                   cards.current[i] = el
                 }}
                 onClick={() => open(k)}
-                style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 148, visibility: anim ? 'hidden' : undefined }}
+                style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 168, visibility: anim ? 'hidden' : undefined }}
               >
                 <CardFace k={k} p={s.lifts[k]} live={s.active?.lift === k} main={mainText(s, k)} />
               </button>
             ))}
           </div>
         </section>
+            {lastS && (
+              <section style={{ display: 'flex', flexDirection: 'column', gap: 8, ...fade }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('지난 훈련', 'Last workout')}</h2>
+                <button onClick={() => setTab('rec')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'var(--fill2)', textAlign: 'left' }}>
+                  <span style={{ width: 28, height: 28, borderRadius: 8, background: TH[lastS.lift].acc, color: TH[lastS.lift].on, fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{lastS.lift}</span>
+                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>
+                      {dayTitle(lastS.date)} · {TH[lastS.lift].name}
+                    </span>
+                    <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
+                      {sessionLine(lastS, u)}
+                    </span>
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{L('기록', 'Log')} ›</span>
+                </button>
+              </section>
+            )}
+          </>
+        )}
+        {tab === 'rec' && (
+          <>
+            <Calendar s={s} onPick={setDay} />
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('지난 기록', 'History')}</h2>
+              {history.length === 0 && <p style={{ fontSize: 14, color: 'var(--mute)', padding: '8px 4px' }}>{L('아직 기록이 없어요.', 'No workouts yet.')}</p>}
+              {history.map((h) => (
+                <button key={h.id} onClick={() => setDay(h.date)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 14, background: 'var(--fill2)', textAlign: 'left' }}>
+                  <span className="num" style={{ width: 40, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: 15, fontWeight: 800 }}>{md(h.date)}</span>
+                    <span style={{ fontSize: 11, color: 'var(--mute)' }}>{weekHead()[new Date(h.date + 'T12:00:00').getDay()]}</span>
+                  </span>
+                  <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 8, background: TH[h.lift].acc, color: TH[h.lift].on, fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{h.lift}</span>
+                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>
+                      {TH[h.lift].name}{' '}
+                      <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--mute)' }}>{h.tag}</span>
+                    </span>
+                    <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
+                      {h.text}
+                    </span>
+                  </span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B95A1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              ))}
+            </section>
+          </>
+        )}
       </main>
+
+      <nav aria-label={L('탭', 'Tabs')} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', borderTop: '1px solid var(--line)', background: 'var(--bg)', padding: '6px 8px var(--safe-bot)', opacity: moving ? 0 : 1, transition: 'opacity 220ms ease' }}>
+        {TABS.map((t) => {
+          const on = t.k === tab
+          return (
+            <button key={t.k} aria-current={on ? 'page' : undefined} onClick={() => setTab(t.k)} style={{ height: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, color: on ? 'var(--ink)' : 'var(--faint)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={on ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={t.icon} />
+              </svg>
+              <span style={{ fontSize: 11, fontWeight: on ? 700 : 500 }}>{L(t.ko, t.en)}</span>
+            </button>
+          )
+        })}
+      </nav>
 
       {anim &&
         CARD_ORDER.map((k, i) => {
@@ -263,7 +393,8 @@ export default function Home({ go }: { go: Go }) {
             </div>
           )
         })}
-      {day && <DaySheet date={day} go={go} back={{ name: 'home' }} onClose={() => setDay(null)} />}
+      {day && <DaySheet date={day} go={go} back={{ name: 'home', tab }} onClose={() => setDay(null)} />}
+      {tierOpen && <TierSheet onClose={() => setTierOpen(false)} />}
       {anim && <div style={{ position: 'absolute', left: 0, right: 0, top: anim.to[0].y + 44, height: 1, background: 'var(--fill)', opacity: moving ? 1 : 0, transition: 'opacity 250ms ease' }} />}
     </div>
   )

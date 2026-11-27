@@ -18,6 +18,14 @@
   --faint: #8B95A1;
   --onInk: #FFFFFF;
   --pill: #FFFFFF;
+  /* 티어 글자 색 (아이언~엘리트) */
+  --tier0: #4E5968;
+  --tier1: #8A4F28;
+  --tier2: #5B6678;
+  --tier3: #8A6500;
+  --tier4: #1F7F7D;
+  --tier5: #1D5FD1;
+  --tier6: #191F28;
 
   font-family: 'Noto Sans KR', system-ui, -apple-system, sans-serif;
   color: var(--ink);
@@ -44,6 +52,13 @@
   --faint: #7E8794;
   --onInk: #17171C;
   --pill: #3A3A44;
+  --tier0: #B0B8C1;
+  --tier1: #E39A6A;
+  --tier2: #C3CBD8;
+  --tier3: #F2C14E;
+  --tier4: #4FD1CE;
+  --tier5: #7FB0FF;
+  --tier6: #F2F4F6;
 }
 
 /* SVG 속성에 적힌 색도 다크에서 바꾼다 */
