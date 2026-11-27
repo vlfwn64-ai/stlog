@@ -1,7 +1,7 @@
 import { L, setsLabel } from '../i18n'
 import { atTest, groupSets, phaseChip, phaseTitle, programOf } from '../logic/programs'
 import { progOf, step as stepOf, useApp } from '../store'
-import { TH, chipText, chipColors, fmt, md, rpeText } from '../theme'
+import { TH, chipText, dropsText, chipColors, fmt, md, rpeText } from '../theme'
 import type { Go } from '../App'
 
 const chip = (n: number, u: string) => (n > 0 ? `+${fmt(n)}${u}` : n < 0 ? `−${fmt(-n)}${u}` : L('유지', 'Same'))
@@ -82,8 +82,9 @@ export default function Result({ id, go }: { id: string; go: Go }) {
                   <span className="num" style={{ flex: 1, fontSize: 16, fontWeight: 700 }}>
                     {fmt(r.weight)}
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sub)' }}>{u}</span> × {r.reps}
+                      {dropsText(r)}
                   </span>
-                  {r.rpe !== undefined && (
+                  {(r.rpe !== undefined || (r.type === 'S' && r.got !== undefined)) && (
                     <span className="num" style={{ fontSize: 13, fontWeight: 700, color: th.deep }}>
                       {rpeText(r)}
                     </span>

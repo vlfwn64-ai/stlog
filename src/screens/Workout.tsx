@@ -2,6 +2,7 @@ import { L, setsLabel } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
+import { roundDown } from '../logic/program'
 import { phaseTitle, programOf } from '../logic/programs'
 import { addSession, applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
 import { REST_STEP, useRestTimer } from '../rest'
@@ -20,7 +21,10 @@ const rpes = (): [Rpe, string, string][] => [
   [7, '7', L('3개 더 가능', '3 reps left')],
   [6, '6', L('4개 더 가능', '4+ reps left')],
   ['fail', L('실패', 'Fail'), L('목표 횟수를 못 채움', 'Missed the target reps')],
+  ['skip', L('잘 모르겠음', 'Not sure'), L('다음 무게는 그대로 둬요', 'Keep the next weight the same')],
 ]
+
+type Edit = { id: string; f: 'w' | 'r'; d?: number }
 
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
 const DEFAULT_REST = { base: 90, endAt: null, left: 90 }
@@ -31,21 +35,21 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   // 지난 기록 수정·추가: 고친 내용은 저장 누르기 전까지 여기에만
   const [draft, setDraft] = useState(() => {
     if (add) {
-      // 지난 날짜에 기록 추가: 지금 처방으로 채워 두고(한 것으로) 고쳐서 저장
+      // 지난 날짜에 기록 추가: 빈 목록에서 세트 추가 (일반 세트, 한 것으로)
       const p = s.lifts[add.lift]
       const prog = progOf(s)
-      const sets: SetRow[] = prog.sets(add.lift, p, stepOf(s)).map((w) => ({ id: uid(), type: w.type, weight: w.weight, reps: w.reps, done: true, gear: [] }))
-      return { lift: add.lift, program: prog.id, date: add.date, stage: p.stage, deload: false, sets }
+      return { lift: add.lift, program: prog.id, date: add.date, stage: p.stage, deload: false, sets: [] as SetRow[] }
     }
     const x = editId ? s.sessions.find((ss) => ss.id === editId) : undefined
     return x ? { lift: x.lift, program: x.program, date: x.date, stage: x.stage, deload: x.deload, sets: x.sets.map((r) => ({ ...r })) } : null
   })
   const a = editing ? draft : s.active
   const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
-  const [edit, setEditRaw] = useState<{ id: string; f: 'w' | 'r' } | null>(null)
+  /** 고른 칸: 세트 id, 무게/횟수, d = 드롭 줄 번호(드롭세트) */
+  const [edit, setEditRaw] = useState<Edit | null>(null)
   /** 키패드로 치는 중인 글자. null이면 아직 안 친 상태(처음 누르는 숫자가 원래 값을 바꾼다) */
   const [buf, setBuf] = useState<string | null>(null)
-  const setEdit = (e: { id: string; f: 'w' | 'r' } | null) => {
+  const setEdit = (e: Edit | null) => {
     setEditRaw(e)
     setBuf(null)
   }
@@ -58,6 +62,8 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   }, [edit])
   const [typeFor, setTypeFor] = useState<{ id: string; sel: string } | null>(null)
   const [rpeFor, setRpeFor] = useState<{ id: string; sel?: Rpe; got?: number } | null>(null)
+  /** 암렙: 몇 개 했나요 (키패드) / 보조세트: 혼자 몇 개 (고르기) */
+  const [countFor, setCountFor] = useState<{ id: string; kind: 'A' | 'S'; buf: string; got?: number } | null>(null)
   const [gearFor, setGearFor] = useState<{ id: string; sel: string[]; rest: boolean } | null>(null)
   const [warmOpen, setWarmOpen] = useState(false)
   const timer = useRestTimer(s.active?.rest ?? DEFAULT_REST, setRest, { sound: s.settings.sound !== false })
@@ -69,6 +75,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const lift = a.lift
   const th = TH[lift]
   const u = s.settings.unit
+  const st = stepOf(s)
   const owned = s.settings.gear.length ? s.settings.gear : allGear(s.settings)
   const warm = a.sets.filter((r) => r.type === 'W')
   const warmDone = warm.length > 0 && warm.every((r) => r.done)
@@ -87,6 +94,8 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const tapDone = (r: SetRow) => {
     setEdit(null)
     if (needsRpe(r)) return setRpeFor({ id: r.id, sel: r.rpe, got: r.got })
+    if (r.type === 'A') return setCountFor({ id: r.id, kind: 'A', buf: r.done ? String(r.reps) : '' })
+    if (r.type === 'S') return setCountFor({ id: r.id, kind: 'S', buf: '', got: r.done ? r.got : undefined })
     patch(r.id, { done: !r.done })
     if (!r.done && !editing) timer.restart()
   }
@@ -102,12 +111,19 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     if (b.length > 6 || /\.\d{3}$/.test(b)) return
     setBuf(b)
     const v = parseFloat(b)
-    patch(r.id, edit.f === 'w' ? { weight: isNaN(v) ? 0 : v } : { reps: isNaN(v) ? 0 : Math.round(v) })
+    const val = edit.f === 'w' ? { weight: isNaN(v) ? 0 : v } : { reps: isNaN(v) ? 0 : Math.round(v) }
+    if (edit.d !== undefined) patch(r.id, { drops: (r.drops ?? []).map((x, j) => (j === edit.d ? { ...x, ...val } : x)) })
+    else patch(r.id, val)
   }
   /** 무게 → 횟수 → 다음 세트 무게 */
   const kpNext = () => {
     if (!edit) return
-    if (edit.f === 'w') return setEdit({ id: edit.id, f: 'r' })
+    const r = a.sets.find((x) => x.id === edit.id)
+    // 암렙 횟수 칸은 끝나고 적으니 건너뛴다
+    if (edit.f === 'w' && !(r?.type === 'A' && edit.d === undefined)) return setEdit({ ...edit, f: 'r' })
+    // 드롭세트: 본 줄 → 드롭 1 → 드롭 2 …
+    const nd = edit.d === undefined ? 0 : edit.d + 1
+    if (r?.type === 'D' && nd < (r.drops?.length ?? 0)) return setEdit({ id: r.id, f: 'w', d: nd })
     const vis = a.sets.filter((r) => !(collapsed && r.type === 'W'))
     const i = vis.findIndex((r) => r.id === edit.id)
     setEdit(i >= 0 && i < vis.length - 1 ? { id: vis[i + 1].id, f: 'w' } : null)
@@ -117,7 +133,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     setEdit(null)
   }
   const addSetAfter = (r: SetRow) => {
-    const n: SetRow = { ...r, id: uid(), done: false, rpe: undefined, got: undefined }
+    const n: SetRow = { ...r, id: uid(), done: !!add, rpe: undefined, got: undefined, drops: r.drops?.map((d) => ({ ...d })) }
     upd((sets) => {
       const i = sets.findIndex((x) => x.id === r.id)
       return [...sets.slice(0, i + 1), n, ...sets.slice(i + 1)]
@@ -131,19 +147,12 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     // 라이트: 펼친 줄 칸이 흰색 / 다크: 원래 어두운 칸 그대로
     const lit = open && !dark
     const dOpen = open && dark
-    const fw = open && edit?.f === 'w'
-    const fr = open && edit?.f === 'r'
+    const fw = open && edit?.f === 'w' && edit.d === undefined
+    const fr = open && edit?.f === 'r' && edit.d === undefined
+    const amrapWait = r.type === 'A' && !r.done
+    const showGot = (r.rpe === 'fail' || r.type === 'S') && r.got !== undefined
     const chip = dOpen ? { bg: 'var(--fill2)', fg: r.type === 'W' ? 'var(--sub)' : th.text } : chipColors(r.type, lift)
-    const cell = (sel: boolean): CSSProperties => ({
-      height: 40,
-      width: '100%',
-      borderRadius: 10,
-      border: `2px solid ${sel ? (dark ? '#fff' : th.strong) : lit ? '#fff' : 'transparent'}`,
-      background: lit ? '#fff' : 'var(--fill2)',
-      fontSize: 16,
-      fontWeight: 700,
-      color: lit ? '#191f28' : 'var(--ink)',
-    })
+    const cell = (sel: boolean): CSSProperties => ({ height: 40, width: '100%', borderRadius: 10, border: `2px solid ${sel ? (dark ? '#fff' : th.strong) : lit ? '#fff' : 'transparent'}`, background: lit ? '#fff' : 'var(--fill2)', fontSize: 16, fontWeight: 700, color: lit ? '#191f28' : 'var(--ink)' })
     const circle: CSSProperties = { justifySelf: 'center', width: 40, height: 40, borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }
     const doneBg = lit ? '#fff' : dOpen ? 'var(--fill2)' : th.acc
     const doneFg = lit ? '#191f28' : dOpen ? th.text : th.on
@@ -151,7 +160,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     if (r.done && r.rpe !== undefined)
       done = (
         <button onClick={() => tapDone(r)} aria-label={`${L('완료됨', 'Done')}, RPE ${r.rpe}`} style={{ ...circle, background: doneBg, color: doneFg, fontSize: 15, fontWeight: 800 }}>
-          {r.rpe === 'fail' ? L('실패', 'F') : r.rpe}
+          {r.rpe === 'fail' ? L('실패', 'F') : r.rpe === 'skip' ? '?' : r.rpe}
         </button>
       )
     else if (r.done)
@@ -162,7 +171,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           </svg>
         </button>
       )
-    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? L('완료하고 RPE 입력', 'Done, enter RPE') : L('완료', 'Done')} style={{ ...circle, border: `2px solid ${lit ? '#fff' : dOpen ? 'var(--line2)' : r.id === nextId ? th.line : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }} />
+    else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? L('완료하고 RPE 입력', 'Done, enter RPE') : r.type === 'A' ? L('완료하고 횟수 입력', 'Done, enter reps') : r.type === 'S' ? L('완료하고 혼자 든 개수 입력', 'Done, enter reps alone') : L('완료', 'Done')} style={{ ...circle, border: `2px solid ${lit ? '#fff' : dOpen ? 'var(--line2)' : r.id === nextId ? th.line : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }} />
     /** 고른 칸: 치기 전엔 값에 옅은 색(통째로 바뀜), 치는 중엔 커서 */
     const typed = (sel: boolean, v: string) =>
       !sel ? (
@@ -185,10 +194,12 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           <button className="num" onClick={() => setEdit({ id: r.id, f: 'w' })} aria-label={`${L('무게', 'Weight')} ${r.weight}${u}`} style={cell(fw)}>
             {typed(fw, fmt(r.weight))}
           </button>
-          <button className="num" onClick={() => setEdit({ id: r.id, f: 'r' })} aria-label={r.rpe === 'fail' && r.got !== undefined ? L(`횟수 ${r.reps}개 중 ${r.got}개`, `${r.got} of ${r.reps} reps`) : `${L('횟수', 'Reps')} ${r.reps}`} style={cell(fr)}>
-            {fr ? (
+          <button className="num" disabled={amrapWait} onClick={() => setEdit({ id: r.id, f: 'r' })} aria-label={amrapWait ? L(`횟수: 끝나고 적어요 (목표 ${r.goal ?? r.reps}개 이상)`, `Reps: log after (${r.goal ?? r.reps}+)`) : showGot ? L(`횟수 ${r.reps}개 중 ${r.got}개`, `${r.got} of ${r.reps} reps`) : `${L('횟수', 'Reps')} ${r.reps}`} style={{ ...cell(fr), ...(amrapWait ? { color: 'var(--faint)', background: lit ? '#fff' : 'var(--fill)', fontWeight: 600 } : {}) }}>
+            {amrapWait ? (
+              `${r.goal ?? r.reps}+`
+            ) : fr ? (
               typed(true, String(r.reps))
-            ) : r.rpe === 'fail' && r.got !== undefined ? (
+            ) : showGot ? (
               <>
                 {r.got}
                 <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.6 }}>/{r.reps}</span>
@@ -210,6 +221,47 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
             </button>
           )}
         </div>
+        {r.type === 'D' &&
+          (r.drops ?? []).map((d, j, all) => {
+            const dw = open && edit?.d === j && edit.f === 'w'
+            const dr = open && edit?.d === j && edit.f === 'r'
+            const last = j === all.length - 1
+            const sideBtn: CSSProperties = { justifySelf: 'center', width: 40, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${lit ? '#fff' : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }
+            return (
+              <div key={j} className="grid5" style={{ height: 40, marginTop: -4 }}>
+                <span aria-hidden="true" style={{ justifySelf: 'center', fontSize: 12, fontWeight: 700, color: open ? (lit ? '#fff' : th.text) : 'var(--mute)' }}>
+                  ↳{j + 1}
+                </span>
+                <button className="num" onClick={() => setEdit({ id: r.id, f: 'w', d: j })} aria-label={L(`드롭 ${j + 1} 무게 ${d.weight}${u}`, `Drop ${j + 1} weight ${d.weight}${u}`)} style={{ ...cell(dw), height: 36, fontSize: 15 }}>
+                  {typed(dw, fmt(d.weight))}
+                </button>
+                <button className="num" onClick={() => setEdit({ id: r.id, f: 'r', d: j })} aria-label={L(`드롭 ${j + 1} 횟수 ${d.reps}`, `Drop ${j + 1} reps ${d.reps}`)} style={{ ...cell(dr), height: 36, fontSize: 15 }}>
+                  {typed(dr, String(d.reps))}
+                </button>
+                <span />
+                {last ? (
+                  <button onClick={() => patch(r.id, { drops: [...all, { weight: Math.max(0, roundDown(d.weight * 0.8, st)), reps: d.reps }] })} aria-label={L('드롭 추가', 'Add drop')} style={sideBtn}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: lit ? '#191f28' : 'var(--sub)' }} strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      patch(r.id, { drops: all.filter((_, k) => k !== j) })
+                      if (edit?.id === r.id && edit.d !== undefined) setEdit({ id: r.id, f: 'w' })
+                    }}
+                    aria-label={L(`드롭 ${j + 1} 삭제`, `Delete drop ${j + 1}`)}
+                    style={sideBtn}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ stroke: lit ? '#191f28' : 'var(--sub)' }} strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )
+          })}
         {open && edit && (
           <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
             <button onClick={() => delSet(r.id)} style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}>
@@ -228,7 +280,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const tBtn: CSSProperties = { width: 44, height: 44, flexShrink: 0, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
   /** 쉬는 시간 카드 (키패드가 열리면 키패드 위에 떠 있다) */
   const timerCard = (float: boolean) => (
-    <section aria-label={L('쉬는 시간 타이머', 'Rest timer')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : float ? 'var(--surface)' : 'var(--fill2)', ...(float ? { margin: '0 12px 10px', border: '1px solid var(--line)', boxShadow: '0 6px 20px rgba(0,0,0,0.12)' } : {}), boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
+    <section aria-label={L('쉬는 시간 타이머', 'Rest timer')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : float ? 'var(--surface)' : 'var(--fill2)', ...(float ? { margin: '0 12px 10px', border: '1px solid var(--line)' } : {}), boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : float ? '0 6px 20px rgba(0,0,0,0.12)' : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
           {mmss(timer.remain)}
@@ -271,45 +323,51 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const vis = a.sets.filter((r) => !(collapsed && r.type === 'W'))
   const lastRow = vis[vis.length - 1]
   const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back']
+  /** 숫자 키 12개 (기록 키패드, 암렙 횟수 창이 같이 쓴다) */
+  const numKeys = (onKey: (k: string) => void, dotOff: boolean) => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+      {KEYS.map((k) => {
+        if (k === 'back')
+          return (
+            <button key={k} className="kp-key" onClick={() => onKey('back')} aria-label={L('지우기', 'Delete')} style={{ height: 52, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" />
+                <path d="M17 9.5l-5 5M12 9.5l5 5" />
+              </svg>
+            </button>
+          )
+        const off = k === '.' && dotOff
+        return (
+          <button key={k} className="kp-key num" onClick={() => onKey(k)} aria-label={k === '.' ? L('소수점', 'Decimal point') : k} aria-disabled={off} style={{ height: 52, borderRadius: 12, background: 'var(--surface)', boxShadow: '0 1px 0 rgba(0,0,0,0.06)', fontSize: 24, fontWeight: 600, color: off ? 'var(--line2)' : 'var(--ink)' }}>
+            {k}
+          </button>
+        )
+      })}
+    </div>
+  )
   const keypad = editRow && edit && (
     <div style={{ flexShrink: 0, animation: 'kpUp 220ms cubic-bezier(0.2,0.8,0.2,1) both' }}>
       {!editing && timerCard(true)}
       <section aria-label={L('숫자 키패드', 'Number pad')} style={{ background: 'var(--fill)', borderRadius: '20px 20px 0 0', padding: '10px 10px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 4px 0 10px' }}>
           <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {typeName(editRow.type)} · {edit.f === 'w' ? `${L('무게', 'Weight')} (${u})` : L('횟수', 'Reps')}
+            {typeName(editRow.type)}
+            {edit.d !== undefined ? ` ${L(`드롭 ${edit.d + 1}`, `drop ${edit.d + 1}`)}` : ''} · {edit.f === 'w' ? `${L('무게', 'Weight')} (${u})` : L('횟수', 'Reps')}
           </span>
           <button onClick={kpNext} style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, fontWeight: 700 }}>
-            {edit.f === 'w' ? L('횟수 ›', 'Reps ›') : L('다음 세트 ›', 'Next set ›')}
+            {edit.f === 'w' && !(editRow.type === 'A' && edit.d === undefined) ? L('횟수 ›', 'Reps ›') : editRow.type === 'D' && (edit.d ?? -1) + 1 < (editRow.drops?.length ?? 0) ? L('드롭 ›', 'Drop ›') : L('다음 세트 ›', 'Next set ›')}
           </button>
           <button onClick={() => setEdit(null)} aria-label={L('입력 완료', 'Done typing')} style={{ height: 36, padding: '0 16px', borderRadius: 10, background: th.acc, color: th.on, fontSize: 14, fontWeight: 800 }}>
             {L('완료', 'Done')}
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
-          {KEYS.map((k) => {
-            if (k === 'back')
-              return (
-                <button key={k} className="kp-key" onClick={() => press('back')} aria-label={L('지우기', 'Delete')} style={{ height: 52, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" />
-                    <path d="M17 9.5l-5 5M12 9.5l5 5" />
-                  </svg>
-                </button>
-              )
-            const off = k === '.' && (edit.f === 'r' || (buf ?? '').includes('.'))
-            return (
-              <button key={k} className="kp-key num" onClick={() => press(k)} aria-label={k === '.' ? L('소수점', 'Decimal point') : k} aria-disabled={off} style={{ height: 52, borderRadius: 12, background: 'var(--surface)', boxShadow: '0 1px 0 rgba(0,0,0,0.06)', fontSize: 24, fontWeight: 600, color: off ? 'var(--line2)' : 'var(--ink)' }}>
-                {k}
-              </button>
-            )
-          })}
-        </div>
+        {numKeys(press, edit.f === 'r' || (buf ?? '').includes('.'))}
       </section>
     </div>
   )
 
   const rpeRow = rpeFor && a.sets.find((r) => r.id === rpeFor.id)
+  const countRow = countFor && a.sets.find((r) => r.id === countFor.id)
   const typeRow = typeFor && a.sets.find((r) => r.id === typeFor.id)
   const gearRow = gearFor && a.sets.find((r) => r.id === gearFor.id)
 
@@ -371,7 +429,15 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
         )}
         {vis.map(rowView)}
         {a.sets.length === 0 ? (
-          <button onClick={() => upd(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={footBtn}>
+          <button
+            onClick={() => {
+              // 지난 기록 추가는 일반 세트(한 것으로), 무게부터 키패드로
+              const n: SetRow = add ? { id: uid(), type: 'N', weight: s.lifts[lift].top, reps: 5, done: true, gear: [] } : { id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }
+              upd(() => [n])
+              if (add) setEdit({ id: n.id, f: 'w' })
+            }}
+            style={footBtn}
+          >
             {L('+ 세트 추가', '+ Add set')}
           </button>
         ) : (
@@ -406,7 +472,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           </button>
         </div>
       ) : (
-      <div style={{ padding: '10px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: '10px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {timerCard(false)}
           <button
             onClick={() => {
@@ -426,12 +492,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
             {setTypes().map(([k, name, desc]) => {
               const on = typeFor.sel === k
               return (
-                <button
-                  key={k}
-                  onClick={() => setTypeFor({ ...typeFor, sel: k })}
-                  aria-pressed={on}
-                  style={{ minHeight: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '4px 16px' : '4px 17px', textAlign: 'left' }}
-                >
+                <button key={k} onClick={() => setTypeFor({ ...typeFor, sel: k })} aria-pressed={on} style={{ minHeight: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '4px 16px' : '4px 17px', textAlign: 'left' }}>
                   <span style={{ width: 28, flexShrink: 0, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>{k === 'N' ? '1' : k}</span>
                   <span style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: 14, fontWeight: on ? 700 : 600, color: on ? th.deep : 'var(--ink)' }}>{name}</span>
@@ -443,7 +504,14 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           </div>
           <button
             onClick={() => {
-              patch(typeFor.id, { type: typeFor.sel as SetType })
+              const t = typeFor.sel as SetType
+              const tr = a.sets.find((x) => x.id === typeFor.id)
+              patch(typeFor.id, {
+                type: t,
+                // 드롭세트로 바꾸면 아래에 드롭 한 줄 (무게 80%)
+                drops: t === 'D' ? (tr?.drops?.length ? tr.drops : [{ weight: roundDown((tr?.weight ?? 0) * 0.8, st), reps: tr?.reps ?? 0 }]) : undefined,
+                ...(t === 'A' || t === 'S' ? { rpe: undefined } : {}),
+              })
               setTypeFor(null)
             }}
             style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}
@@ -453,19 +521,71 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
         </Sheet>
       )}
 
+      {countFor && countRow && (
+        <Sheet onClose={() => setCountFor(null)} eyebrow={label(countRow)} eyebrowColor={th.text} title={countFor.kind === 'A' ? L('몇 개 했나요?', 'How many reps?') : L(`${countRow.reps}개 중 몇 개까지 혼자 들었나요?`, `How many of ${countRow.reps} did you do alone?`)}>
+          {countFor.kind === 'A' ? (
+            <>
+              <div className="num" aria-live="polite" style={{ height: 64, borderRadius: 14, background: 'var(--fill2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 800, color: countFor.buf ? 'var(--ink)' : 'var(--faint)' }}>
+                {countFor.buf || `${countRow.goal ?? countRow.reps}+`}
+                {countFor.buf && <span className="caret" style={{ background: th.acc, height: 30, marginLeft: 3 }} />}
+              </div>
+              {numKeys((k) => {
+                if (k === '.') return
+                const b = k === 'back' ? countFor.buf.slice(0, -1) : (countFor.buf + k).replace(/^0+(?=\d)/, '')
+                if (b.length <= 3) setCountFor({ ...countFor, buf: b })
+              }, true)}
+            </>
+          ) : (
+            <div role="group" aria-label={L('혼자 든 개수', 'Reps alone')} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 6 }}>
+              {Array.from({ length: Math.min(countRow.reps, 24) + 1 }, (_, n) => {
+                const on = countFor.got === n
+                return (
+                  <button key={n} className="num" aria-pressed={on} onClick={() => setCountFor({ ...countFor, got: n })} style={{ height: 44, borderRadius: 10, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', fontSize: 16, fontWeight: on ? 800 : 600, color: on ? th.deep : 'var(--ink)' }}>
+                    {n}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <button
+              disabled={countFor.kind === 'A' ? !countFor.buf : countFor.got === undefined}
+              onClick={() => {
+                if (countFor.kind === 'A') {
+                  if (!countFor.buf) return
+                  patch(countRow.id, { reps: parseInt(countFor.buf, 10), done: true })
+                } else {
+                  if (countFor.got === undefined) return
+                  patch(countRow.id, { got: countFor.got, done: true })
+                }
+                if (!countRow.done && !editing) timer.restart()
+                setCountFor(null)
+              }}
+              style={{ height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700, opacity: (countFor.kind === 'A' ? !countFor.buf : countFor.got === undefined) ? 0.4 : 1 }}
+            >
+              {L('저장', 'Save')}
+            </button>
+            <button
+              onClick={() => {
+                if (countRow.done) patch(countRow.id, { done: false, got: undefined })
+                setCountFor(null)
+              }}
+              style={{ height: 44, fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}
+            >
+              {countRow.done ? L('완료 취소', 'Undo done') : L('취소', 'Cancel')}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
       {rpeFor && rpeRow && (
         <Sheet onClose={() => setRpeFor(null)} eyebrow={label(rpeRow)} eyebrowColor={th.text} title={L('얼마나 힘들었나요?', 'How hard was it?')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {rpes().map(([v, lab, desc]) => {
               const on = rpeFor.sel === v
               return (
-                <button
-                  key={lab}
-                  onClick={() => setRpeFor({ ...rpeFor, sel: v, got: v === 'fail' ? rpeFor.got : undefined })}
-                  aria-pressed={on}
-                  style={{ height: 48, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '0 16px' : '0 17px', textAlign: 'left' }}
-                >
-                  <span className="num" style={{ width: 44, fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>
+                <button key={lab} onClick={() => setRpeFor({ ...rpeFor, sel: v, got: v === 'fail' ? rpeFor.got : undefined })} aria-pressed={on} style={{ height: 48, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', gap: 14, padding: on ? '0 16px' : '0 17px', textAlign: 'left' }}>
+                  <span className="num" style={{ minWidth: 44, whiteSpace: 'nowrap', fontSize: 17, fontWeight: on ? 800 : 700, color: on ? th.deep : 'var(--ink)' }}>
                     {lab}
                   </span>
                   <span style={{ fontSize: 14, fontWeight: on ? 600 : 400, color: on ? th.deep : 'var(--sub)' }}>{desc}</span>
@@ -524,12 +644,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
             {owned.map((g) => {
               const on = gearFor.sel.includes(g)
               return (
-                <button
-                  key={g}
-                  aria-pressed={on}
-                  onClick={() => setGearFor({ ...gearFor, sel: on ? gearFor.sel.filter((x) => x !== g) : [...gearFor.sel, g] })}
-                  style={{ height: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: on ? '0 14px' : '0 15px' }}
-                >
+                <button key={g} aria-pressed={on} onClick={() => setGearFor({ ...gearFor, sel: on ? gearFor.sel.filter((x) => x !== g) : [...gearFor.sel, g] })} style={{ height: 52, borderRadius: 12, border: on ? `2px solid ${th.line}` : '1px solid var(--line)', background: on ? th.tint : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: on ? '0 14px' : '0 15px' }}>
                   <span style={{ fontSize: 15, fontWeight: on ? 700 : 400, color: on ? th.deep : 'var(--ink2)' }}>{gearName(g)}</span>
                   {on && (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={th.deep} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

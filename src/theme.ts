@@ -90,7 +90,7 @@ export const setTypes = (): [string, string, string][] => [
   ['B', L('백오프', 'Back-off'), L('탑세트 뒤에 하는 볼륨 세트', 'Volume sets after the top set')],
   ['A', L('암렙 (AMRAP)', 'AMRAP'), L('정한 무게로 할 수 있는 만큼 최대 반복', 'As many reps as possible at a set weight')],
   ['D', L('드롭세트', 'Drop set'), L('무게를 줄여 쉬지 않고 이어서', 'Lower the weight and keep going without rest')],
-  ['S', L('보조세트', 'Extra set'), L('메인 세트 외에 추가로 하는 세트', 'Additional set beyond the main work')],
+  ['S', L('보조세트', 'Spotted set'), L('보조를 받아서 하는 세트 (혼자 든 개수를 적어요)', 'A spotter helps; log the reps you did alone')],
   ['F', L('실패세트', 'To failure'), L('더 이상 못 할 때까지 반복', 'Rep out until you can’t do another')],
 ]
 
@@ -120,5 +120,17 @@ export const fmt = (n: number) => (Number.isInteger(n) ? String(n) : String(+n.t
 export const md = (d: string) => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`
 
 /** RPE 글자: 실패면 든 개수까지 (실패 3개) */
-export const rpeText = (r: { rpe?: number | 'fail'; got?: number }, pre = 'RPE ') =>
-  r.rpe === 'fail' ? (r.got !== undefined ? L(`실패 · ${r.got}개`, `Fail · ${r.got} reps`) : L('실패', 'Fail')) : `${pre}${r.rpe}`
+export const rpeText = (r: { rpe?: number | 'fail' | 'skip'; got?: number; type?: string }, pre = 'RPE ') =>
+  r.rpe === undefined && r.type === 'S' && r.got !== undefined
+    ? L(`혼자 ${r.got}개`, `${r.got} alone`)
+    : r.rpe === 'fail'
+      ? r.got !== undefined
+        ? L(`실패 · ${r.got}개`, `Fail · ${r.got} reps`)
+        : L('실패', 'Fail')
+      : r.rpe === 'skip'
+        ? `${pre}?`
+        : `${pre}${r.rpe}`
+
+/** 드롭세트 뒤쪽: " → 100 × 6 → 80 × 8" */
+export const dropsText = (r: { type: string; drops?: { weight: number; reps: number }[] }) =>
+  r.type === 'D' && r.drops?.length ? r.drops.map((d) => ` → ${fmt(d.weight)} × ${d.reps}`).join('') : ''

@@ -74,7 +74,8 @@ export interface Program {
 }
 
 const work = (done: DoneSet[]) => done.filter((r) => r.type !== 'W')
-const lastRpe = (done: DoneSet[], type: SetType) => [...done].reverse().find((r) => r.type === type && r.done && r.rpe !== undefined)
+/** 마지막으로 RPE를 적은 세트 (잘 모르겠음은 빼고) */
+const lastRpe = (done: DoneSet[], type: SetType) => [...done].reverse().find((r) => r.type === type && r.done && r.rpe !== undefined && r.rpe !== 'skip')
 /** 하체(스쿼트·데드)는 증량 2배 */
 const incOf = (lift: LiftKey, step: number) => (lift === 'B' ? step : 2 * step)
 const add = (w: number, d: number, step: number) => Math.max(step, +(w + d).toFixed(2))
@@ -407,7 +408,7 @@ export function phaseTitle(prog: Program, lift: LiftKey, stage: number): string 
 
 /** 세션 추정 1RM: RPE 있는 탑세트, 없으면 암렙 세트 */
 export function sessionE1rm(sets: DoneSet[]): number | null {
-  const top = [...sets].reverse().find((r) => r.done && r.type === 'T' && r.rpe !== undefined)
+  const top = [...sets].reverse().find((r) => r.done && r.type === 'T' && r.rpe !== undefined && r.rpe !== 'skip')
   if (top && top.rpe === 'fail') {
     // 실패: 실제로 든 개수가 있으면 그 개수를 한계(RPE 10)로 본다
     if (top.got) return e1rm(top.weight, top.got, 10)

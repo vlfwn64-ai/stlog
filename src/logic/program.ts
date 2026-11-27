@@ -5,8 +5,8 @@ export type Unit = 'kg' | 'lb'
 export type Stage = 1 | 2 | 3 | 4
 /** N: 일반 세트 (칸에 1, 2, 3 번호) */
 export type SetType = 'N' | 'W' | 'T' | 'B' | 'A' | 'D' | 'S' | 'F'
-/** RPE 값. 'fail'은 실패 */
-export type Rpe = 6 | 7 | 8 | 9 | 9.5 | 10 | 'fail'
+/** RPE 값. 'fail'은 실패, 'skip'은 잘 모르겠음 (무게 계산에 안 씀) */
+export type Rpe = 6 | 7 | 8 | 9 | 9.5 | 10 | 'fail' | 'skip'
 
 export const LIFTS: LiftKey[] = ['S', 'B', 'D']
 
@@ -42,6 +42,7 @@ export function stagePrescription(oneRM: number, stage: 1 | 2 | 3, step: number)
 
 /** 탑세트 RPE → 다음 세션 증감 (+1 / 0 / −1 단위 S) */
 export function topDelta(rpe: Rpe): -1 | 0 | 1 {
+  if (rpe === 'skip') return 0
   if (rpe === 'fail') return -1
   if (rpe <= 8) return 1
   if (rpe === 9) return 0
@@ -50,6 +51,7 @@ export function topDelta(rpe: Rpe): -1 | 0 | 1 {
 
 /** 백오프 마지막 세트 RPE → 다음 세션 증감 */
 export function backoffDelta(rpe: Rpe): -1 | 0 | 1 {
+  if (rpe === 'skip') return 0
   if (rpe === 'fail') return -1
   if (rpe <= 8) return 1
   return 0
@@ -57,7 +59,7 @@ export function backoffDelta(rpe: Rpe): -1 | 0 | 1 {
 
 /** 추정 1RM: w × (1 + (reps + RIR)/30). 실패면 null */
 export function e1rm(weight: number, reps: number, rpe: Rpe): number | null {
-  if (rpe === 'fail' || reps <= 0) return null
+  if (rpe === 'fail' || rpe === 'skip' || reps <= 0) return null
   const rir = 10 - rpe
   return Math.round(weight * (1 + (reps + rir) / 30) * 2) / 2
 }
