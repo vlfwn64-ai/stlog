@@ -129,6 +129,74 @@ export function TierCard({ s, go, onOpen }: { s: AppState; go: Go; onOpen: () =>
   )
 }
 
+/** 종목 모양 (흰 바탕 + 안쪽 선): 색칠한 칸 안에 쓴다 */
+function LiftMark({ lift, size, line }: { lift: LiftKey; size: number; line: string }) {
+  const [out, inn] = SHAPES[lift]
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true">
+      {/* 'white'로 써야 다크 모드 색 바꾸기에 안 걸림 */}
+      <path d={out} fill="white" />
+      <path d={inn} fill="none" stroke={line} strokeWidth="2.5" strokeOpacity="0.75" />
+    </svg>
+  )
+}
+
+/** 홈: 큰 티어 카드 (목업 D안). 3대 티어 크게 + 종목 칸은 각 티어 색. 누르면 성장 탭 */
+export function HomeTierBig({ s, go, onOpen }: { s: AppState; go: Go; onOpen: () => void }) {
+  const t = overallTier(s)
+  const b = s.settings.body
+  if (!t || !b) return <NeedBody go={go} />
+  const u = s.settings.unit
+  const sum = total(s)
+  return (
+    <button onClick={onOpen} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}. ${L('성장 탭으로', 'Open Growth')}`} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14, padding: 16, borderRadius: 22, background: 'var(--fill2)', textAlign: 'left' }}>
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
+        <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
+          DOTS {Math.round(t.score)}
+          {t.tier.i > 0 ? ` · ${topText(t.tier.i)}` : ''}
+          <Chevron />
+        </span>
+      </span>
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: -2 }}>
+        <Badge tier={t.tier} size={104} />
+        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
+        <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
+          {L('3대', 'Total')} {fmt(sum)}
+          {u} · {ratioText(sum, b.weight, 1)}
+        </span>
+      </span>
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span className="num" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 700 }}>
+          <span style={{ color: 'var(--mute)' }}>{t.tier.name()}</span>
+          <span style={{ color: t.next ? t.next.text : t.tier.text }}>{nextText(t, u)}</span>
+        </span>
+        <Bar t={t} h={8} />
+      </span>
+      <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+        {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
+          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
+          // 엘리트 색(var(--ink))은 다크에서 밝아서 칸은 늘 짙은 색
+          const bg = lt.tier.i === 6 ? '#2C2C35' : lt.tier.color
+          return (
+            <span key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 6px 10px', borderRadius: 14, background: bg }}>
+              <LiftMark lift={k} size={34} line={bg} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>{lt.tier.name()}</span>
+              <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF' }}>
+                {k} · {fmt(s.lifts[k].oneRM)}
+                {u}
+              </span>
+              <span style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.35)', overflow: 'hidden', display: 'block', marginTop: 2 }}>
+                <span style={{ display: 'block', width: `${Math.round(lt.progress * 100)}%`, height: '100%', borderRadius: 2, background: '#FFFFFF' }} />
+              </span>
+            </span>
+          )
+        })}
+      </span>
+    </button>
+  )
+}
+
 /** 성장 탭: 3대 티어 (크게) + 종목별 티어 */
 export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: (lift?: LiftKey) => void }) {
   const t = overallTier(s)
@@ -215,19 +283,18 @@ export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftK
                 {me && <span style={{ height: 20, padding: '0 7px', borderRadius: 6, background: 'var(--surface)', color: 'var(--ink2)', fontSize: 11, fontWeight: 700, lineHeight: '20px' }}>{L('지금', 'You')}</span>}
               </span>
               {!lift && (
-                <span className="num" style={{ width: 76, textAlign: 'right', fontSize: 13, color: 'var(--sub)', whiteSpace: 'nowrap' }}>
+                <span className="num" style={{ width: 64, textAlign: 'right', fontSize: 12, color: 'var(--sub)', whiteSpace: 'nowrap' }}>
                   DOTS {tier.min}
                   {i === 0 ? '+' : ''}
                 </span>
               )}
-              <span className="num" style={{ width: 72, textAlign: 'right', fontSize: 14, fontWeight: me ? 800 : 500, whiteSpace: 'nowrap' }}>
+              <span className="num" style={{ width: lift ? 72 : 66, textAlign: 'right', fontSize: 14, fontWeight: me ? 800 : 500, whiteSpace: 'nowrap' }}>
                 {from === 0 ? `~${fmt(table[i - 1]?.from ? table[i - 1].from - stepOf(s) : 0)}${u}` : `${fmt(from)}${u}~`}
               </span>
-              {lift && (
-                <span className="num" style={{ width: 62, textAlign: 'right', fontSize: 12, fontWeight: me ? 800 : 500, color: me ? tier.text : 'var(--mute)', whiteSpace: 'nowrap' }}>
-                  {topText(tier.i)}
-                </span>
-              )}
+              {/* 상위 몇 % (3대·종목 모두) */}
+              <span className="num" style={{ width: lift ? 62 : 56, textAlign: 'right', fontSize: 12, fontWeight: me ? 800 : 500, color: me ? tier.text : 'var(--mute)', whiteSpace: 'nowrap' }}>
+                {topText(tier.i)}
+              </span>
             </li>
           )
         })}
@@ -238,7 +305,7 @@ export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftK
               `종목별 티어는 3대 티어 기준을 종목 비율(스쿼트 36%, 벤치 24%, 데드 40%)로 나눠서 정해요. 상위 %는 대략적인 추정이에요.`,
               'Lift tiers split the Big 3 tier totals by typical share (squat 36%, bench 24%, deadlift 40%). Top % is a rough estimate.',
             )
-          : L('DOTS는 체중과 성별을 보정한 파워리프팅 점수예요. 티어는 지금 1RM으로 계산해요.', 'DOTS is a powerlifting score adjusted for bodyweight and sex. Your tier uses your current 1RMs.')}
+          : L('DOTS는 체중과 성별을 보정한 파워리프팅 점수예요. 티어는 지금 1RM으로 계산해요. 상위 %는 대략적인 추정이에요.', 'DOTS is a powerlifting score adjusted for bodyweight and sex. Your tier uses your current 1RMs. Top % is a rough estimate.')}
       </p>
       <button
         disabled={busy}

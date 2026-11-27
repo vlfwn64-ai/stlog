@@ -10,7 +10,7 @@ import { HomeChart, PillToggle, RangeTabs, ts } from '../ui'
 import type { Range } from '../ui'
 import type { Pt } from '../ui'
 import type { Go, Tab } from '../App'
-import { GrowthTiers, TierCard, TierSheet } from './Tier'
+import { GrowthTiers, HomeTierBig, TierSheet } from './Tier'
 import DaySheet from './DaySheet'
 
 /** 종목별 추정(세션 e1RM) / 실제(1RM 기록) 점 */
@@ -201,7 +201,6 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
   const series = (['S', 'B', 'D'] as LiftKey[]).map((k) => ({ lift: k, pts: liftPoints(s, k, mode).map((p) => ({ t: p.x, y: p.y })) }))
   const val = (k: LiftKey) => (mode === 'est' ? (latestEst(s, k) ?? s.lifts[k].oneRM) : s.lifts[k].oneRM)
   const sum = CARD_ORDER.reduce((a, k) => a + val(k), 0)
-  const lastS = [...s.sessions].sort((x, y) => (x.date < y.date ? 1 : -1))[0]
   /** 기록 탭 목록: 달력에 보이는 달의 세션과 1RM 테스트, 최근 것부터 */
   const cal = monthAt(calOff)
   const calKey = `${cal.y}-${String(cal.m + 1).padStart(2, '0')}`
@@ -293,7 +292,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
         {tab === 'home' && (
           <>
             <div style={fade}>
-              <TierCard s={s} go={go} onOpen={() => setTierOpen('all')} />
+              <HomeTierBig s={s} go={go} onOpen={() => setTab('grow')} />
             </div>
         <section style={fade}>
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{L('훈련 기록하기', 'Log a workout')}</h2>
@@ -312,23 +311,6 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
             ))}
           </div>
         </section>
-            {lastS && (
-              <section style={{ display: 'flex', flexDirection: 'column', gap: 8, ...fade }}>
-                <h2 style={{ fontSize: 18, fontWeight: 800 }}>{L('최근 훈련', 'Recent workout')}</h2>
-                <button onClick={() => setTab('rec')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, background: 'var(--fill2)', textAlign: 'left' }}>
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: TH[lastS.lift].acc, color: TH[lastS.lift].on, fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{lastS.lift}</span>
-                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>
-                      {dayTitle(lastS.date)} · {TH[lastS.lift].name}
-                    </span>
-                    <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-                      {sessionLine(lastS, u)}
-                    </span>
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{L('기록', 'Log')} ›</span>
-                </button>
-              </section>
-            )}
           </>
         )}
         {tab === 'rec' && (
