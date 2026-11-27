@@ -1,5 +1,5 @@
 // 티어 화면 조각: 배지, 홈·성장 탭 카드, 종목별 티어, 내 티어 시트, 승급 화면, 공유 이미지
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type React from 'react'
 import { L, isEn } from '../i18n'
 import type { LiftKey } from '../logic/program'
@@ -43,8 +43,40 @@ export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): 
 
 /** 레전드 금테 */
 const GOLD = '#FFD45C'
-/** 큰 배지 은은한 빛: 엘리트 흰빛, 마스터 보랏빛, 레전드 금빛 */
-const glow = (i: number) => (i === 8 ? 'drop-shadow(0 0 14px rgba(255,212,92,0.75))' : i === 7 ? 'drop-shadow(0 0 12px rgba(196,181,253,0.6))' : i === 6 ? 'drop-shadow(0 0 12px rgba(255,255,255,0.35))' : undefined)
+
+/**
+ * 티어 화면·승급 화면의 큰 배지.
+ * 엘리트 이상은 화면이 열릴 때 빛줄기가 한 번 지나가고, 레전드는 그라데이션 + 금테.
+ */
+function BigBadge({ i, out, inn, fill, style, shine = true }: { i: number; out: string; inn: string; fill: string; style?: React.CSSProperties; shine?: boolean }) {
+  const id = useId().replace(/:/g, '')
+  const line = i === 8 ? GOLD : 'white'
+  return (
+    <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ overflow: 'visible', ...style }}>
+      <defs>
+        <linearGradient id={`${id}lg`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FB7185" />
+          <stop offset="100%" stopColor="#9F1239" />
+        </linearGradient>
+        <linearGradient id={`${id}sh`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="white" stopOpacity="0" />
+          <stop offset="50%" stopColor="white" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="white" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id={`${id}cl`}>
+          <path d={out} />
+        </clipPath>
+      </defs>
+      <path d={out} fill={i === 8 ? `url(#${id}lg)` : fill} stroke={line} strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
+      <path d={inn} fill="none" stroke={line} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
+      {shine && i >= 6 && (
+        <g clipPath={`url(#${id}cl)`}>
+          <rect key={i} className="tier-shine" x="-16" y="-10" width="12" height="68" fill={`url(#${id}sh)`} />
+        </g>
+      )}
+    </svg>
+  )
+}
 
 /** 티어별 대략 상위 % (추정치, 티어가 시작하는 무게 기준) */
 const TOP = [100, 75, 50, 30, 15, 5, 1, 0.3, 0.1]
@@ -426,10 +458,8 @@ function TierUpView({ step, lift, prevRM, newRM, from, more, onNext, go }: { ste
     <div className="screen" style={{ background: shown.deep, color: '#FFFFFF', transition: 'background-color 700ms ease' }}>
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px', textAlign: 'center' }}>
         <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>{step === 'lift' ? `${TH[lift].tab.toUpperCase()} TIER UP` : 'BIG 3 TIER UP'}</span>
-        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: ph ? 'tierPop 700ms cubic-bezier(0.2,0.8,0.2,1) both' : 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both', filter: glow(shown.i), transition: 'filter 500ms ease 150ms' }}>
-          <path d={out} fill={fill} stroke={shown.i === 8 ? GOLD : 'white'} strokeWidth="1.6" strokeLinejoin="round" style={{ transition: 'fill 500ms ease 150ms' }} />
-          <path d={inn} fill="none" stroke={shown.i === 8 ? GOLD : 'white'} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
-        </svg>
+        {/* 새 티어로 바뀐 뒤(ph 1)에 빛줄기 */}
+        <BigBadge i={shown.i} out={out} inn={inn} fill={fill} shine={ph === 1} style={{ animation: ph ? 'tierPop 700ms cubic-bezier(0.2,0.8,0.2,1) both' : 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both' }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minHeight: 84 }}>
           <h1 key={shown.i} aria-live="polite" style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1, animation: ph ? 'up 420ms cubic-bezier(0.2,0.8,0.2,1) both' : undefined, opacity: ph ? 1 : 0.75 }}>
             {shown.name()}
@@ -505,10 +535,7 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
       </header>
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '0 24px', textAlign: 'center' }}>
         <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 2, opacity: 0.9 }}>{lift ? `${TH[lift].tab.toUpperCase()} TIER` : 'BIG 3 TIER'}</span>
-        <svg width="148" height="148" viewBox="0 0 48 48" aria-hidden="true" style={{ animation: 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both', filter: glow(t.tier.i) }}>
-          <path d={out} fill={fill} stroke={t.tier.i === 8 ? GOLD : 'white'} strokeWidth="1.6" strokeLinejoin="round" />
-          <path d={inn} fill="none" stroke={t.tier.i === 8 ? GOLD : 'white'} strokeWidth="2.2" strokeOpacity="0.85" strokeLinejoin="round" />
-        </svg>
+        <BigBadge i={t.tier.i} out={out} inn={inn} fill={fill} style={{ animation: 'up 520ms cubic-bezier(0.2,0.8,0.2,1) both' }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>{t.tier.name()}</h1>
           {/* DOTS(종목은 1RM)와 상위 %를 두 줄로 */}
