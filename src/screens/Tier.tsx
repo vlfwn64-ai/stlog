@@ -516,9 +516,12 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>{t.tier.name()}</h1>
+          {/* DOTS(종목은 1RM)와 상위 %를 두 줄로 */}
           <span className="num" style={{ fontSize: 16, fontWeight: 600, opacity: 0.92 }}>
             {lift ? `1RM ${fmt(s.lifts[lift].oneRM)}${u}` : `DOTS ${Math.round(t.score)}`}
-            {` · ${myTopText(t)}`}
+          </span>
+          <span className="num" style={{ fontSize: 18, fontWeight: 800 }}>
+            {myTopText(t)}
           </span>
         </div>
         <div style={{ width: '100%', marginTop: 8, padding: '16px 18px', borderRadius: 16, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 10 }}>
