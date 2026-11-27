@@ -1,6 +1,7 @@
 import { L, attemptLabel } from '../i18n'
 import { useState } from 'react'
 import { useRestTimer } from '../rest'
+import { useWakeLock } from '../wakelock'
 import { unlockAudio } from '../sound'
 import type { RestState } from '../store'
 import type { LiftKey } from '../logic/program'
@@ -37,6 +38,8 @@ export default function Test({ lift, go }: { lift: LiftKey; go: Go }) {
   // 성공 뒤 쉬는 시간 (기본 3분, 원이 줄어든다). 끝나는 시각 기준이라 앱을 내려도 정확
   const [rest, setRest] = useState<RestState>({ base: 180, endAt: null, left: 0 })
   const timer = useRestTimer(rest, setRest, { sound: s.settings.sound !== false })
+  // 1RM 테스트 중에도 화면이 꺼지지 않게 (결과 화면에서는 풀기)
+  useWakeLock(!done)
   const remain = timer.remain
   const showRing = !inWarm && okList.length > 0 && !done
   const restStep = (d: number) => (d < 0 ? timer.minus() : timer.plus())

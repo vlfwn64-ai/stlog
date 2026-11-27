@@ -6,6 +6,7 @@ import { roundDown } from '../logic/program'
 import { phaseTitle, programOf } from '../logic/programs'
 import { addSession, applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
 import { REST_STEP, useRestTimer } from '../rest'
+import { useWakeLock } from '../wakelock'
 import type { SetRow } from '../store'
 import type { LiftKey } from '../logic/program'
 import { allGear, progOf, step as stepOf, uid, useApp } from '../store'
@@ -67,6 +68,8 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const [gearFor, setGearFor] = useState<{ id: string; sel: string[]; rest: boolean } | null>(null)
   const [warmOpen, setWarmOpen] = useState(false)
   const timer = useRestTimer(s.active?.rest ?? DEFAULT_REST, setRest, { sound: s.settings.sound !== false })
+  // 오늘 운동 기록 중에는 화면이 꺼지지 않게 (지난 기록 수정·추가 때는 제외)
+  useWakeLock(!editing && !!s.active)
   useEffect(() => {
     if (!a) go(back ?? { name: 'home' })
   }, [a, go, back])
