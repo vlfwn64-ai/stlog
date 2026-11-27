@@ -45,6 +45,20 @@ export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): 
 const TOP = [100, 75, 50, 30, 15, 5, 1]
 const topText = (i: number) => (i === 0 ? '' : L(`상위 ${TOP[i]}%`, `Top ${TOP[i]}%`))
 
+/**
+ * 내 상위 %: 티어 안에서도 다음 티어에 가까울수록 작아진다.
+ * 티어 시작 %와 다음 티어 %를 로그 눈금으로 잇는다. 엘리트는 DOTS 400→500에서 1%→0.1%.
+ */
+export function myTop(t: TierInfo) {
+  const i = t.tier.i
+  const a = TOP[i]
+  const b = i < TOP.length - 1 ? TOP[i + 1] : 0.1
+  const p = i < TOP.length - 1 ? t.progress : Math.min(1, Math.max(0, (t.score - t.tier.min) / 100))
+  const v = Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * Math.min(1, Math.max(0, p)))
+  return v >= 10 ? Math.round(v) : Math.round(v * 10) / 10
+}
+const myTopText = (t: TierInfo) => L(`상위 ${myTop(t)}%`, `Top ${myTop(t)}%`)
+
 /** 체중 대비 몇 배 */
 const ratioText = (w: number, bw: number, d = 2) => L(`체중의 ${(w / bw).toFixed(d)}배`, `${(w / bw).toFixed(d)}× BW`)
 
@@ -157,13 +171,15 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
           <span style={{ fontSize: 13, fontWeight: 800, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
           <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
             DOTS {Math.round(t.score)}
-            {t.tier.i > 0 ? ` · ${topText(t.tier.i)}` : ''}
             <Chevron />
           </span>
         </span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -2 }}>
           <Badge tier={t.tier} size={100} />
           <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
+          <span className="num" style={{ fontSize: 14, fontWeight: 800, color: t.tier.text }}>
+            {myTopText(t)}
+          </span>
           <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
             {L('3대', 'Total')} {fmt(sum)}
             {u} · {ratioText(sum, b.weight, 1)}
@@ -502,7 +518,7 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
           <h1 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1 }}>{t.tier.name()}</h1>
           <span className="num" style={{ fontSize: 16, fontWeight: 600, opacity: 0.92 }}>
             {lift ? `1RM ${fmt(s.lifts[lift].oneRM)}${u}` : `DOTS ${Math.round(t.score)}`}
-            {t.tier.i > 0 ? ` · ${topText(t.tier.i)}` : ''}
+            {` · ${myTopText(t)}`}
           </span>
         </div>
         <div style={{ width: '100%', marginTop: 8, padding: '16px 18px', borderRadius: 16, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 10 }}>
