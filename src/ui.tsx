@@ -305,11 +305,13 @@ export function RangeTabs({ value, options, onChange }: { value: Range; options:
   )
 }
 
-/** 기간 [시작, 끝]: 끝은 오늘, 시작은 기간만큼 전 (전체는 첫 기록, 사이클은 사이클 시작일) */
+/** 기간 [시작, 끝]: 끝은 오늘, 시작은 기간만큼 전 (전체는 첫 기록, 사이클은 사이클 시작일). 첫 기록보다 앞으로는 안 간다 */
 function rangeOf(range: Range, all: { t: number }[], cycleStart?: string): [number, number] {
   const end = ts(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10))
   const first = all.length ? Math.min(...all.map((p) => p.t)) : end - 30 * DAY
   let t0 = range === 'all' ? first : range === 'cycle' ? (cycleStart ? ts(cycleStart) : first) : end - RANGE_DAYS[range] * DAY
+  // 기간이 아직 안 찼으면 첫 기록부터
+  t0 = Math.max(t0, first)
   const t1 = Math.max(end, ...all.map((p) => p.t))
   if (t1 - t0 < 7 * DAY) t0 = t1 - 7 * DAY
   return [t0, t1]

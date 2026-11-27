@@ -141,3 +141,9 @@ h1, h2, h3, p { margin: 0; }
   70% { transform: scale(1.14) }
   100% { transform: scale(1) }
 }
+
+/* 기록 화면 숫자 키패드 */
+@keyframes kpUp { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes caretBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.caret { display: inline-block; width: 2px; height: 18px; margin-left: 1px; vertical-align: -3px; border-radius: 1px; animation: caretBlink 1s step-end infinite; }
+.kp-key:active { filter: brightness(0.92); }

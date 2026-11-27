@@ -1,5 +1,5 @@
 import { L, setsLabel } from '../i18n'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
 import { phaseTitle, programOf } from '../logic/programs'
@@ -42,7 +42,20 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   })
   const a = editing ? draft : s.active
   const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
-  const [edit, setEdit] = useState<{ id: string; f: 'w' | 'r' } | null>(null)
+  const [edit, setEditRaw] = useState<{ id: string; f: 'w' | 'r' } | null>(null)
+  /** 키패드로 치는 중인 글자. null이면 아직 안 친 상태(처음 누르는 숫자가 원래 값을 바꾼다) */
+  const [buf, setBuf] = useState<string | null>(null)
+  const setEdit = (e: { id: string; f: 'w' | 'r' } | null) => {
+    setEditRaw(e)
+    setBuf(null)
+  }
+  const mainRef = useRef<HTMLElement>(null)
+  // 키패드가 열리면 고르는 줄이 가려지지 않게
+  useEffect(() => {
+    if (!edit) return
+    const el = mainRef.current?.querySelector(`[data-row="${edit.id}"]`)
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [edit])
   const [typeFor, setTypeFor] = useState<{ id: string; sel: string } | null>(null)
   const [rpeFor, setRpeFor] = useState<{ id: string; sel?: Rpe; got?: number } | null>(null)
   const [gearFor, setGearFor] = useState<{ id: string; sel: string[]; rest: boolean } | null>(null)
@@ -78,9 +91,38 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     if (!r.done && !editing) timer.restart()
   }
 
-  const bump = (r: SetRow, f: 'w' | 'r', d: number) => {
-    if (f === 'w') patch(r.id, { weight: Math.max(0, +(r.weight + d).toFixed(2)) })
-    else patch(r.id, { reps: Math.max(0, r.reps + d) })
+  /** 키패드 한 번 누름 */
+  const press = (k: string) => {
+    if (!edit) return
+    const r = a.sets.find((x) => x.id === edit.id)
+    if (!r) return
+    if (k === '.' && (edit.f === 'r' || (buf ?? '').includes('.'))) return
+    let b = k === 'back' ? (buf === null ? '' : buf.slice(0, -1)) : buf === null ? (k === '.' ? '0.' : k) : buf + k
+    if (/^0\d/.test(b)) b = b.slice(1)
+    if (b.length > 6 || /\.\d{3}$/.test(b)) return
+    setBuf(b)
+    const v = parseFloat(b)
+    patch(r.id, edit.f === 'w' ? { weight: isNaN(v) ? 0 : v } : { reps: isNaN(v) ? 0 : Math.round(v) })
+  }
+  /** 무게 → 횟수 → 다음 세트 무게 */
+  const kpNext = () => {
+    if (!edit) return
+    if (edit.f === 'w') return setEdit({ id: edit.id, f: 'r' })
+    const vis = a.sets.filter((r) => !(collapsed && r.type === 'W'))
+    const i = vis.findIndex((r) => r.id === edit.id)
+    setEdit(i >= 0 && i < vis.length - 1 ? { id: vis[i + 1].id, f: 'w' } : null)
+  }
+  const delSet = (id: string) => {
+    upd((sets) => sets.filter((x) => x.id !== id))
+    setEdit(null)
+  }
+  const addSetAfter = (r: SetRow) => {
+    const n: SetRow = { ...r, id: uid(), done: false, rpe: undefined, got: undefined }
+    upd((sets) => {
+      const i = sets.findIndex((x) => x.id === r.id)
+      return [...sets.slice(0, i + 1), n, ...sets.slice(i + 1)]
+    })
+    return n
   }
 
   const dark = isDark()
@@ -121,20 +163,32 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
         </button>
       )
     else done = <button onClick={() => tapDone(r)} aria-label={needsRpe(r) ? L('완료하고 RPE 입력', 'Done, enter RPE') : L('완료', 'Done')} style={{ ...circle, border: `2px solid ${lit ? '#fff' : dOpen ? 'var(--line2)' : r.id === nextId ? th.line : 'var(--line2)'}`, background: lit ? '#fff' : dOpen ? 'var(--fill2)' : 'transparent' }} />
-    const btnBg = dark ? th.press : th.soft
-    const btnFg = dark ? '#fff' : th.strong
+    /** 고른 칸: 치기 전엔 값에 옅은 색(통째로 바뀜), 치는 중엔 커서 */
+    const typed = (sel: boolean, v: string) =>
+      !sel ? (
+        v
+      ) : buf === null ? (
+        <span style={{ padding: '1px 3px', borderRadius: 4, background: dark ? th.press : th.tint }}>{v}</span>
+      ) : (
+        <>
+          {buf}
+          <span className="caret" style={{ background: th.acc }} />
+        </>
+      )
 
     return (
-      <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -6px', padding: open ? '6px 4px 10px' : '0 4px', borderRadius: 16, border: `2px solid ${open ? th.acc : 'transparent'}`, background: open ? th.acc : 'transparent' }}>
+      <div key={r.id} data-row={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, margin: '0 -6px', padding: open ? '6px 4px 10px' : '0 4px', borderRadius: 16, border: `2px solid ${open ? th.acc : 'transparent'}`, background: open ? th.acc : 'transparent' }}>
         <div className="grid5" style={{ height: 48 }}>
           <button onClick={() => (setEdit(null), setTypeFor({ id: r.id, sel: r.type }))} aria-label={`${L('세트 종류', 'Set type')} ${typeName(r.type)}`} style={{ justifySelf: 'center', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ width: 32, height: 32, borderRadius: 8, background: lit ? '#fff' : chip.bg, color: lit ? '#191f28' : chip.fg, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.type}</span>
           </button>
-          <button className="num" onClick={() => setEdit(fw ? null : { id: r.id, f: 'w' })} aria-label={`${L('무게', 'Weight')} ${r.weight}${u}`} style={cell(fw)}>
-            {fmt(r.weight)}
+          <button className="num" onClick={() => setEdit({ id: r.id, f: 'w' })} aria-label={`${L('무게', 'Weight')} ${r.weight}${u}`} style={cell(fw)}>
+            {typed(fw, fmt(r.weight))}
           </button>
-          <button className="num" onClick={() => setEdit(fr ? null : { id: r.id, f: 'r' })} aria-label={r.rpe === 'fail' && r.got !== undefined ? L(`횟수 ${r.reps}개 중 ${r.got}개`, `${r.got} of ${r.reps} reps`) : `${L('횟수', 'Reps')} ${r.reps}`} style={cell(fr)}>
-            {r.rpe === 'fail' && r.got !== undefined ? (
+          <button className="num" onClick={() => setEdit({ id: r.id, f: 'r' })} aria-label={r.rpe === 'fail' && r.got !== undefined ? L(`횟수 ${r.reps}개 중 ${r.got}개`, `${r.got} of ${r.reps} reps`) : `${L('횟수', 'Reps')} ${r.reps}`} style={cell(fr)}>
+            {fr ? (
+              typed(true, String(r.reps))
+            ) : r.rpe === 'fail' && r.got !== undefined ? (
               <>
                 {r.got}
                 <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.6 }}>/{r.reps}</span>
@@ -157,48 +211,104 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           )}
         </div>
         {open && edit && (
-          <>
-            <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 76px', gridTemplateRows: 'repeat(2, 40px)', gap: 6 }}>
-              {[10, 5, 1, -10, -5, -1].map((d) => (
-                <button key={d} className="num" onClick={() => bump(r, edit.f, d)} aria-label={`${edit.f === 'w' ? L('무게', 'Weight') : L('횟수', 'Reps')} ${d > 0 ? '+' : '−'}${Math.abs(d)}`} style={{ height: 40, fontSize: 15, fontWeight: 700, borderRadius: 10, background: btnBg, color: btnFg }}>
-                  {d > 0 ? `+${d}` : `−${-d}`}
-                </button>
-              ))}
-              <button onClick={() => setEdit(null)} style={{ gridColumn: 4, gridRow: '1 / span 2', fontSize: 15, fontWeight: 800, borderRadius: 10, background: btnBg, color: btnFg }}>
-                {L('확인', 'Done')}
-              </button>
-            </div>
-            <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
-              <button
-                onClick={() => {
-                  upd((sets) => sets.filter((x) => x.id !== r.id))
-                  setEdit(null)
-                }}
-                style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
-              >
-                {L('세트 삭제', 'Delete set')}
-              </button>
-              <button
-                onClick={() => {
-                  const n: SetRow = { ...r, id: uid(), done: false, rpe: undefined, got: undefined }
-                  upd((sets) => {
-                    const i = sets.findIndex((x) => x.id === r.id)
-                    return [...sets.slice(0, i + 1), n, ...sets.slice(i + 1)]
-                  })
-                  setEdit({ id: n.id, f: 'w' })
-                }}
-                style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}
-              >
-                {L('세트 추가', 'Add set')}
-              </button>
-            </div>
-          </>
+          <div style={{ padding: '0 4px 0 6px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+            <button onClick={() => delSet(r.id)} style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}>
+              {L('세트 삭제', 'Delete set')}
+            </button>
+            <button onClick={() => setEdit({ id: addSetAfter(r).id, f: 'w' })} style={{ height: 40, borderRadius: 10, background: 'var(--ink)', color: 'var(--onInk)', fontSize: 14, fontWeight: 700 }}>
+              {L('세트 추가', 'Add set')}
+            </button>
+          </div>
         )}
       </div>
     )
   }
 
+  const footBtn: CSSProperties = { height: 44, borderRadius: 12, border: '1.5px solid var(--line)', background: 'var(--surface)', fontSize: 14, fontWeight: 700, color: 'var(--sub)' }
   const tBtn: CSSProperties = { width: 44, height: 44, flexShrink: 0, borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+  /** 쉬는 시간 카드 (키패드가 열리면 키패드 위에 떠 있다) */
+  const timerCard = (float: boolean) => (
+    <section aria-label={L('쉬는 시간 타이머', 'Rest timer')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : float ? 'var(--surface)' : 'var(--fill2)', ...(float ? { margin: '0 12px 10px', border: '1px solid var(--line)', boxShadow: '0 6px 20px rgba(0,0,0,0.12)' } : {}), boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
+          {mmss(timer.remain)}
+        </span>
+        <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${Math.round((timer.remain / Math.max(timer.base, 1)) * 100)}%`, background: th.acc, transition: timer.running ? 'width 250ms linear' : 'none' }} />
+        </div>
+      </div>
+      <button onClick={timer.minus} aria-label={L(`${REST_STEP}초 줄이기`, `−${REST_STEP}s`)} style={tBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+          <path d="M5 12h14" />
+        </svg>
+      </button>
+      <button onClick={timer.plus} aria-label={L(`${REST_STEP}초 늘리기`, `+${REST_STEP}s`)} style={tBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+      <button onClick={timer.toggle} aria-label={timer.running ? L('일시정지', 'Pause') : L('다시 시작', 'Start')} style={tBtn}>
+        {timer.running ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
+            <rect x="6" y="5" width="4" height="14" rx="1" />
+            <rect x="14" y="5" width="4" height="14" rx="1" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+      <button onClick={timer.reset} aria-label={L('타이머 초기화', 'Reset timer')} style={tBtn}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 12a8 8 0 1 0 2.4-5.7" />
+          <path d="M4 4v4h4" />
+        </svg>
+      </button>
+    </section>
+  )
+  const editRow = edit ? a.sets.find((r) => r.id === edit.id) : undefined
+  const vis = a.sets.filter((r) => !(collapsed && r.type === 'W'))
+  const lastRow = vis[vis.length - 1]
+  const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back']
+  const keypad = editRow && edit && (
+    <div style={{ flexShrink: 0, animation: 'kpUp 220ms cubic-bezier(0.2,0.8,0.2,1) both' }}>
+      {!editing && timerCard(true)}
+      <section aria-label={L('숫자 키패드', 'Number pad')} style={{ background: 'var(--fill)', borderRadius: '20px 20px 0 0', padding: '10px 10px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 4px 0 10px' }}>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 700, color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {typeName(editRow.type)} · {edit.f === 'w' ? `${L('무게', 'Weight')} (${u})` : L('횟수', 'Reps')}
+          </span>
+          <button onClick={kpNext} style={{ height: 36, padding: '0 14px', borderRadius: 10, background: 'var(--surface)', color: 'var(--ink)', fontSize: 14, fontWeight: 700 }}>
+            {edit.f === 'w' ? L('횟수 ›', 'Reps ›') : L('다음 세트 ›', 'Next set ›')}
+          </button>
+          <button onClick={() => setEdit(null)} aria-label={L('입력 완료', 'Done typing')} style={{ height: 36, padding: '0 16px', borderRadius: 10, background: th.acc, color: th.on, fontSize: 14, fontWeight: 800 }}>
+            {L('완료', 'Done')}
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+          {KEYS.map((k) => {
+            if (k === 'back')
+              return (
+                <button key={k} className="kp-key" onClick={() => press('back')} aria-label={L('지우기', 'Delete')} style={{ height: 52, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z" />
+                    <path d="M17 9.5l-5 5M12 9.5l5 5" />
+                  </svg>
+                </button>
+              )
+            const off = k === '.' && (edit.f === 'r' || (buf ?? '').includes('.'))
+            return (
+              <button key={k} className="kp-key num" onClick={() => press(k)} aria-label={k === '.' ? L('소수점', 'Decimal point') : k} aria-disabled={off} style={{ height: 52, borderRadius: 12, background: 'var(--surface)', boxShadow: '0 1px 0 rgba(0,0,0,0.06)', fontSize: 24, fontWeight: 600, color: off ? 'var(--line2)' : 'var(--ink)' }}>
+                {k}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+    </div>
+  )
+
   const rpeRow = rpeFor && a.sets.find((r) => r.id === rpeFor.id)
   const typeRow = typeFor && a.sets.find((r) => r.id === typeFor.id)
   const gearRow = gearFor && a.sets.find((r) => r.id === gearFor.id)
@@ -219,7 +329,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
         </div>
       </header>
 
-      <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 16px 8px' }}>
+      <main ref={mainRef} className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 16px 8px' }}>
         <div className="grid5" style={{ fontSize: 12, color: 'var(--mute)', textAlign: 'center', paddingBottom: 2 }}>
           <span>{L('세트', 'Set')}</span>
           <span>
@@ -259,15 +369,30 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
             </svg>
           </button>
         )}
-        {a.sets.filter((r) => !(collapsed && r.type === 'W')).map(rowView)}
-        {a.sets.length === 0 && (
-          <button onClick={() => upd(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={{ height: 48, borderRadius: 12, border: '1.5px dashed var(--line2)', fontSize: 15, fontWeight: 600, color: 'var(--sub)' }}>
-            {L('세트 추가', 'Add set')}
+        {vis.map(rowView)}
+        {a.sets.length === 0 ? (
+          <button onClick={() => upd(() => [{ id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }])} style={footBtn}>
+            {L('+ 세트 추가', '+ Add set')}
           </button>
+        ) : (
+          lastRow &&
+          edit?.id !== lastRow.id && (
+            // 마지막 세트 아래: 마지막 세트 지우기 / 마지막 세트 복사해서 추가
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, padding: '4px 0 8px' }}>
+              <button onClick={() => delSet(lastRow.id)} style={footBtn}>
+                {L('세트 삭제', 'Delete set')}
+              </button>
+              <button onClick={() => addSetAfter(lastRow)} style={footBtn}>
+                {L('+ 세트 추가', '+ Add set')}
+              </button>
+            </div>
+          )
         )}
       </main>
 
-      {editing ? (
+      {keypad ? (
+        keypad
+      ) : editing ? (
         <div style={{ padding: '10px 20px var(--safe-bot)' }}>
           <button
             onClick={() => {
@@ -282,44 +407,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
         </div>
       ) : (
       <div style={{ padding: '10px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <section aria-label={L('쉬는 시간 타이머', 'Rest timer')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: timer.flash ? th.tint : 'var(--fill2)', boxShadow: timer.flash ? `inset 0 0 0 2px ${th.line}` : undefined, borderRadius: 16, padding: '10px 10px 10px 16px', transition: 'background 200ms ease', animation: timer.flash ? 'pulse 0.4s ease 4' : undefined }}>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span role="timer" className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1, color: 'var(--ink)' }}>
-                {mmss(timer.remain)}
-              </span>
-              <div style={{ height: 4, borderRadius: 2, background: 'var(--line)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${Math.round((timer.remain / Math.max(timer.base, 1)) * 100)}%`, background: th.acc, transition: timer.running ? 'width 250ms linear' : 'none' }} />
-              </div>
-            </div>
-            <button onClick={timer.minus} aria-label={L(`${REST_STEP}초 줄이기`, `−${REST_STEP}s`)} style={tBtn}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <path d="M5 12h14" />
-              </svg>
-            </button>
-            <button onClick={timer.plus} aria-label={L(`${REST_STEP}초 늘리기`, `+${REST_STEP}s`)} style={tBtn}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-            <button onClick={timer.toggle} aria-label={timer.running ? L('일시정지', 'Pause') : L('다시 시작', 'Start')} style={tBtn}>
-              {timer.running ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
-                  <rect x="6" y="5" width="4" height="14" rx="1" />
-                  <rect x="14" y="5" width="4" height="14" rx="1" />
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#191F28" aria-hidden="true">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              )}
-            </button>
-            <button onClick={timer.reset} aria-label={L('타이머 초기화', 'Reset timer')} style={tBtn}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 12a8 8 0 1 0 2.4-5.7" />
-                <path d="M4 4v4h4" />
-              </svg>
-            </button>
-          </section>
+          {timerCard(false)}
           <button
             onClick={() => {
               const id = finishWorkout()
