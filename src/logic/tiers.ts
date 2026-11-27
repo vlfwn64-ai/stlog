@@ -63,7 +63,7 @@ export interface TierInfo {
   tier: Tier
   next: Tier | null
   score: number
-  /** 다음 티어까지 필요한 무게 (증량 단위로 올림) */
+  /** 다음 티어까지 필요한 무게 (1 단위로 올림: 1kg 또는 1lb) */
   need: number
   /** 지금 티어 안에서 얼마나 왔는지 0~1 */
   progress: number
@@ -73,7 +73,11 @@ export interface TierInfo {
  * 3대(lift 없음) 또는 종목별 티어.
  * 종목별은 그 종목 1RM을 비율로 나눠 3대 합계처럼 보고 같은 기준을 쓴다.
  */
-export function tierInfo(weight: number, bw: number, sex: Sex, unit: Unit, step: number, lift?: LiftKey): TierInfo {
+/** 티어 기준 무게는 원판 단위와 상관없이 1kg(lb) 단위 */
+const STEP = 1
+
+export function tierInfo(weight: number, bw: number, sex: Sex, unit: Unit, lift?: LiftKey): TierInfo {
+  const step = STEP
   const share = lift ? SHARE[lift] : 1
   const score = dots(weight / share, bw, sex, unit)
   const tier = tierOf(score)
@@ -85,8 +89,9 @@ export function tierInfo(weight: number, bw: number, sex: Sex, unit: Unit, step:
   return { tier, next, score, need: +need.toFixed(2), progress }
 }
 
-/** 티어 표: 각 티어가 시작하는 무게 (증량 단위로 올림) */
-export function tierTable(bw: number, sex: Sex, unit: Unit, step: number, lift?: LiftKey) {
+/** 티어 표: 각 티어가 시작하는 무게 (1 단위로 올림) */
+export function tierTable(bw: number, sex: Sex, unit: Unit, lift?: LiftKey) {
+  const step = STEP
   const share = lift ? SHARE[lift] : 1
   return TIERS.map((t) => ({ tier: t, from: t.min === 0 ? 0 : Math.ceil((totalFor(t.min, bw, sex, unit) * share) / step - 1e-6) * step }))
 }

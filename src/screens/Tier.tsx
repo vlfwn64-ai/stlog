@@ -6,7 +6,7 @@ import type { LiftKey } from '../logic/program'
 import type { Tier, TierInfo } from '../logic/tiers'
 import { TIERS, dots, tierInfo, tierTable } from '../logic/tiers'
 import type { AppState } from '../store'
-import { step as stepOf, today, useApp } from '../store'
+import { today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt } from '../theme'
 import { Sheet } from '../ui'
 import { CardFace, cardEst, mainText } from './Home'
@@ -38,7 +38,7 @@ export function Badge({ tier, size, inner = true, lift }: { tier: Tier; size: nu
 export function liftTier(s: AppState, lift: LiftKey, rm = s.lifts[lift].oneRM): TierInfo | null {
   const b = s.settings.body
   if (!b) return null
-  return tierInfo(rm, b.weight, b.sex, s.settings.unit, stepOf(s), lift)
+  return tierInfo(rm, b.weight, b.sex, s.settings.unit, lift)
 }
 
 /** 레전드 금테 */
@@ -116,7 +116,7 @@ const total = (s: AppState) => CARD_ORDER.reduce((a, k) => a + s.lifts[k].oneRM,
 export function overallTier(s: AppState): TierInfo | null {
   const b = s.settings.body
   if (!b) return null
-  return tierInfo(total(s), b.weight, b.sex, s.settings.unit, stepOf(s))
+  return tierInfo(total(s), b.weight, b.sex, s.settings.unit)
 }
 
 /** 1RM이 바뀌었을 때 3대 티어 (승급 확인용) */
@@ -124,7 +124,7 @@ export function tierWith(s: AppState, lift: LiftKey, rm: number): TierInfo | nul
   const b = s.settings.body
   if (!b) return null
   const t = total(s) - s.lifts[lift].oneRM + rm
-  return tierInfo(t, b.weight, b.sex, s.settings.unit, stepOf(s))
+  return tierInfo(t, b.weight, b.sex, s.settings.unit)
 }
 
 const nextText = (t: TierInfo, u: string) => (t.next ? L(`${t.next.name()}까지 +${fmt(t.need)}${u}`, `+${fmt(t.need)}${u} to ${t.next.name()}`) : L('최고 티어', 'Top tier'))
@@ -232,7 +232,7 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
       </button>
       <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
         {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
-          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
+          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, k)
           // 엘리트 색(var(--ink))은 다크에서 밝아서 칸은 늘 짙은 색
           const bg = lt.tier.i === 6 ? '#2C2C35' : lt.tier.color
           return (
@@ -267,7 +267,7 @@ export function GrowthTiers({ s, go, onOpen }: { s: AppState; go: Go; onOpen: (l
       <section style={{ display: 'flex', flexDirection: 'column' }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>{L('종목별 티어', 'Tier by lift')}</h2>
         {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
-          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
+          const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, k)
           return (
             <button key={k} onClick={() => onOpen(k)} aria-label={`${TH[k].name} ${lt.tier.name()}, ${nextText(lt, u)}`} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--fill)', textAlign: 'left' }}>
               <span style={{ width: 36, height: 36, borderRadius: 10, background: TH[k].acc, color: TH[k].on, fontSize: 18, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{k}</span>
@@ -305,7 +305,7 @@ export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftK
   if (!t || !b) return null
   const u = s.settings.unit
   const cur = lift ? s.lifts[lift].oneRM : total(s)
-  const table = tierTable(b.weight, b.sex, u, stepOf(s), lift).reverse()
+  const table = tierTable(b.weight, b.sex, u, lift).reverse()
   return (
     <Sheet onClose={onClose}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '0 4px' }}>
@@ -346,7 +346,7 @@ export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftK
                 </span>
               )}
               <span className="num" style={{ width: lift ? 72 : 66, textAlign: 'right', fontSize: 14, fontWeight: me ? 800 : 500, whiteSpace: 'nowrap' }}>
-                {from === 0 ? `~${fmt(table[i - 1]?.from ? table[i - 1].from - stepOf(s) : 0)}${u}` : `${fmt(from)}${u}~`}
+                {from === 0 ? `~${fmt(table[i - 1]?.from ? table[i - 1].from - 1 : 0)}${u}` : `${fmt(from)}${u}~`}
               </span>
               {/* 상위 몇 % (3대·종목 모두) */}
               <span className="num" style={{ width: lift ? 62 : 56, textAlign: 'right', fontSize: 12, fontWeight: me ? 800 : 500, color: me ? tier.text : 'var(--mute)', whiteSpace: 'nowrap' }}>
@@ -551,7 +551,7 @@ export function TierView({ lift, go }: { lift?: LiftKey; go: Go }) {
           // 종목 1RM: 세 칸 나란히
           <div style={{ width: '100%', marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
             {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
-              const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, stepOf(s), k)
+              const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, k)
               return (
                 <div key={k} className="num" aria-label={`${TH[k].name} 1RM ${fmt(s.lifts[k].oneRM)}${u}, ${lt.tier.name()}`} style={{ padding: '12px 6px', borderRadius: 14, background: 'rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <LiftMark lift={k} size={26} line={t.tier.deep} />

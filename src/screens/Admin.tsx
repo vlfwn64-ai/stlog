@@ -8,7 +8,7 @@ import type { LiftKey } from '../logic/program'
 import { programOf } from '../logic/programs'
 import { TIERS, tierInfo } from '../logic/tiers'
 import type { AppState } from '../store'
-import { step as stepOf, today } from '../store'
+import { today } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
 import { Badge } from './Tier'
 
@@ -17,7 +17,7 @@ const total = (d: AppState) => CARD_ORDER.reduce((a, k) => a + (d.lifts[k]?.oneR
 const tierOfUser = (d: AppState) => {
   const b = d.settings?.body
   if (!b || !d.onboarded) return null
-  return tierInfo(total(d), b.weight, b.sex, d.settings.unit, stepOf(d))
+  return tierInfo(total(d), b.weight, b.sex, d.settings.unit)
 }
 const lastSession = (d: AppState) => d.sessions?.reduce<string | null>((a, x) => (!a || x.date > a ? x.date : a), null) ?? null
 const daysAgo = (date: string) => Math.round((new Date(today()).getTime() - new Date(date).getTime()) / DAY)
