@@ -355,7 +355,8 @@ export async function shareCard(s: AppState) {
   c.lineWidth = 16
   c.stroke()
   // 티어 이름, 합계
-  c.fillStyle = '#9FC2FF'
+  // 어두운 배경에서 잘 보이는 티어 색 (다크 모드 글자 색과 같음)
+  c.fillStyle = ['#B0B8C1', '#E39A6A', '#C3CBD8', '#F2C14E', '#4FD1CE', '#7FB0FF', '#F2F4F6'][t.tier.i]
   c.font = font(700, 40)
   c.fillText(t.tier.en.toUpperCase().split('').join(' '), cx, 730)
   c.fillStyle = '#FFFFFF'
