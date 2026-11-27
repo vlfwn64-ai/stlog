@@ -150,7 +150,7 @@ export function HomeTierBig({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
   const u = s.settings.unit
   const sum = total(s)
   return (
-    <button onClick={onOpen} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}. ${L('성장 탭으로', 'Open Growth')}`} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 14px 14px', borderRadius: 22, background: 'var(--fill2)', textAlign: 'left' }}>
+    <button onClick={onOpen} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}. ${L('성장 탭으로', 'Open Growth')}`} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderRadius: 22, background: 'var(--fill2)', textAlign: 'left' }}>
       <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: t.tier.text }}>{L('3대 티어', 'Big 3 tier')}</span>
         <span className="num" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: 'var(--mute)' }}>
@@ -159,9 +159,9 @@ export function HomeTierBig({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
           <Chevron />
         </span>
       </span>
-      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: -4 }}>
-        <Badge tier={t.tier} size={80} />
-        <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
+      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -2 }}>
+        <Badge tier={t.tier} size={100} />
+        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
         <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
           {L('3대', 'Total')} {fmt(sum)}
           {u} · {ratioText(sum, b.weight, 1)}
@@ -180,8 +180,8 @@ export function HomeTierBig({ s, go, onOpen }: { s: AppState; go: Go; onOpen: ()
           // 엘리트 색(var(--ink))은 다크에서 밝아서 칸은 늘 짙은 색
           const bg = lt.tier.i === 6 ? '#2C2C35' : lt.tier.color
           return (
-            <span key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '10px 6px 9px', borderRadius: 14, background: bg }}>
-              <LiftMark lift={k} size={30} line={bg} />
+            <span key={k} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 6px 10px', borderRadius: 14, background: bg }}>
+              <LiftMark lift={k} size={34} line={bg} />
               <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF' }}>{lt.tier.name()}</span>
               <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF' }}>
                 {k} · {fmt(s.lifts[k].oneRM)}
