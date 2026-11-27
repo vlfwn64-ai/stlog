@@ -152,6 +152,7 @@ export async function adminUsers(): Promise<AdminRow[]> {
   if (!sb) throw new Error('cloud off')
   const { data, error } = await sb.rpc('admin_users')
   if (error) throw error
+  if (cs.session) void loadMiracle(cs.session.user.id)
   return (data ?? []) as AdminRow[]
 }
 

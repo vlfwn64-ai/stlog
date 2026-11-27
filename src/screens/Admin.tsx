@@ -46,6 +46,7 @@ export default function Admin({ go }: { go: Go }) {
   useEffect(() => {
     void load()
   }, [])
+  const me = rows?.find((r) => r.user_id === cloud.session?.user.id)
   /** 미라클 주기·빼기 */
   const toggleMiracle = async (r: AdminRow) => {
     setBusy(r.user_id)
@@ -90,19 +91,29 @@ export default function Admin({ go }: { go: Go }) {
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>{L('관리자', 'Admin')}</h1>
       </header>
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '4px 20px var(--safe-bot)' }}>
-        {/* 내 미라클 티어 보이기 (나한테 미라클을 줬을 때만) */}
-        {cloud.miracle && (
+        {/* 내 미라클 티어: 아직 없으면 나에게 주기, 있으면 켬/끔 */}
+        {cloud.session && (
           <section style={{ minHeight: 64, padding: '0 16px', borderRadius: 16, background: 'var(--fill2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap' }}>
               <Badge tier={MIRACLE} size={26} inner={false} />
               {L('내 미라클 티어', 'My Miracle tier')}
             </span>
-            <SegToggle options={[L('켬', 'On'), L('끔', 'Off')]} value={miracleSet === false ? L('끔', 'Off') : L('켬', 'On')} onChange={(v) => setState((x) => ({ ...x, settings: { ...x.settings, miracle: v === L('켬', 'On') } }))} minWidth={52} height={38} />
+            {cloud.miracle ? (
+              <SegToggle options={[L('켬', 'On'), L('끔', 'Off')]} value={miracleSet === false ? L('끔', 'Off') : L('켬', 'On')} onChange={(v) => setState((x) => ({ ...x, settings: { ...x.settings, miracle: v === L('켬', 'On') } }))} minWidth={52} height={38} />
+            ) : (
+              <button
+                disabled={!me || busy !== null}
+                onClick={() => me && void toggleMiracle(me)}
+                style={{ height: 38, padding: '0 14px', borderRadius: 10, background: PEARL_BG, boxShadow: `inset 0 0 0 1.5px ${PEARL_LINE}`, color: '#5E5672', fontSize: 14, fontWeight: 800, opacity: !me || busy !== null ? 0.5 : 1 }}
+              >
+                {L('나에게 주기', 'Grant to me')}
+              </button>
+            )}
           </section>
         )}
         {err && (
           <p style={{ padding: 16, borderRadius: 14, background: 'var(--fill2)', fontSize: 14, lineHeight: 1.6, color: '#D92B3A' }}>
-            {L('불러오지 못했어요. 관리자 계정인지, Supabase에 admin.sql을 실행했는지 확인해 주세요.', 'Could not load. Check the admin account and admin.sql.')}
+            {L('불러오지 못했어요. 관리자 계정인지, Supabase에 admin.sql·miracle.sql을 실행했는지 확인해 주세요.', 'Could not load. Check the admin account, admin.sql and miracle.sql.')}
             <br />
             <span style={{ color: 'var(--mute)', fontSize: 12 }}>{err}</span>
           </p>
