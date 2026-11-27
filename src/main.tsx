@@ -34,18 +34,11 @@ document.addEventListener('touchend', (e) => {
     st.el?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY }))
 })
 
-// 그래도 뒤로 가기가 일어나면(안드로이드 뒤로 버튼 등) 앱 밖으로 나가지 않게
-const trap = () => {
-  try {
-    history.pushState({ stlog: true }, '')
-  } catch {
-    /* 무시 */
-  }
-}
-trap()
-// 사용자가 처음 만졌을 때 한 번 더 (브라우저가 손대기 전 쌓은 칸을 건너뛰는 경우 대비)
-window.addEventListener('pointerdown', trap, { once: true })
-window.addEventListener('popstate', trap)
+// 카카오·구글 로그인 화면에서 뒤로 왔을 때 브라우저가 예전 화면을 그대로 되살리면(뒤로-앞으로 캐시)
+// 로그인 상태와 안 맞는 화면이 보일 수 있어서, 처음부터 다시 연다 (첫 화면 → 로그인 선택)
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) location.reload()
+})
 
 // 오프라인 캐시 (배포 환경에서만)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

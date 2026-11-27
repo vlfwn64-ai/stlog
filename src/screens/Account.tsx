@@ -120,11 +120,10 @@ export function AccountSheet({ onClose }: { onClose: () => void }) {
       <Confirm
         eyebrow={L('계정 · 초기화', 'Account · Reset')}
         title={L('정말 초기화할까요?', 'Really reset everything?')}
+        desc={L('이 기기와 계정의 기록이 모두 지워지고, 되돌릴 수 없어요.', 'All records on this device and in your account will be erased. This can’t be undone.')}
         rows={[
           [L('훈련 기록', 'Workouts'), timesLabel(s.sessions.length)],
           [L('1RM 테스트', '1RM tests'), timesLabel(s.tests.length)],
-          [L('지워지는 곳', 'Erased from'), L('이 기기와 계정 모두', 'This device and your account')],
-          [L('되돌리기', 'Undo'), <span key="undo" style={{ color: '#D92B3A', fontWeight: 800 }}>{L('불가', 'Not possible')}</span>],
         ]}
         cta={L('초기화', 'Reset')}
         onCancel={() => setWipe(false)}

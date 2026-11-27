@@ -229,10 +229,30 @@ export function SummaryRows({ rows, small }: { rows: [string, ReactNode][]; smal
 }
 
 /** 확인 팝업 (디로드 · 다음 단계 · 1RM 테스트) */
-export function Confirm({ lift, eyebrow, title, rows, cta, onCancel, onOk }: { lift?: LiftKey; eyebrow: string; title: string; rows: [string, ReactNode][]; cta: string; onCancel: () => void; onOk: () => void }) {
+export function Confirm({
+  lift,
+  eyebrow,
+  title,
+  desc,
+  rows,
+  cta,
+  onCancel,
+  onOk,
+}: {
+  lift?: LiftKey
+  eyebrow: string
+  title: string
+  /** 제목 아래 작은 빨간 경고 */
+  desc?: string
+  rows: [string, ReactNode][]
+  cta: string
+  onCancel: () => void
+  onOk: () => void
+}) {
   const th = lift ? TH[lift] : null
   return (
     <Sheet onClose={onCancel} eyebrow={eyebrow} eyebrowColor={th?.text} title={title}>
+      {desc && <p style={{ marginTop: -8, padding: '0 4px', fontSize: 13, lineHeight: 1.6, fontWeight: 600, color: '#D92B3A' }}>{desc}</p>}
       <SummaryRows rows={rows} />
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel} style={{ width: 110, flexShrink: 0, height: 56, borderRadius: 14, background: 'var(--fill)', fontSize: 16, fontWeight: 700, color: 'var(--ink2)' }}>
