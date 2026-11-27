@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import type { Go } from '../App'
 import type { AdminRow } from '../cloud'
-import { adminSetMiracle, adminUsers } from '../cloud'
+import { adminSetMiracle, adminUsers, useCloud } from '../cloud'
 import { L } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import { programOf } from '../logic/programs'
@@ -10,8 +10,9 @@ import { MIRACLE, PEARL, PEARL_LINE, TIERS, asMiracle, tierInfo } from '../logic
 
 const PEARL_BG = `linear-gradient(90deg, ${PEARL.join(', ')})`
 import type { AppState } from '../store'
-import { today } from '../store'
+import { setState, today, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, md } from '../theme'
+import { SegToggle } from '../ui'
 import { Badge } from './Tier'
 
 const DAY = 86400000
@@ -31,6 +32,8 @@ const ago = (iso: string | null) => {
 }
 
 export default function Admin({ go }: { go: Go }) {
+  const cloud = useCloud()
+  const miracleSet = useApp().settings.miracle
   const [rows, setRows] = useState<AdminRow[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -87,6 +90,16 @@ export default function Admin({ go }: { go: Go }) {
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>{L('관리자', 'Admin')}</h1>
       </header>
       <main className="scroll" style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '4px 20px var(--safe-bot)' }}>
+        {/* 내 미라클 티어 보이기 (나한테 미라클을 줬을 때만) */}
+        {cloud.miracle && (
+          <section style={{ minHeight: 64, padding: '0 16px', borderRadius: 16, background: 'var(--fill2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap' }}>
+              <Badge tier={MIRACLE} size={26} inner={false} />
+              {L('내 미라클 티어', 'My Miracle tier')}
+            </span>
+            <SegToggle options={[L('켬', 'On'), L('끔', 'Off')]} value={miracleSet === false ? L('끔', 'Off') : L('켬', 'On')} onChange={(v) => setState((x) => ({ ...x, settings: { ...x.settings, miracle: v === L('켬', 'On') } }))} minWidth={52} height={38} />
+          </section>
+        )}
         {err && (
           <p style={{ padding: 16, borderRadius: 14, background: 'var(--fill2)', fontSize: 14, lineHeight: 1.6, color: '#D92B3A' }}>
             {L('불러오지 못했어요. 관리자 계정인지, Supabase에 admin.sql을 실행했는지 확인해 주세요.', 'Could not load. Check the admin account and admin.sql.')}

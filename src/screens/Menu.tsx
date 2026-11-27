@@ -14,8 +14,6 @@ import { LevelTabs, ProgramCards } from './ProgramPicker'
 import { GEAR, allGear, progOf, setState, useApp } from '../store'
 import { CARD_ORDER, TH, fmt, gearName } from '../theme'
 import { Confirm, SegToggle, Sheet, SummaryRows } from '../ui'
-import { Badge } from './Tier'
-import { MIRACLE } from '../logic/tiers'
 import type { Go } from '../App'
 
 type Pop = null | 'rm' | 'goal' | 'plate' | 'bar' | 'gear' | 'addGear' | 'reset' | 'account' | 'plateAdjust' | 'program' | 'body'
@@ -124,15 +122,6 @@ export default function Menu({ go }: { go: Go }) {
           </div>
         </Section>
         <Section title={L('앱', 'App')}>
-          {cloud.miracle && (
-            <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, whiteSpace: 'nowrap' }}>
-                <Badge tier={MIRACLE} size={20} inner={false} />
-                {L('미라클 티어', 'Miracle tier')}
-              </span>
-              <SegToggle options={[L('켬', 'On'), L('끔', 'Off')]} value={st.miracle === false ? L('끔', 'Off') : L('켬', 'On')} onChange={(v) => set({ miracle: v === L('켬', 'On') })} minWidth={52} height={38} />
-            </div>
-          )}
           <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ fontSize: 16 }}>{L('테마', 'Theme')}</span>
             <SegToggle

@@ -39,12 +39,12 @@ export const TIERS: Tier[] = [
  * 배지는 무지개(홀로그램) 그라데이션.
  */
 export const MIRACLE: Tier = { i: 9, min: Infinity, name: () => L('미라클', 'Miracle'), color: '#EEE8F1', text: 'var(--tier9)', deep: '#2A2730', en: 'Miracle' }
-/** 미라클 우윳빛 (진주처럼 살짝 분홍·하늘·크림이 도는 흰색) */
-export const PEARL = ['#FFFFFF', '#F6EEF5', '#ECF1FA', '#FBF6EC']
+/** 미라클 자개빛: 우윳빛 바탕에 굴 껍데기 안쪽처럼 옅은 무지개가 돈다 */
+export const PEARL = ['#FFFFFF', '#F8D9EA', '#E4DBFA', '#D2EBFA', '#D9F5E8', '#FAF0D2', '#FFFFFF']
 /** 우윳빛 배지 테두리·안쪽 띠 */
-export const PEARL_LINE = '#C9C0D6'
+export const PEARL_LINE = '#C4B8DA'
 /** 무게로 나온 티어를 미라클로 바꾼다 (점수는 그대로) */
-export const asMiracle = (t: TierInfo): TierInfo => ({ ...t, tier: MIRACLE, next: null, need: 0, progress: 1 })
+export const asMiracle = (t: TierInfo): TierInfo => ({ ...t, tier: MIRACLE, next: null, need: 0, progress: 1, base: t })
 
 export const SHARE: Record<LiftKey, number> = { S: 0.36, B: 0.24, D: 0.4 }
 
@@ -79,6 +79,8 @@ export interface TierInfo {
   need: number
   /** 지금 티어 안에서 얼마나 왔는지 0~1 */
   progress: number
+  /** 미라클일 때 무게로 낸 원래 티어 (상위 %는 이걸로) */
+  base?: TierInfo
 }
 
 /**

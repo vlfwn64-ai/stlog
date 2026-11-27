@@ -4,7 +4,7 @@ import type React from 'react'
 import { L, isEn } from '../i18n'
 import type { LiftKey } from '../logic/program'
 import type { Tier, TierInfo } from '../logic/tiers'
-import { MIRACLE, PEARL, PEARL_LINE, TIERS, asMiracle, dots, tierInfo, tierTable } from '../logic/tiers'
+import { PEARL, PEARL_LINE, TIERS, asMiracle, dots, tierInfo, tierTable } from '../logic/tiers'
 import { cloudMiracle } from '../cloud'
 import type { AppState } from '../store'
 import { today, useApp } from '../store'
@@ -112,7 +112,11 @@ export function myTop(t: TierInfo) {
   const v = Math.exp(Math.log(a) + (Math.log(b) - Math.log(a)) * Math.min(1, Math.max(0, p)))
   return v >= 10 ? Math.round(v) : v >= 1 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100
 }
-const myTopText = (t: TierInfo) => (t.tier.i === 9 ? L('관리자가 준 특별 티어', 'Special tier') : L(`상위 ${myTop(t)}%`, `Top ${myTop(t)}%`))
+/** 미라클이어도 상위 %는 무게로 낸 원래 티어 기준 */
+const myTopText = (t: TierInfo) => {
+  const v = myTop(t.base ?? t)
+  return L(`상위 ${v}%`, `Top ${v}%`)
+}
 
 /** 체중 대비 몇 배 */
 const ratioText = (w: number, bw: number, d = 2) => L(`체중의 ${(w / bw).toFixed(d)}배`, `${(w / bw).toFixed(d)}× BW`)
@@ -151,7 +155,7 @@ export function tierWith(s: AppState, lift: LiftKey, rm: number): TierInfo | nul
   return miracleOn(s) ? asMiracle(info) : info
 }
 
-const nextText = (t: TierInfo, u: string) => (t.tier.i === 9 ? L('특별 티어', 'Special tier') : t.next ? L(`${t.next.name()}까지 +${fmt(t.need)}${u}`, `+${fmt(t.need)}${u} to ${t.next.name()}`) : L('최고 티어', 'Top tier'))
+const nextText = (t: TierInfo, u: string) => (t.tier.i === 9 ? L('관리자 티어', 'Admin tier') : t.next ? L(`${t.next.name()}까지 +${fmt(t.need)}${u}`, `+${fmt(t.need)}${u} to ${t.next.name()}`) : L('최고 티어', 'Top tier'))
 
 function Bar({ t, h = 6 }: { t: TierInfo; h?: number }) {
   return (
@@ -354,17 +358,6 @@ export function TierSheet({ onClose, lift }: { onClose: () => void; lift?: LiftK
         </div>
       )}
       <ol aria-label={L('티어 표', 'Tier table')} style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
-        {/* 미라클: 무게가 아니라 관리자가 정한다 */}
-        {!lift && (
-          <li style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 40, padding: '0 8px', borderRadius: 12, background: t.tier.i === 9 ? 'var(--fill)' : 'transparent' }}>
-            <Badge tier={MIRACLE} size={22} inner={false} />
-            <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: t.tier.i === 9 ? 800 : 500, color: t.tier.i === 9 ? MIRACLE.text : 'var(--ink2)', whiteSpace: 'nowrap' }}>
-              {MIRACLE.name()}
-              {t.tier.i === 9 && <span style={{ height: 20, padding: '0 7px', borderRadius: 6, background: 'var(--surface)', color: 'var(--ink2)', fontSize: 11, fontWeight: 700, lineHeight: '20px' }}>{L('지금', 'You')}</span>}
-            </span>
-            <span style={{ fontSize: 13, color: 'var(--sub)', whiteSpace: 'nowrap' }}>{L('관리자가 정해요', 'Granted by admin')}</span>
-          </li>
-        )}
         {table.map(({ tier, from }, i) => {
           const me = tier.i === t.tier.i
           return (
