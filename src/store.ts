@@ -3,6 +3,7 @@ import type { LiftKey, LiftProgress, Rpe, SetType, Unit } from './logic/program'
 import { stepOf } from './logic/program'
 import type { ProgramId, Sex } from './logic/programs'
 import { programOf, withMain } from './logic/programs'
+import type { Exercise, ExerciseRef } from './exercises'
 
 export interface Settings {
   unit: Unit
@@ -55,6 +56,8 @@ export interface SetRow {
 }
 
 export interface ActiveWorkout {
+  /** 훈련 시작 시각 (ms). 오른쪽 위 운동 시간 */
+  start?: number
   lift: LiftKey
   program?: ProgramId
   date: string
@@ -84,7 +87,36 @@ export interface SessionLog {
   program?: ProgramId
   /** 자유 운동 (프로그램 밖에서 지난 날짜에 추가한 기록) */
   free?: boolean
+  /** 훈련 시작·끝 시각 (ms) */
+  start?: number
+  end?: number
   next?: { top: number; backoff: number; topChange: number; boChange: number; advanced: boolean; stage: number; newCycle?: boolean }
+}
+
+/** 자유 훈련(ETC)의 운동 하나 */
+export interface EtcItem {
+  ex: ExerciseRef & { mus: string[]; sec: string[] }
+  sets: SetRow[]
+}
+
+/** 자유 훈련 한 번 (여러 운동) */
+export interface EtcLog {
+  id: string
+  date: string
+  /** 시작·끝 시각 (ms) → 운동 시간 */
+  start: number
+  end: number
+  items: EtcItem[]
+}
+
+/** 지금 하는 자유 훈련 */
+export interface EtcActive {
+  date: string
+  start: number
+  items: EtcItem[]
+  /** 지금 기록 중인 운동 */
+  cur?: EtcItem
+  rest?: RestState
 }
 
 export interface TestLog {
@@ -118,6 +150,12 @@ export interface AppState {
   /** 실제 1RM 기록 (온보딩·테스트) */
   rmHistory: { date: string; lift: LiftKey; rm: number }[]
   active?: ActiveWorkout
+  /** 자유 훈련 기록 */
+  etcLogs?: EtcLog[]
+  /** 지금 하는 자유 훈련 */
+  etcActive?: EtcActive
+  /** 직접 추가한 운동 */
+  customExercises?: Exercise[]
   /** 마지막으로 바뀐 시각 (동기화 비교용, ms) */
   updatedAt?: number
 }

@@ -8,6 +8,9 @@ import { TH, chipText, dropsText, chipColors, fmt, rpeText } from '../theme'
 import { L, attemptLabel, dayTitle, setsLabel } from '../i18n'
 import { Confirm, Sheet } from '../ui'
 import type { Go, Route } from '../App'
+import { EtcDayCard } from './Etc'
+import { deleteEtc } from '../actions'
+import type { EtcLog } from '../store'
 
 type Attempt = { weight: number; ok: boolean }
 
@@ -22,7 +25,9 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
   const sessions = s.sessions.filter((x) => (sessionId ? x.id === sessionId : x.date === date))
   const day = date ?? sessions[0]?.date
   const tests = sessionId ? [] : s.tests.filter((t) => t.date === day)
-  const total = sessions.length + tests.length
+  const etcs = sessionId ? [] : (s.etcLogs ?? []).filter((l) => l.date === day)
+  const [delEtc, setDelEtc] = useState<EtcLog | null>(null)
+  const total = sessions.length + tests.length + etcs.length
 
   const btn = (label: string, onClick: () => void, primary?: { bg: string; fg: string }) => (
     <button
@@ -32,6 +37,23 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
       {label}
     </button>
   )
+
+  if (delEtc) {
+    return (
+      <Confirm
+        eyebrow={`ETC · ${dayTitle(delEtc.date)}`}
+        title={L('이 자유 훈련 기록을 지울까요?', 'Delete this free training?')}
+        rows={[[L('운동', 'Exercises'), L(`${delEtc.items.length}종목`, `${delEtc.items.length}`)]]}
+        cta={L('지우기', 'Delete')}
+        onCancel={() => setDelEtc(null)}
+        onOk={() => {
+          deleteEtc(delEtc.id)
+          setDelEtc(null)
+          if (total <= 1) onClose()
+        }}
+      />
+    )
+  }
 
   if (del) {
     return (
@@ -245,6 +267,9 @@ export default function DaySheet({ date, sessionId, go, back, onClose }: { date?
           </article>
         )
       })}
+      {etcs.map((l) => (
+        <EtcDayCard key={l.id} log={l} go={go} back={back} onClose={onClose} onDelete={() => setDelEtc(l)} />
+      ))}
       {!sessionId && day && (
         <>
           {day <= today() && (

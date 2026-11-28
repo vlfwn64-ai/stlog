@@ -73,7 +73,7 @@ const setLinked = (id: string | null) => {
 }
 
 /** 기록이 사실상 비어 있는지 (새 기기·막 온보딩만 한 상태) */
-export const isEmpty = (s: AppState) => !s.onboarded || (s.sessions.length === 0 && s.tests.length === 0 && !s.active)
+export const isEmpty = (s: AppState) => !s.onboarded || (s.sessions.length === 0 && s.tests.length === 0 && !s.active && !(s.etcLogs ?? []).length && !s.etcActive)
 
 const isProvider = (p: unknown): p is Provider => p === 'google' || p === 'kakao'
 

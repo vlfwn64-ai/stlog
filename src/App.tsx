@@ -15,6 +15,8 @@ import Test from './screens/Test'
 import Tutorial from './screens/Tutorial'
 import Workout from './screens/Workout'
 import Admin from './screens/Admin'
+import { EtcLift, EtcLobby } from './screens/Etc'
+import type { EtcItem } from './store'
 
 export type Tab = 'grow' | 'home' | 'rec'
 
@@ -31,6 +33,11 @@ export type Route =
   | { name: 'result'; id: string }
   | { name: 'test'; lift: LiftKey }
   | { name: 'edit'; id: string; back: Route }
+  | { name: 'etc'; from?: 'left' | 'right' }
+  | { name: 'etcLobby' }
+  | { name: 'etcWorkout' }
+  | { name: 'etcLog'; id: string; back?: Route }
+  | { name: 'etcEdit'; id: string; i: number; ex?: EtcItem['ex']; back: Route }
 
 export type Go = (r: Route) => void
 
@@ -117,6 +124,11 @@ export default function App() {
   else if (route.name === 'workout') view = <Workout go={go} />
   else if (route.name === 'edit') view = <Workout key={route.id} go={go} editId={route.id} back={route.back} />
   else if (route.name === 'add') view = <Workout key={`add-${route.date}-${route.lift}`} go={go} add={{ date: route.date, lift: route.lift }} back={route.back} />
+  else if (route.name === 'etc') view = <EtcLift go={go} slide={route.from} />
+  else if (route.name === 'etcLobby') view = <EtcLobby go={go} />
+  else if (route.name === 'etcLog') view = <EtcLobby key={route.id} go={go} logId={route.id} back={route.back} />
+  else if (route.name === 'etcWorkout') view = <Workout key="etc" go={go} etc="active" />
+  else if (route.name === 'etcEdit') view = <Workout key={`etc-${route.id}-${route.i}`} go={go} etc={{ id: route.id, i: route.i, ex: route.ex }} back={route.back} />
   else if (route.name === 'result') view = <Result id={route.id} go={go} />
   else if (route.name === 'test') view = <Test lift={route.lift} go={go} />
   else if (route.name === 'tierview') view = <TierView key={route.lift ?? 'all'} lift={route.lift} go={go} />
