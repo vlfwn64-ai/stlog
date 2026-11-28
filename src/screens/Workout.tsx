@@ -4,13 +4,14 @@ import type { CSSProperties } from 'react'
 import type { Rpe, SetType } from '../logic/program'
 import { roundDown } from '../logic/program'
 import { phaseTitle, programOf } from '../logic/programs'
-import { addSession, applyTopRpe, finishWorkout, saveSession, setRest, updateSets } from '../actions'
+import { addSession, applyTopRpe, finishEtcItem, finishWorkout, lastEtcItem, saveEtcItem, saveSession, setEtcRest, setRest, updateEtcSets, updateSets } from '../actions'
+import { Elapsed } from './Etc'
 import { REST_STEP, useRestTimer } from '../rest'
 import { useWakeLock } from '../wakelock'
-import type { SetRow } from '../store'
+import type { EtcItem, SetRow } from '../store'
 import type { LiftKey } from '../logic/program'
 import { allGear, progOf, step as stepOf, uid, useApp } from '../store'
-import { chipText, gearName, setTypes, TH, chipColors, fmt, isDark, md, typeName } from '../theme'
+import { chipText, gearName, setTypes, TH, ETC_TH, chipColors, fmt, isDark, md, typeName } from '../theme'
 import { BeltIcon, Sheet } from '../ui'
 import type { Go, Route } from '../App'
 
@@ -30,11 +31,25 @@ type Edit = { id: string; f: 'w' | 'r'; d?: number }
 const mmss = (t: number) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
 const DEFAULT_REST = { base: 90, endAt: null, left: 90 }
 
-export default function Workout({ go, editId, add, back }: { go: Go; editId?: string; add?: { date: string; lift: LiftKey }; back?: Route }) {
+/** 자유 훈련: 'active' = 지금 하는 운동 / { id, i } = 지난 자유 훈련의 i번째 운동 고치기 (ex가 있으면 새로 추가) */
+export type EtcMode = 'active' | { id: string; i: number; ex?: EtcItem['ex'] }
+
+export default function Workout({ go, editId, add, back, etc }: { go: Go; editId?: string; add?: { date: string; lift: LiftKey }; back?: Route; etc?: EtcMode }) {
   const s = useApp()
-  const editing = !!editId || !!add
+  const etcLog = etc && etc !== 'active' ? etc : undefined
+  const editing = !!editId || !!add || !!etcLog
   // 지난 기록 수정·추가: 고친 내용은 저장 누르기 전까지 여기에만
   const [draft, setDraft] = useState(() => {
+    if (etcLog) {
+      // 지난 자유 훈련 고치기: 세트는 모두 한 것으로
+      const log = (s.etcLogs ?? []).find((l) => l.id === etcLog.id)
+      const it = log?.items[etcLog.i]
+      const ex = it?.ex ?? etcLog.ex
+      if (!log || !ex) return null
+      const prev = it ? null : lastEtcItem(s, ex.id)
+      const sets = (it?.sets ?? prev?.item.sets ?? [{ id: uid(), type: 'N' as const, weight: 0, reps: 10, done: true, gear: [] }]).map((r) => ({ ...r, id: uid(), done: true }))
+      return { lift: 'B' as LiftKey, program: undefined, date: log.date, stage: 1, deload: false, free: false, ex, sets }
+    }
     if (add) {
       // 지난 날짜에 기록 추가: 빈 목록에서 세트 추가 (일반 세트, 한 것으로)
       const p = s.lifts[add.lift]
@@ -44,8 +59,13 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     const x = editId ? s.sessions.find((ss) => ss.id === editId) : undefined
     return x ? { lift: x.lift, program: x.program, date: x.date, stage: x.stage, deload: x.deload, free: x.free, sets: x.sets.map((r) => ({ ...r })) } : null
   })
-  const a = editing ? draft : s.active
-  const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : updateSets(fn))
+  const etcCur = etc === 'active' ? s.etcActive?.cur : undefined
+  const a = etc === 'active' ? (etcCur && s.etcActive ? { lift: 'B' as LiftKey, program: undefined, date: s.etcActive.date, stage: 1, deload: false, sets: etcCur.sets } : null) : editing ? draft : s.active
+  const upd = (fn: (sets: SetRow[]) => SetRow[]) => (editing ? setDraft((d) => d && { ...d, sets: fn(d.sets) }) : etc === 'active' ? updateEtcSets(fn) : updateSets(fn))
+  /** 자유 훈련이면 운동 이름이 제목 */
+  const exName = etcCur ? etcCur.ex : draft && 'ex' in draft ? draft.ex : undefined
+  /** 운동 시간 기준 (지금 하는 훈련만) */
+  const startAt = editing ? undefined : etc === 'active' ? s.etcActive?.start : s.active?.start
   /** 고른 칸: 세트 id, 무게/횟수, d = 드롭 줄 번호(드롭세트) */
   const [edit, setEditRaw] = useState<Edit | null>(null)
   /** 키패드로 치는 중인 글자. null이면 아직 안 친 상태(처음 누르는 숫자가 원래 값을 바꾼다) */
@@ -67,16 +87,17 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const [countFor, setCountFor] = useState<{ id: string; kind: 'A' | 'S'; buf: string; got?: number } | null>(null)
   const [gearFor, setGearFor] = useState<{ id: string; sel: string[]; rest: boolean } | null>(null)
   const [warmOpen, setWarmOpen] = useState(false)
-  const timer = useRestTimer(s.active?.rest ?? DEFAULT_REST, setRest, { sound: s.settings.sound !== false })
+  const timer = useRestTimer((etc ? s.etcActive?.rest : s.active?.rest) ?? DEFAULT_REST, etc ? setEtcRest : setRest, { sound: s.settings.sound !== false })
   // 오늘 운동 기록 중에는 화면이 꺼지지 않게 (지난 기록 수정·추가 때는 제외)
-  useWakeLock(!editing && !!s.active)
+  useWakeLock(!editing && (etc ? !!s.etcActive : !!s.active))
+  const hasA = !!a
   useEffect(() => {
-    if (!a) go(back ?? { name: 'home' })
-  }, [a, go, back])
+    if (!hasA) go(back ?? (etc === 'active' ? { name: 'etcLobby' } : { name: 'home' }))
+  }, [hasA, go, back, etc])
 
   if (!a) return null
   const lift = a.lift
-  const th = TH[lift]
+  const th = etc ? ETC_TH : TH[lift]
   const u = s.settings.unit
   const st = stepOf(s)
   const owned = s.settings.gear.length ? s.settings.gear : allGear(s.settings)
@@ -87,7 +108,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   const sub = `${'free' in a && a.free ? L('자유 운동', 'Free workout') : a.deload ? L('디로드', 'Deload') : phaseTitle(programOf(a.program), a.lift, a.stage)} · ${md(a.date)}`
 
   const patch = (id: string, p: Partial<SetRow>) => upd((sets) => sets.map((r) => (r.id === id ? { ...r, ...p } : r)))
-  const needsRpe = (r: SetRow) => !a.deload && !r.noRpe && (r.type === 'T' || r.type === 'B')
+  const needsRpe = (r: SetRow) => !etc && !a.deload && !r.noRpe && (r.type === 'T' || r.type === 'B')
   const label = (r: SetRow) => {
     const same = a.sets.filter((x) => x.type === r.type)
     const idx = same.findIndex((x) => x.id === r.id) + 1
@@ -136,7 +157,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     setEdit(null)
   }
   const addSetAfter = (r: SetRow) => {
-    const n: SetRow = { ...r, id: uid(), done: !!add, rpe: undefined, got: undefined, drops: r.drops?.map((d) => ({ ...d })) }
+    const n: SetRow = { ...r, id: uid(), done: !!add || !!etcLog, rpe: undefined, got: undefined, drops: r.drops?.map((d) => ({ ...d })) }
     upd((sets) => {
       const i = sets.findIndex((x) => x.id === r.id)
       return [...sets.slice(0, i + 1), n, ...sets.slice(i + 1)]
@@ -154,7 +175,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
     const fr = open && edit?.f === 'r' && edit.d === undefined
     const amrapWait = r.type === 'A' && !r.done
     const showGot = (r.rpe === 'fail' || r.type === 'S') && r.got !== undefined
-    const chip = dOpen ? { bg: 'var(--fill2)', fg: r.type === 'W' ? 'var(--sub)' : th.text } : chipColors(r.type, lift)
+    const chip = dOpen ? { bg: 'var(--fill2)', fg: r.type === 'W' ? 'var(--sub)' : th.text } : chipColors(r.type, etc ? ETC_TH : lift)
     const cell = (sel: boolean): CSSProperties => ({ height: 40, width: '100%', borderRadius: 10, border: `2px solid ${sel ? (dark ? '#fff' : th.strong) : lit ? '#fff' : 'transparent'}`, background: lit ? '#fff' : 'var(--fill2)', fontSize: 16, fontWeight: 700, color: lit ? '#191f28' : 'var(--ink)' })
     const circle: CSSProperties = { justifySelf: 'center', width: 40, height: 40, borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }
     const doneBg = lit ? '#fff' : dOpen ? 'var(--fill2)' : th.acc
@@ -377,16 +398,19 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
   return (
     <div className="screen">
       <header style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 8px 8px' }}>
-        <button aria-label={editing ? L('수정 취소', 'Cancel edit') : L('종목 화면으로', 'Back')} onClick={() => go(editing ? (back ?? { name: 'home' }) : { name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button aria-label={editing ? L('수정 취소', 'Cancel edit') : L('종목 화면으로', 'Back')} onClick={() => go(editing ? (back ?? { name: 'home' }) : etc ? { name: 'etcLobby' } : { name: 'lift', lift })} style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#191F28" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 6l-6 6 6 6" />
           </svg>
         </button>
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: th.text }}>{th.title}</h1>
-          <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
-            {add ? `${L('기록 추가', 'Add')} · ${sub}` : editing ? `${L('기록 수정', 'Edit')} · ${sub}` : sub}
-          </span>
+        {startAt !== undefined && <Elapsed start={startAt} />}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, alignItems: startAt !== undefined ? 'center' : undefined, paddingRight: startAt !== undefined ? 64 : 0 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{exName ? L(exName.ko, exName.en) : th.title}</h1>
+          {(editing || (!etc && startAt === undefined)) && (
+            <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>
+              {etcLog ? `${L('자유 훈련 수정', 'Edit')} · ${md(a.date)}` : add ? `${L('기록 추가', 'Add')} · ${sub}` : editing ? `${L('기록 수정', 'Edit')} · ${sub}` : sub}
+            </span>
+          )}
         </div>
       </header>
 
@@ -435,7 +459,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           <button
             onClick={() => {
               // 지난 기록 추가는 일반 세트(한 것으로), 무게부터 키패드로
-              const n: SetRow = add ? { id: uid(), type: 'N', weight: s.lifts[lift].top, reps: 5, done: true, gear: [] } : { id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }
+              const n: SetRow = etc ? { id: uid(), type: 'N', weight: 0, reps: 10, done: !!etcLog, gear: [] } : add ? { id: uid(), type: 'N', weight: s.lifts[lift].top, reps: 5, done: true, gear: [] } : { id: uid(), type: 'B', weight: s.lifts[lift].backoff, reps: 5, done: false, gear: [] }
               upd(() => [n])
               if (add) setEdit({ id: n.id, f: 'w' })
             }}
@@ -465,6 +489,7 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
         <div style={{ padding: '10px 20px var(--safe-bot)' }}>
           <button
             onClick={() => {
+              if (etcLog && draft && 'ex' in draft && draft.ex) saveEtcItem(etcLog.id, etcLog.i, { ex: draft.ex, sets: draft.sets })
               if (editId && draft) saveSession(editId, draft.sets)
               if (add && draft) addSession(draft)
               go(back ?? { name: 'home' })
@@ -479,6 +504,10 @@ export default function Workout({ go, editId, add, back }: { go: Go; editId?: st
           {timerCard(false)}
           <button
             onClick={() => {
+              if (etc) {
+                finishEtcItem()
+                return go({ name: 'etcLobby' })
+              }
               const id = finishWorkout()
               if (id) go({ name: 'result', id })
             }}

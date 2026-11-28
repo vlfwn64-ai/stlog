@@ -5,13 +5,17 @@ import type { LiftKey } from '../logic/program'
 import { atTest, mainSet, repsText, sessionTag } from '../logic/programs'
 import type { AppState } from '../store'
 import { progOf, step as stepOf, today, useApp } from '../store'
-import { CARD_ORDER, TH, fmt, md, rpeText } from '../theme'
+import { CARD_ORDER, ETC_TH, TH, fmt, md, rpeText } from '../theme'
+import { Elapsed } from './Etc'
 import { HomeChart, PillToggle, RangeTabs, ts } from '../ui'
 import type { Range } from '../ui'
 import type { Pt } from '../ui'
 import type { Go, Tab } from '../App'
 import { GrowthTiers, HomeTierBig, TierSheet } from './Tier'
 import DaySheet from './DaySheet'
+
+/** 종목 색: 3대 또는 ETC */
+const col = (k: LiftKey | 'E') => (k === 'E' ? ETC_TH : TH[k])
 
 /** 종목별 추정(세션 e1RM) / 실제(1RM 기록) 점 */
 export function liftPoints(s: AppState, lift: LiftKey, mode: 'est' | 'act'): Pt[] {
@@ -55,10 +59,11 @@ function Calendar({ s, onPick, off, setOff }: { s: AppState; onPick: (date: stri
   const m = d0.getMonth()
   const days = new Date(y, m + 1, 0).getDate()
   const lead = d0.getDay()
-  const byDate = new Map<string, LiftKey[]>()
-  const add = (date: string, k: LiftKey) => byDate.set(date, [...new Set([...(byDate.get(date) ?? []), k])])
+  const byDate = new Map<string, (LiftKey | 'E')[]>()
+  const add = (date: string, k: LiftKey | 'E') => byDate.set(date, [...new Set([...(byDate.get(date) ?? []), k])])
   s.sessions.forEach((x) => add(x.date, x.lift))
   s.tests.forEach((x) => add(x.date, x.lift))
+  ;(s.etcLogs ?? []).forEach((x) => add(x.date, 'E'))
   const key = (d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   const todayKey = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`
   return (
@@ -114,9 +119,9 @@ function Calendar({ s, onPick, off, setOff }: { s: AppState; onPick: (date: stri
             lifts.length === 0
               ? 'transparent'
               : lifts.length === 1
-                ? TH[lifts[0]].acc
-                : `linear-gradient(135deg, ${lifts.map((l, j) => `${TH[l].acc} ${(j / lifts.length) * 100}% ${((j + 1) / lifts.length) * 100}%`).join(', ')})`
-          const fg = lifts.length === 1 ? TH[lifts[0]].on : lifts.length ? '#ffffff' : 'var(--ink)'
+                ? col(lifts[0]).acc
+                : `linear-gradient(135deg, ${lifts.map((l, j) => `${col(l).acc} ${(j / lifts.length) * 100}% ${((j + 1) / lifts.length) * 100}%`).join(', ')})`
+          const fg = lifts.length === 1 ? col(lifts[0]).on : lifts.length ? '#ffffff' : 'var(--ink)'
           return (
             <span
               key={k}
@@ -205,7 +210,8 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
   const cal = monthAt(calOff)
   const calKey = `${cal.y}-${String(cal.m + 1).padStart(2, '0')}`
   const history = [
-    ...s.sessions.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: sessionTag(x), text: sessionLine(x, u) })),
+    ...s.sessions.map((x) => ({ id: x.id, date: x.date, lift: x.lift as LiftKey | 'E', tag: sessionTag(x), text: sessionLine(x, u) })),
+    ...(s.etcLogs ?? []).map((x) => ({ id: x.id, date: x.date, lift: 'E' as const, tag: L(`${x.items.length}종목`, `${x.items.length} exercises`), text: x.items.map((it) => L(it.ex.ko, it.ex.en)).join(' · ') })),
     ...s.tests.map((x) => ({ id: x.id, date: x.date, lift: x.lift, tag: L('1RM 테스트', '1RM test'), text: `${x.attempts.map((a) => `${fmt(a.weight)} ${a.ok ? '✓' : '✗'}`).join(' · ')}` })),
   ]
     .filter((x) => x.date.startsWith(calKey))
@@ -226,7 +232,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
     // 종목 화면 탭 위치: 헤더 왼쪽 8 + 뒤로 44 + 4, 오른쪽 12, 탭 사이 4
     const navX = 56
     const navW = r0.width - navX - 12
-    const tw = (navW - 8) / 3
+    const tw = (navW - 12) / 4
     const to = [0, 1, 2].map((i) => ({ x: navX + i * (tw + 4), y: safeTop + 12, w: tw, h: 44 }))
     setAnim({ lift: k, from, to, phase: 0 })
     requestAnimationFrame(() => requestAnimationFrame(() => setAnim((a) => a && { ...a, phase: 1 })))
@@ -310,6 +316,18 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => go(s.etcActive ? { name: 'etcLobby' } : { name: 'etc', from: 'right' })}
+            style={{ marginTop: 8, width: '100%', height: 64, borderRadius: 16, background: ETC_TH.acc, color: ETC_TH.on, display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px 0 20px', visibility: anim ? 'hidden' : undefined }}
+          >
+            <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>ETC</span>
+            <span aria-hidden="true" style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.35)' }} />
+            <span style={{ flex: 1, textAlign: 'left', fontSize: 17, fontWeight: 700 }}>{s.etcActive ? L('자유 훈련 · 진행 중', 'Free training · live') : L('자유 훈련', 'Free training')}</span>
+            {s.etcActive && <span style={{ color: '#fff' }}><Elapsed start={s.etcActive.start} size={15} /></span>}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
         </section>
           </>
         )}
@@ -325,10 +343,10 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
                     <span style={{ fontSize: 15, fontWeight: 800 }}>{L(`${+h.date.slice(8, 10)}일`, `${+h.date.slice(8, 10)}`)}</span>
                     <span style={{ fontSize: 11, color: 'var(--mute)' }}>{weekHead()[new Date(h.date + 'T12:00:00').getDay()]}</span>
                   </span>
-                  <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 8, background: TH[h.lift].acc, color: TH[h.lift].on, fontSize: 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{h.lift}</span>
+                  <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: 8, background: col(h.lift).acc, color: col(h.lift).on, fontSize: h.lift === 'E' ? 10 : 14, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{h.lift === 'E' ? 'ETC' : h.lift}</span>
                   <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                     <span style={{ fontSize: 14, fontWeight: 700 }}>
-                      {TH[h.lift].name}{' '}
+                      {col(h.lift).name}{' '}
                       <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--mute)' }}>{h.tag}</span>
                     </span>
                     <span className="num" style={{ fontSize: 13, color: 'var(--sub)' }}>

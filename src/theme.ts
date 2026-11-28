@@ -70,6 +70,16 @@ export const TH: Record<LiftKey, Theme> = {
   S: { ...LIGHT.S },
 }
 
+/** ETC(자유 훈련) 색: 목업의 짙은 회청색 */
+const ETC_LIGHT: Theme = {
+  acc: '#3F4654', on: '#ffffff', text: '#3F4654', line: '#3F4654', tint: '#EEF0F3', deep: '#2C323D',
+  boxLine: '#C9CED6', rowBg: '#F4F5F7', shadow: '0 3px 10px rgba(63,70,84,0.3)',
+  name: '자유 훈련', tab: 'ETC', title: 'ETC', label: '#3F4654', letter: '#3F4654',
+  testBg: '#3F4654', testFg: '#ffffff', solidBg: '#ffffff', solidFg: '#2C323D', soft: '#EEF0F3', strong: '#2C323D', press: '#2C323D',
+}
+const ETC_DARK: Partial<Theme> = { acc: '#4E5666', text: '#C3C9D3', line: '#AEB5C1', tint: '#2A2E36', deep: '#D5DAE2', boxLine: '#4A505C', rowBg: '#23262D', label: '#C3C9D3', letter: '#C3C9D3', shadow: '0 3px 10px rgba(0,0,0,0.4)' }
+export const ETC_TH: Theme = { ...ETC_LIGHT }
+
 let darkOn = false
 export const isDark = () => darkOn
 
@@ -78,6 +88,7 @@ const NAME_EN: Record<LiftKey, string> = { B: 'Bench Press', D: 'Deadlift', S: '
 export function setDark(dark: boolean) {
   darkOn = dark
   for (const k of ['B', 'D', 'S'] as LiftKey[]) Object.assign(TH[k], LIGHT[k], dark ? DARK[k] : {}, isEn() ? { name: NAME_EN[k] } : {})
+  Object.assign(ETC_TH, ETC_LIGHT, dark ? ETC_DARK : {}, isEn() ? { name: 'Free training' } : {})
 }
 
 /** 홈 카드·종목 탭 순서 */
@@ -105,8 +116,8 @@ const GEAR_EN: Record<string, string> = { 벨트: 'Belt', 스트랩: 'Straps', �
 export const gearName = (g: string) => (isEn() ? (GEAR_EN[g] ?? g) : g)
 
 /** 세트 종류 칩 색 (목업 TYPES 표) */
-export function chipColors(k: string, lift: LiftKey): { bg: string; fg: string } {
-  const th = TH[lift]
+export function chipColors(k: string, lift: LiftKey | Theme): { bg: string; fg: string } {
+  const th = typeof lift === 'string' ? TH[lift] : lift
   if (k === 'W') return { bg: 'var(--fill)', fg: 'var(--sub)' }
   if (k === 'T') return { bg: th.acc, fg: th.on }
   if (k === 'B') return { bg: th.tint, fg: th.deep }

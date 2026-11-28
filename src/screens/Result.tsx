@@ -1,7 +1,8 @@
 import { L, setsLabel } from '../i18n'
 import { atTest, groupSets, phaseChip, sessionTag } from '../logic/programs'
 import { progOf, step as stepOf, useApp } from '../store'
-import { TH, chipText, dropsText, chipColors, fmt, md, rpeText } from '../theme'
+import { ETC_TH, TH, chipText, dropsText, chipColors, fmt, md, rpeText } from '../theme'
+import { startEtc } from '../actions'
 import type { Go } from '../App'
 
 const chip = (n: number, u: string) => (n > 0 ? `+${fmt(n)}${u}` : n < 0 ? `−${fmt(-n)}${u}` : L('유지', 'Same'))
@@ -127,9 +128,19 @@ export default function Result({ id, go }: { id: string; go: Go }) {
           </div>
         </section>
       </main>
-      <div style={{ padding: '12px 20px var(--safe-bot)' }}>
+      <div style={{ padding: '12px 20px var(--safe-bot)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button
+          onClick={() => {
+            // 운동 시간은 3대 훈련 시작부터 이어서
+            startEtc(log.start)
+            go({ name: 'etcLobby' })
+          }}
+          style={{ width: '100%', height: 56, borderRadius: 14, background: ETC_TH.acc, color: ETC_TH.on, fontSize: 17, fontWeight: 700 }}
+        >
+          {L('이어서 자유 훈련하기', 'Continue with free training')}
+        </button>
         <button onClick={() => go({ name: 'home' })} style={{ width: '100%', height: 56, borderRadius: 14, background: th.acc, color: th.on, fontSize: 17, fontWeight: 700 }}>
-          {L('확인', 'OK')}
+          {L('훈련 종료하기', 'Finish')}
         </button>
       </div>
     </div>

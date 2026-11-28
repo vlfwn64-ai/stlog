@@ -7,7 +7,7 @@ import { atTest, groupSets, levelName, mainSet, phaseTitle, programOf, repsText 
 import { cancelWorkout, goNextStage, previewNextStage, startWorkout } from '../actions'
 import type { AppState, SessionLog } from '../store'
 import { progOf, step as stepOf, useApp } from '../store'
-import { CARD_ORDER, TH, fmt, md, rpeText } from '../theme'
+import { CARD_ORDER, ETC_TH, TH, fmt, md, rpeText } from '../theme'
 import { Confirm, LiftChart, PillToggle, RangeTabs, Sheet, SummaryRows, ts } from '../ui'
 import type { Range } from '../ui'
 import type { Go } from '../App'
@@ -158,7 +158,8 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
         if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
         const i = CARD_ORDER.indexOf(lift)
         const j = i + (dx < 0 ? 1 : -1)
-        if (j < 0 || j >= CARD_ORDER.length) return
+        if (j === CARD_ORDER.length) return go({ name: 'etc', from: 'right' })
+        if (j < 0 || j > CARD_ORDER.length) return
         go({ name: 'lift', lift: CARD_ORDER[j], from: dx < 0 ? 'right' : 'left' })
       }}
     >
@@ -178,6 +179,10 @@ export default function Lift({ lift, go, enter, slide }: { lift: LiftKey; go: Go
               </button>
             )
           })}
+          <button onClick={() => go({ name: 'etc', from: 'right' })} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, paddingTop: 10 }}>
+            <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--sub)' }}>{ETC_TH.tab}</span>
+            <span style={{ width: '60%', height: 3, borderRadius: 2, background: ETC_TH.acc }} />
+          </button>
         </nav>
       </header>
 

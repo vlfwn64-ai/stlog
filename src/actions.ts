@@ -2,7 +2,8 @@ import type { LiftKey, Rpe, Unit } from './logic/program'
 import { deloadSets, e1rm, roundDown, stepOf, testResult, warmups } from './logic/program'
 import type { AfterResult, ProgramId } from './logic/programs'
 import { atTest, programOf, sessionE1rm, toPlate, withMain } from './logic/programs'
-import type { AppState, Body, LiftState, RestState, SessionLog, SetRow } from './store'
+import type { AppState, Body, EtcItem, LiftState, RestState, SessionLog, SetRow } from './store'
+import type { Exercise } from './exercises'
 import { getState, initLift, progOf, setState, step, today, uid } from './store'
 
 const row = (type: SetRow['type'], weight: number, reps: number, extra?: Partial<SetRow>): SetRow => ({
@@ -37,7 +38,7 @@ export function startWorkout(lift: LiftKey, deload = false) {
       ...work.map((w) => row(w.type, w.weight, w.reps, { goal: w.reps, ...(w.rpe ? {} : { noRpe: true }) })),
     ]
   }
-  setState((x) => ({ ...x, active: { lift, program: prog.id, date: today(), stage: p.stage, deload, sets } }))
+  setState((x) => ({ ...x, active: { start: Date.now(), lift, program: prog.id, date: today(), stage: p.stage, deload, sets } }))
 }
 
 export function updateSets(fn: (sets: SetRow[]) => SetRow[]) {
@@ -77,7 +78,7 @@ export function finishWorkout(): string | null {
   const p = s.lifts[a.lift]
   const prog = programOf(a.program)
   const est = sessionE1rm(a.sets)
-  const log: SessionLog = { id: uid(), date: a.date, lift: a.lift, stage: a.stage, deload: a.deload, sets: a.sets, e1rm: est, cycle: p.cycle ?? 1, program: prog.id }
+  const log: SessionLog = { id: uid(), date: a.date, lift: a.lift, stage: a.stage, deload: a.deload, sets: a.sets, e1rm: est, cycle: p.cycle ?? 1, program: prog.id, ...(a.start ? { start: a.start, end: Date.now() } : {}) }
   let lifts = s.lifts
   if (!a.deload) {
     const r = prog.after(a.lift, p, a.sets, st)
@@ -300,4 +301,96 @@ export function deleteTest(id: string) {
       .reverse()
     return { ...x, tests: x.tests.filter((tt) => tt.id !== id), rmHistory }
   })
+}
+
+/* ───────── 자유 훈련 (ETC) ───────── */
+
+/** 같은 운동의 가장 최근 기록 (지금 하는 훈련 포함) */
+export function lastEtcItem(s: AppState, id: string): { item: EtcItem; date: string } | null {
+  const cur = [...(s.etcActive?.items ?? [])].reverse().find((it) => it.ex.id === id)
+  if (cur && s.etcActive) return { item: cur, date: s.etcActive.date }
+  const logs = s.etcLogs ?? []
+  for (let i = logs.length - 1; i >= 0; i--) {
+    const it = [...logs[i].items].reverse().find((x) => x.ex.id === id)
+    if (it) return { item: it, date: logs[i].date }
+  }
+  return null
+}
+
+/** 자유 훈련 시작 (3대 훈련에서 이어서 하면 그 시작 시각을 이어받는다) */
+export function startEtc(start?: number) {
+  setState((x) => (x.etcActive ? x : { ...x, etcActive: { date: today(), start: start ?? Date.now(), items: [] } }))
+}
+
+/** 운동 하나 고르기: 세트는 지난번 그대로 (완료는 비우고) */
+export function pickEtc(e: Exercise) {
+  const s = getState()
+  const last = lastEtcItem(s, e.id)
+  const sets: SetRow[] = last
+    ? last.item.sets.map((r) => ({ ...r, id: uid(), done: false, rpe: undefined, got: undefined, drops: r.drops?.map((d) => ({ ...d })) }))
+    : [0, 1, 2].map(() => ({ id: uid(), type: 'N', weight: 0, reps: 10, done: false, gear: [] }))
+  const item: EtcItem = { ex: { id: e.id, ko: e.ko, en: e.en, mus: e.mus, sec: e.sec }, sets }
+  setState((x) => (x.etcActive ? { ...x, etcActive: { ...x.etcActive, cur: item } } : x))
+}
+
+export function updateEtcSets(fn: (sets: SetRow[]) => SetRow[]) {
+  setState((x) => (x.etcActive?.cur ? { ...x, etcActive: { ...x.etcActive, cur: { ...x.etcActive.cur, sets: fn(x.etcActive.cur.sets) } } } : x))
+}
+
+export function setEtcRest(rest: RestState) {
+  setState((x) => (x.etcActive ? { ...x, etcActive: { ...x.etcActive, rest } } : x))
+}
+
+/** 운동 하나 기록 완료 → 로비로 (한 세트도 안 했으면 버린다) */
+export function finishEtcItem() {
+  setState((x) => {
+    const a = x.etcActive
+    if (!a?.cur) return x
+    const sets = a.cur.sets.filter((r) => r.done)
+    return { ...x, etcActive: { ...a, cur: undefined, items: sets.length ? [...a.items, { ...a.cur, sets }] : a.items } }
+  })
+}
+
+/** 기록 중인 운동 그만두기 */
+export function dropEtcItem() {
+  setState((x) => (x.etcActive ? { ...x, etcActive: { ...x.etcActive, cur: undefined } } : x))
+}
+
+/** 오늘 자유 훈련에서 끝낸 운동 하나 지우기 */
+export function removeEtcItem(i: number) {
+  setState((x) => (x.etcActive ? { ...x, etcActive: { ...x.etcActive, items: x.etcActive.items.filter((_, j) => j !== i) } } : x))
+}
+
+/** 자유 훈련 끝: 한 운동이라도 했으면 기록으로 남긴다 */
+export function finishEtc(): string | null {
+  const a = getState().etcActive
+  if (!a) return null
+  const items = [...a.items, ...(a.cur && a.cur.sets.some((r) => r.done) ? [{ ...a.cur, sets: a.cur.sets.filter((r) => r.done) }] : [])]
+  const id = uid()
+  setState((x) => ({ ...x, etcActive: undefined, etcLogs: items.length ? [...(x.etcLogs ?? []), { id, date: a.date, start: a.start, end: Date.now(), items }].sort((p, q) => (p.date < q.date ? -1 : p.date > q.date ? 1 : 0)) : x.etcLogs }))
+  return items.length ? id : null
+}
+
+/** 지난 자유 훈련: 운동 하나 고치기 (세트가 없으면 그 운동을 뺀다), i가 길이와 같으면 새로 추가 */
+export function saveEtcItem(logId: string, i: number, item: EtcItem) {
+  const sets = item.sets.filter((r) => r.done)
+  setState((x) => ({
+    ...x,
+    etcLogs: (x.etcLogs ?? []).map((l) => {
+      if (l.id !== logId) return l
+      const items = [...l.items]
+      if (sets.length) items[i] = { ...item, sets }
+      else items.splice(i, 1)
+      return { ...l, items }
+    }),
+  }))
+}
+
+export function deleteEtc(id: string) {
+  setState((x) => ({ ...x, etcLogs: (x.etcLogs ?? []).filter((l) => l.id !== id) }))
+}
+
+/** 직접 만든 운동 저장 */
+export function addCustomExercise(e: Exercise) {
+  setState((x) => ({ ...x, customExercises: [...(x.customExercises ?? []), e] }))
 }
