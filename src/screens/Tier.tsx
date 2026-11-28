@@ -223,14 +223,15 @@ function LiftMark({ lift, size, line }: { lift: LiftKey; size: number; line: str
 }
 
 /** 홈: 큰 티어 카드 (목업 D안). 3대 티어 크게 + 종목 칸은 각 티어 색. 누르면 그 티어 화면 */
-export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
+export function HomeTierBig({ s, go, fit = 0 }: { s: AppState; go: Go; fit?: number }) {
   const t = overallTier(s)
   const b = s.settings.body
   if (!t || !b) return <NeedBody go={go} />
   const u = s.settings.unit
   const sum = total(s)
-  // 홈은 스크롤이 잠겨 있어서, 키가 작은 화면(아이폰 SE 등)에서는 카드를 줄여 한 화면에 맞춘다
-  const short = window.innerHeight < 760
+  // 홈은 스크롤이 잠겨 있어서, 홈이 넘치면(fit) 카드를 줄여 한 화면에 맞춘다
+  const short = fit >= 1
+  const tiny = fit >= 2
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: short ? 8 : 12, padding: short ? 14 : 16, borderRadius: 22, background: 'var(--fill2)' }}>
       <button onClick={() => go({ name: 'tierview' })} aria-label={`${L('3대 티어', 'Big 3 tier')} ${t.tier.name()}, ${nextText(t, u)}`} style={{ display: 'flex', flexDirection: 'column', gap: short ? 8 : 12, textAlign: 'left' }}>
@@ -242,7 +243,7 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
           </span>
         </span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: -2 }}>
-          <Badge tier={t.tier} size={short ? 64 : 100} />
+          <Badge tier={t.tier} size={tiny ? 52 : short ? 64 : 100} />
           <span style={{ fontSize: short ? 24 : 28, fontWeight: 900, letterSpacing: -0.6, lineHeight: 1.15 }}>{t.tier.name()}</span>
           <span className="num" style={{ fontSize: 14, fontWeight: 800, color: t.tier.text }}>
             {myTopText(t)}
@@ -262,6 +263,7 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
           <Bar t={t} h={8} />
         </span>
       </button>
+      {fit < 3 && (
       <span style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
         {(['B', 'D', 'S'] as LiftKey[]).map((k) => {
           const lt = tierInfo(s.lifts[k].oneRM, b.weight, b.sex, u, k)
@@ -282,6 +284,7 @@ export function HomeTierBig({ s, go }: { s: AppState; go: Go }) {
           )
         })}
       </span>
+      )}
     </div>
   )
 }
