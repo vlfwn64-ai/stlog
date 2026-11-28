@@ -1,5 +1,5 @@
 import { L, dayTitle, monthTitle, setsLabel, weekHead } from '../i18n'
-import { useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LiftKey } from '../logic/program'
 import { atTest, mainSet, repsText, sessionTag } from '../logic/programs'
@@ -239,6 +239,26 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
     setTimeout(() => go({ name: 'lift', lift: k, from: 'home' }), 470)
   }
 
+  // 홈은 스크롤이 잠겨 있어서, 넘치면 티어 카드부터 단계별로 줄여 한 화면에 맞춘다 (0 보통 → 3 종목 티어 칸 숨김, 4면 스크롤 허용)
+  const mainRef = useRef<HTMLElement>(null)
+  const [fit, setFit] = useState(0)
+  useEffect(() => {
+    const reset = () => setFit(0)
+    window.addEventListener('resize', reset)
+    return () => window.removeEventListener('resize', reset)
+  }, [])
+  useLayoutEffect(() => {
+    const m = mainRef.current
+    if (tab !== 'home' || !m) return
+    const check = () => {
+      if (m.scrollHeight > m.clientHeight + 1) setFit((f) => Math.min(4, f + 1))
+    }
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(m)
+    Array.from(m.children).forEach((c) => ro.observe(c))
+    return () => ro.disconnect()
+  }, [tab, fit, s.settings.body])
   const moving = anim?.phase === 1
   const fade: CSSProperties = { opacity: moving ? 0 : 1, transform: moving ? 'translateY(40px)' : undefined, transition: `opacity 220ms ease, transform 380ms ${EASE}` }
 
@@ -257,6 +277,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
       </header>
       <main
         key={tab}
+        ref={mainRef}
         className="scroll"
         onTouchStart={(e) => {
           const t = e.touches[0]
@@ -272,7 +293,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
           if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
           shiftTab(dx < 0 ? 1 : -1)
         }}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px 20px', overflowY: tab === 'home' ? 'hidden' : undefined, animation: slide ? `${slide} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 20px 20px', overflowY: tab === 'home' && fit < 4 ? 'hidden' : undefined, animation: slide ? `${slide} 260ms cubic-bezier(0.2,0.8,0.2,1) both` : undefined }}
       >
         {tab === 'grow' && (
           <>
@@ -298,7 +319,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
         {tab === 'home' && (
           <>
             <div style={fade}>
-              <HomeTierBig s={s} go={go} />
+              <HomeTierBig s={s} go={go} fit={fit} />
             </div>
         <section style={fade}>
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{L('훈련 기록하기', 'Log a workout')}</h2>
@@ -310,7 +331,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
                   cards.current[i] = el
                 }}
                 onClick={() => open(k)}
-                style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 140, visibility: anim ? 'hidden' : undefined }}
+                style={{ borderRadius: 16, background: TH[k].acc, color: TH[k].on, padding: 14, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight: fit >= 2 ? 118 : 140, visibility: anim ? 'hidden' : undefined }}
               >
                 <CardFace k={k} est={cardEst(s, k)} live={s.active?.lift === k} main={mainText(s, k)} />
               </button>
@@ -318,7 +339,7 @@ export default function Home({ go, tab: tab0 }: { go: Go; tab?: Tab }) {
           </div>
           <button
             onClick={() => go(s.etcActive ? { name: 'etcLobby' } : { name: 'etc', from: 'right' })}
-            style={{ marginTop: 8, width: '100%', height: 64, borderRadius: 16, background: ETC_TH.acc, color: ETC_TH.on, display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px 0 20px', visibility: anim ? 'hidden' : undefined }}
+            style={{ marginTop: 8, width: '100%', height: fit >= 2 ? 56 : 64, borderRadius: 16, background: ETC_TH.acc, color: ETC_TH.on, display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px 0 20px', visibility: anim ? 'hidden' : undefined }}
           >
             <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>ETC</span>
             <span aria-hidden="true" style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.35)' }} />

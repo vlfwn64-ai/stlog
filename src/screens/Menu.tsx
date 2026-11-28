@@ -145,7 +145,7 @@ export default function Menu({ go }: { go: Go }) {
           {cloudReady && cloud.session && <Row label={L('로그아웃', 'Sign out')} value="›" onClick={() => setPop('reset')} color="#D92B3A" />}
           {admin && <Row label={L('관리자', 'Admin')} value={`${L('사용자 기록', 'User data')} ›`} onClick={() => go({ name: 'admin' })} />}
         </Section>
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.4</div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--faint)', padding: '4px 0' }}>ST LOG v0.5</div>
       </main>
 
       {pop === 'rm' && (
